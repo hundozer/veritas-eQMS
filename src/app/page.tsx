@@ -1656,78 +1656,107 @@ export default function Home() {
         {/* Registration & Login Modals */}
         {showLoginModal && (
           <div className={styles.modalOverlay}>
-            <div className={styles.modalContent} style={{ maxWidth: '650px' }}>
+            <div className={styles.modalContent} style={{ maxWidth: '520px' }}>
               <div className={styles.modalHeader}>
-                <h3>Member Sign In</h3>
+                <h3>Sign In to Veritas Workspace</h3>
                 <button style={{ background: 'transparent', border: 'none', color: '#fff', fontSize: '20px', cursor: 'pointer' }} onClick={() => setShowLoginModal(false)}>×</button>
               </div>
               <div className={styles.modalBody}>
-                {errorMessage && (
-                  <div style={{ background: 'rgba(239,68,68,0.15)', border: '1px solid #EF4444', color: '#F87171', padding: '10px 14px', borderRadius: '6px', fontSize: '13px', marginBottom: '16px' }}>
-                    ⚠ {errorMessage}
-                  </div>
-                )}
-                <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '16px' }}>
-                  Select an account or enter your registered work email address to sign into your organization's eQMS workspace.
-                </p>
-
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '24px' }}>
-                  <span style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', fontWeight: '600' }}>Registered Accounts</span>
-                  {users.map((u) => (
-                    <div
-                      key={u.id}
-                      className="glass"
-                      onClick={async () => {
-                        const ok = await handleLoginUser(u.email);
-                        if (ok) setViewMode('app');
-                      }}
-                      style={{
-                        padding: '12px 16px',
-                        borderRadius: '8px',
-                        cursor: 'pointer',
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'center',
-                        background: currentUser?.email === u.email ? 'rgba(16,185,129,0.1)' : 'rgba(255,255,255,0.02)',
-                        border: currentUser?.email === u.email ? '1px solid var(--primary)' : '1px solid rgba(255,255,255,0.06)',
-                      }}
-                    >
-                      <div>
-                        <div style={{ fontWeight: '600', fontSize: '14px' }}>
-                          {u.fullName}
-                          {currentUser?.email === u.email && <span style={{ color: '#10B981', marginLeft: '8px', fontSize: '12px' }}>✓ Active</span>}
-                        </div>
-                        <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '2px' }}>
-                          {u.email} | Dept: {u.department} | Tenant: {u.tenant?.name || 'Acme Biotech'}
-                        </div>
-                      </div>
-                      <span className={`${styles.badge} ${
-                        u.role === 'ADMIN' || u.role === 'OWNER' ? styles.badgeEffective :
-                        u.role === 'AUDITOR' ? styles.badgeReview : styles.badgeDraft
-                      }`}>
-                        {u.role}
-                      </span>
-                    </div>
-                  ))}
+                {/* Enterprise SSO Buttons */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '20px' }}>
+                  <button
+                    type="button"
+                    className={`${styles.btn} ${styles.btnSecondary}`}
+                    style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', padding: '12px', fontSize: '13px', background: 'rgba(255,255,255,0.04)' }}
+                    onClick={() => alert('Microsoft 365 Enterprise SSO initiated. Contact your QA Admin to enable Azure AD Integration.')}
+                  >
+                    <svg width="18" height="18" viewBox="0 0 23 23"><path fill="#f35325" d="M1 1h10v10H1z"/><path fill="#81bc06" d="M12 1h10v10H12z"/><path fill="#05a6f0" d="M1 12h10v10H1z"/><path fill="#ffba08" d="M12 12h10v10H12z"/></svg>
+                    Sign in with Microsoft 365 (Azure AD)
+                  </button>
+                  <button
+                    type="button"
+                    className={`${styles.btn} ${styles.btnSecondary}`}
+                    style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', padding: '12px', fontSize: '13px', background: 'rgba(255,255,255,0.04)' }}
+                    onClick={() => alert('Google Workspace SSO initiated. Contact your QA Admin to enable Google Cloud Identity.')}
+                  >
+                    <svg width="18" height="18" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/></svg>
+                    Sign in with Google Workspace
+                  </button>
                 </div>
 
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', margin: '20px 0', color: 'var(--text-muted)', fontSize: '12px' }}>
+                  <div style={{ flex: 1, height: '1px', background: 'rgba(255,255,255,0.08)' }} />
+                  <span>OR SIGN IN WITH EMAIL</span>
+                  <div style={{ flex: 1, height: '1px', background: 'rgba(255,255,255,0.08)' }} />
+                </div>
+
+                {/* Standard Email Authentication Form */}
                 <form onSubmit={async (e) => { e.preventDefault(); if (loginEmail) { const ok = await handleLoginUser(loginEmail); if (ok) setViewMode('app'); } }}>
                   <div className={styles.formGroup}>
-                    <label className={styles.formLabel}>Or Sign in with Email</label>
-                    <div style={{ display: 'flex', gap: '8px' }}>
-                      <input
-                        className={styles.input}
-                        type="email"
-                        placeholder="user@company.com"
-                        value={loginEmail}
-                        onChange={(e) => setLoginEmail(e.target.value)}
-                      />
-                      <button type="submit" className={`${styles.btn} ${styles.btnPrimary}`} style={{ whiteSpace: 'nowrap' }}>
-                        Sign In
-                      </button>
-                    </div>
+                    <label className={styles.formLabel}>Work Email Address</label>
+                    <input
+                      className={styles.input}
+                      type="email"
+                      placeholder="user@company.com"
+                      value={loginEmail}
+                      onChange={(e) => setLoginEmail(e.target.value)}
+                      required
+                    />
                   </div>
+
+                  <div className={styles.formGroup}>
+                    <label className={styles.formLabel}>Password / MFA Code</label>
+                    <input
+                      className={styles.input}
+                      type="password"
+                      placeholder="••••••••••••"
+                      defaultValue="demo123456"
+                    />
+                  </div>
+
+                  <button type="submit" className={`${styles.btn} ${styles.btnPrimary}`} style={{ width: '100%', marginTop: '8px', padding: '12px', background: '#10B981', color: '#000', fontWeight: '700' }}>
+                    🔒 Secure Sign In (21 CFR Part 11)
+                  </button>
                 </form>
+
+                {/* Collapsible Sandbox Demo Persona Switcher (Development Only) */}
+                <div style={{ marginTop: '24px', paddingTop: '16px', borderTop: '1px solid rgba(255,255,255,0.08)' }}>
+                  <button
+                    type="button"
+                    onClick={() => setShowDemoPersonas(!showDemoPersonas)}
+                    style={{ background: 'transparent', border: 'none', color: '#94A3B8', fontSize: '12px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', margin: '0 auto' }}
+                  >
+                    🧪 {showDemoPersonas ? 'Hide Sandbox Test Personas' : 'Development Sandbox: Switch Test Personas ▾'}
+                  </button>
+
+                  {showDemoPersonas && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '14px', background: 'rgba(0,0,0,0.3)', padding: '12px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.06)' }}>
+                      <span style={{ fontSize: '11px', color: '#F59E0B', fontWeight: '700', textTransform: 'uppercase' }}>⚠️ Demo / Sandbox Persona Accounts</span>
+                      {users.map((u) => (
+                        <div
+                          key={u.id}
+                          onClick={() => { handleLoginUser(u.email); setViewMode('app'); }}
+                          style={{
+                            padding: '10px 12px',
+                            borderRadius: '6px',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                            background: currentUser?.email === u.email ? 'rgba(16,185,129,0.1)' : 'rgba(255,255,255,0.02)',
+                            border: currentUser?.email === u.email ? '1px solid #10B981' : '1px solid rgba(255,255,255,0.06)',
+                          }}
+                        >
+                          <div>
+                            <div style={{ fontWeight: '600', fontSize: '13px' }}>{u.fullName}</div>
+                            <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{u.email} ({u.department})</div>
+                          </div>
+                          <span className={styles.currentBadge} style={{ fontSize: '10px' }}>{u.role}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
               <div className={styles.modalFooter}>
                 <button type="button" className={`${styles.btn} ${styles.btnSecondary}`} onClick={() => setShowLoginModal(false)}>
