@@ -4,6 +4,9 @@ import { useState, useEffect, useCallback } from 'react';
 import styles from './page.module.css';
 import { AppShell, useThemeMode } from '@/ui';
 import type { NavGroup } from '@/ui';
+import dynamic from 'next/dynamic';
+
+const DashboardAnalytics = dynamic(() => import('@/components/DashboardAnalytics'), { ssr: false });
 import {
   Dashboard as DashboardIcon,
   Description as DescriptionIcon,
@@ -971,7 +974,18 @@ export default function Home() {
               </div>
             </div>
 
-            <div className={styles.grid2}>
+            {/* Analytics Charts */}
+            <div style={{ marginTop: '24px' }}>
+              <DashboardAnalytics
+                documents={documents}
+                deviations={deviations}
+                capas={capas}
+                trainings={trainings}
+                equipment={equipmentList}
+              />
+            </div>
+
+            <div className={styles.grid2} style={{ marginTop: '24px' }}>
               {/* Document Overview */}
               <div className={styles.card}>
                 <div className={styles.cardTitle}>Released eQMS Documents</div>
