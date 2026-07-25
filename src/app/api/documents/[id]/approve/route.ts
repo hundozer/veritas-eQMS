@@ -13,9 +13,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       return NextResponse.json({ error: { code: 'Unauthorized', message: 'User context not found' } }, { status: 401 });
     }
 
-    // Check permissions - only APPROVER or ADMIN
-    if (user.role !== 'APPROVER' && user.role !== 'ADMIN') {
-      return NextResponse.json({ error: { code: 'Forbidden', message: 'Only authorized Approvers or QA Admins can execute approvals' } }, { status: 403 });
+    // Check permissions - OWNER, ADMIN, or APPROVER
+    if (user.role !== 'OWNER' && user.role !== 'ADMIN' && user.role !== 'APPROVER') {
+      return NextResponse.json({ error: { code: 'Forbidden', message: 'Only authorized Approvers, System Owners, or QA Admins can execute approvals' } }, { status: 403 });
     }
 
     const body = await req.json();

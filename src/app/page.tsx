@@ -2077,7 +2077,7 @@ export default function Home() {
                     {/* Action buttons */}
                     <div style={{ display: 'flex', gap: '12px', marginTop: '8px' }}>
                       {(selectedDoc.status === 'DRAFT' || selectedDoc.status === 'IN_REVIEW') && 
-                       (currentUser?.role === 'APPROVER' || currentUser?.role === 'ADMIN') && (
+                       (currentUser?.role === 'OWNER' || currentUser?.role === 'APPROVER' || currentUser?.role === 'ADMIN') && (
                         <button className={`${styles.btn} ${styles.btnPrimary}`} onClick={() => setShowApproveModal(true)}>
                           Execute E-Sign & Release
                         </button>
@@ -3395,6 +3395,11 @@ export default function Home() {
             </div>
             <form onSubmit={handleApproveDocument}>
               <div className={styles.modalBody}>
+                {errorMessage && (
+                  <div style={{ background: 'rgba(239,68,68,0.15)', border: '1px solid #EF4444', color: '#F87171', padding: '10px 14px', borderRadius: '6px', fontSize: '13px', marginBottom: '16px' }}>
+                    ⚠ {errorMessage}
+                  </div>
+                )}
                 <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '16px' }}>
                   You are electronically signing the approval of document: <strong style={{ color: '#fff' }}>{selectedDoc.title}</strong> (Version {selectedDoc.currentVersionNumber}.0).
                 </div>
