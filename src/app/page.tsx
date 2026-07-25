@@ -5000,7 +5000,7 @@ export default function Home() {
                   type="button"
                   className={`${styles.btn} ${styles.btnSecondary}`}
                   style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', padding: '12px', fontSize: '13px', background: 'rgba(255,255,255,0.04)' }}
-                  onClick={() => alert('Microsoft 365 Enterprise SSO initiated. Contact your QA Admin to enable Azure AD Integration.')}
+                  onClick={() => { window.location.href = '/api/auth/sso/microsoft'; }}
                 >
                   <svg width="18" height="18" viewBox="0 0 23 23"><path fill="#f35325" d="M1 1h10v10H1z"/><path fill="#81bc06" d="M12 1h10v10H12z"/><path fill="#05a6f0" d="M1 12h10v10H1z"/><path fill="#ffba08" d="M12 12h10v10H12z"/></svg>
                   Sign in with Microsoft 365 (Azure AD)
