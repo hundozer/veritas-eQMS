@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 import { getContext, logAuditEvent } from '@/lib/auth';
-import type { AuditLog } from '@prisma/client';
 
 // GET /api/audit/export - Export the audit trail to CSV format (auditor/admin-only)
 export async function GET(req: NextRequest) {
@@ -60,7 +59,7 @@ export async function GET(req: NextRequest) {
       'Payload Details'
     ];
 
-    const rows = logs.map((log: AuditLog) => [
+    const rows = logs.map((log: typeof logs[number]) => [
       log.eventId,
       log.timestamp.toISOString(),
       log.userEmail || 'System',
