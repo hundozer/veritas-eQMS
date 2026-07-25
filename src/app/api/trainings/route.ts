@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 import { getContext, logAuditEvent } from '@/lib/auth';
+import { Prisma } from '@prisma/client';
 
 interface QuizQuestion {
   id: string;
@@ -189,7 +190,7 @@ export async function POST(req: NextRequest) {
     }
 
     // 2. Successful sign-off and completion transaction
-    const result = await prisma.$transaction(async (tx) => {
+    const result = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
       let quizResult = null;
 
       if (assignment.requirement.requiresQuiz) {

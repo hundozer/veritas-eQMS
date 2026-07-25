@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 import { getContext, logAuditEvent, checkAbac } from '@/lib/auth';
 import * as fs from 'fs';
+import { Prisma } from '@prisma/client';
 import * as path from 'path';
 
 // GET /api/documents - List documents with tenant-scoping and ABAC filtering
@@ -93,7 +94,7 @@ export async function POST(req: NextRequest) {
     }
 
     // 2. Database transaction (Outbox-equivalent in prisma: save doc + version + training config in one txn)
-    const result = await prisma.$transaction(async (tx) => {
+    const result = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
       // Create Document
       const document = await tx.document.create({
         data: {
