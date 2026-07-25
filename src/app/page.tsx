@@ -280,6 +280,12 @@ export default function Home() {
   const [showInviteUserModal, setShowInviteUserModal] = useState(false);
   const [showEditUserModal, setShowEditUserModal] = useState(false);
   const [showDemoPersonas, setShowDemoPersonas] = useState(false);
+  const [showDemoRequestModal, setShowDemoRequestModal] = useState(false);
+  const [demoName, setDemoName] = useState('');
+  const [demoEmail, setDemoEmail] = useState('');
+  const [demoCompany, setDemoCompany] = useState('');
+  const [demoSize, setDemoSize] = useState('11-50');
+  const [demoSuccess, setDemoSuccess] = useState(false);
 
   // User Management State
   const [inviteEmail, setInviteEmail] = useState('');
@@ -1414,244 +1420,504 @@ export default function Home() {
 
   if (viewMode === 'landing') {
     return (
-      <div style={{ minHeight: '100vh', background: '#0B0E14', color: '#fff', fontFamily: 'var(--font-sans)', display: 'flex', flexDirection: 'column' }}>
-        {/* Navigation Header */}
-        <header style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '20px 40px', borderBottom: '1px solid rgba(255,255,255,0.08)', backdropFilter: 'blur(12px)', background: 'rgba(11,14,20,0.85)', position: 'sticky', top: 0, zIndex: 100 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <div style={{ width: '38px', height: '38px', borderRadius: '10px', background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '900', color: '#000', fontSize: '20px', boxShadow: '0 0 16px rgba(16,185,129,0.4)' }}>
-              V
+      <div style={{ minHeight: '100vh', background: '#0B0E14', color: '#F8FAFC', fontFamily: 'var(--font-sans)', display: 'flex', flexDirection: 'column' }}>
+        {/* SECTION 1: TOP NAVIGATION HEADER */}
+        <header style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 48px', borderBottom: '1px solid rgba(255,255,255,0.08)', backdropFilter: 'blur(16px)', background: 'rgba(11,14,20,0.9)', position: 'sticky', top: 0, zIndex: 100 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '36px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer' }} onClick={() => setViewMode('landing')}>
+              <div style={{ width: '36px', height: '36px', borderRadius: '8px', background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '900', color: '#000', fontSize: '18px', boxShadow: '0 0 20px rgba(16,185,129,0.3)' }}>
+                V
+              </div>
+              <div>
+                <div style={{ fontSize: '18px', fontWeight: '800', letterSpacing: '-0.5px', color: '#FFFFFF' }}>
+                  Simpleafied <span style={{ color: '#10B981' }}>Veritas</span>
+                </div>
+                <div style={{ fontSize: '10px', color: '#94A3B8', letterSpacing: '0.8px', textTransform: 'uppercase', fontWeight: '600' }}>Compliance Infrastructure</div>
+              </div>
             </div>
-            <div>
-              <div style={{ fontSize: '20px', fontWeight: '800', letterSpacing: '-0.5px' }}>VERITAS</div>
-              <div style={{ fontSize: '10px', color: '#10B981', letterSpacing: '1px', textTransform: 'uppercase', fontWeight: '600' }}>Life Sciences eQMS</div>
-            </div>
+
+            <nav style={{ display: 'flex', alignItems: 'center', gap: '24px' }}>
+              <a href="#solutions" style={{ color: '#94A3B8', textDecoration: 'none', fontSize: '13px', fontWeight: '500' }}>Solutions</a>
+              <a href="#intelligence" style={{ color: '#94A3B8', textDecoration: 'none', fontSize: '13px', fontWeight: '500' }}>Intelligence</a>
+              <a href="#compliance" style={{ color: '#94A3B8', textDecoration: 'none', fontSize: '13px', fontWeight: '500' }}>Compliance</a>
+              <a href="#why-veritas" style={{ color: '#94A3B8', textDecoration: 'none', fontSize: '13px', fontWeight: '500' }}>Why Veritas</a>
+              <a href="#modules" style={{ color: '#94A3B8', textDecoration: 'none', fontSize: '13px', fontWeight: '500' }}>Modules</a>
+            </nav>
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
             <button
               className={`${styles.btn} ${styles.btnSecondary}`}
               onClick={() => setShowLoginModal(true)}
-              style={{ fontSize: '13px', padding: '8px 18px' }}
+              style={{ fontSize: '13px', padding: '9px 18px', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.1)', color: '#F8FAFC' }}
             >
-              🔑 Member Sign In
+              Member Sign In
             </button>
             <button
               className={`${styles.btn} ${styles.btnPrimary}`}
-              onClick={() => setShowRegisterModal(true)}
-              style={{ fontSize: '13px', padding: '8px 22px', background: '#10B981', color: '#000', fontWeight: '700', boxShadow: '0 0 16px rgba(16,185,129,0.3)' }}
+              onClick={() => setShowDemoRequestModal(true)}
+              style={{ fontSize: '13px', padding: '9px 22px', background: '#10B981', color: '#000', fontWeight: '700', borderRadius: '6px' }}
             >
-              🏢 Register Organization
+              Request Demo
             </button>
           </div>
         </header>
 
-        {/* Hero Section */}
-        <section style={{ padding: '90px 40px 60px', maxWidth: '1200px', margin: '0 auto', textAlign: 'center', position: 'relative' }}>
-          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '6px 18px', borderRadius: '20px', background: 'rgba(16,185,129,0.1)', border: '1px solid rgba(16,185,129,0.3)', color: '#10B981', fontSize: '13px', fontWeight: '600', marginBottom: '28px' }}>
-            ⚡ 21 CFR Part 11 & ISO 13485:2016 Compliant Architecture
+        {/* SECTION 2: HERO SECTION */}
+        <section style={{ padding: '80px 40px 60px', maxWidth: '1280px', margin: '0 auto', textAlign: 'center', width: '100%' }}>
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '6px 18px', borderRadius: '20px', background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.25)', color: '#10B981', fontSize: '12px', fontWeight: '600', marginBottom: '28px', textTransform: 'uppercase', letterSpacing: '0.8px' }}>
+            EU GMP • 21 CFR Part 11 • ISO 13485 Compliance Infrastructure
           </div>
 
-          <h1 style={{ fontSize: '56px', fontWeight: '900', lineHeight: '1.1', letterSpacing: '-1.5px', marginBottom: '24px', background: 'linear-gradient(180deg, #FFFFFF 0%, #9CA3AF 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
-            Achieve 100% Audit Readiness &<br />Accelerate Time-to-Market
+          <h1 style={{ fontSize: '54px', fontWeight: '800', lineHeight: '1.12', letterSpacing: '-1.5px', marginBottom: '24px', color: '#FFFFFF', maxWidth: '1000px', margin: '0 auto 24px' }}>
+            EU compliance infrastructure without enterprise complexity.
           </h1>
 
-          <p style={{ fontSize: '18px', color: 'var(--text-muted)', maxWidth: '820px', margin: '0 auto 40px', lineHeight: '1.6' }}>
-            Veritas replaces fragmented paper and legacy software with an automated, 21 CFR Part 11 compliant eQMS engineered specifically for Biotech, Pharma, and Medical Device innovators.
+          <p style={{ fontSize: '18px', color: '#94A3B8', maxWidth: '840px', margin: '0 auto 40px', lineHeight: '1.6' }}>
+            Simpleafied Veritas helps biotechnology companies manage quality documentation, training, workflows and regulatory evidence in one intelligent platform.
           </p>
 
-          {/* Primary Registration / Login CTA Gating */}
-          <div style={{ display: 'flex', justifyContent: 'center', gap: '18px', marginBottom: '64px', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', justifyContent: 'center', gap: '16px', marginBottom: '64px' }}>
             <button
               className={`${styles.btn} ${styles.btnPrimary}`}
-              onClick={() => setShowRegisterModal(true)}
-              style={{ fontSize: '16px', padding: '16px 36px', background: '#10B981', color: '#000', fontWeight: '800', borderRadius: '10px', boxShadow: '0 0 30px rgba(16,185,129,0.45)', cursor: 'pointer' }}
+              onClick={() => setShowDemoRequestModal(true)}
+              style={{ fontSize: '15px', padding: '14px 32px', background: '#10B981', color: '#000', fontWeight: '700', borderRadius: '8px', cursor: 'pointer' }}
             >
-              🏢 Provision Organization & Register →
+              Request Demo →
             </button>
             <button
               className={`${styles.btn} ${styles.btnSecondary}`}
-              onClick={() => setShowLoginModal(true)}
-              style={{ fontSize: '16px', padding: '16px 32px', borderRadius: '10px', cursor: 'pointer' }}
+              onClick={() => { const el = document.getElementById('solutions'); el?.scrollIntoView({ behavior: 'smooth' }); }}
+              style={{ fontSize: '15px', padding: '14px 28px', borderRadius: '8px', cursor: 'pointer', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', color: '#F8FAFC' }}
             >
-              🔑 Sign In to Existing Workspace
+              Explore Platform
             </button>
           </div>
 
-          {/* Compliance & ROI Metric Banner */}
-          <div className="glass" style={{ padding: '28px 36px', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.08)', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '24px', textAlign: 'left' }}>
-            <div>
-              <div style={{ fontSize: '32px', fontWeight: '800', color: '#10B981' }}>21 CFR Part 11</div>
-              <div style={{ fontSize: '13px', color: '#E5E7EB', fontWeight: '600', marginTop: '4px' }}>FDA Electronic Signatures</div>
-              <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '2px' }}>Immutable SHA-256 audit logs</div>
+          {/* REALISTIC ENTERPRISE PRODUCT VISUALIZATION */}
+          <div style={{ background: '#0F172A', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '12px', padding: '24px', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.7)', textAlign: 'left', overflow: 'hidden' }}>
+            {/* Window Top Bar */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingBottom: '16px', marginBottom: '20px', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#EF4444' }} />
+                <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#F59E0B' }} />
+                <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#10B981' }} />
+                <span style={{ fontSize: '12px', color: '#64748B', marginLeft: '12px', fontFamily: 'monospace' }}>veritas.simpleafied.eu/workspace/acme-biotech</span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', fontSize: '11px', color: '#94A3B8' }}>
+                <span style={{ background: 'rgba(16,185,129,0.15)', color: '#10B981', padding: '2px 8px', borderRadius: '4px', border: '1px solid rgba(16,185,129,0.3)' }}>✓ 21 CFR Part 11 Active</span>
+                <span>Site: EU-GMP-Site-1</span>
+              </div>
             </div>
-            <div>
-              <div style={{ fontSize: '32px', fontWeight: '800', color: '#38BDF8' }}>ISO 13485:2016</div>
-              <div style={{ fontSize: '13px', color: '#E5E7EB', fontWeight: '600', marginTop: '4px' }}>Medical Device QMS</div>
-              <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '2px' }}>Automated design & risk controls</div>
+
+            {/* Dashboard Content Mock */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px', marginBottom: '20px' }}>
+              <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '8px', padding: '16px' }}>
+                <div style={{ fontSize: '11px', color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Compliance Health Score</div>
+                <div style={{ fontSize: '28px', fontWeight: '800', color: '#10B981', marginTop: '4px' }}>98% <span style={{ fontSize: '14px', color: '#94A3B8', fontWeight: '500' }}>Audit Ready</span></div>
+                <div style={{ fontSize: '11px', color: '#64748B', marginTop: '4px' }}>Annex 11 / Part 11 Verified</div>
+              </div>
+
+              <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '8px', padding: '16px' }}>
+                <div style={{ fontSize: '11px', color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Document Control</div>
+                <div style={{ fontSize: '28px', fontWeight: '800', color: '#F8FAFC', marginTop: '4px' }}>142 <span style={{ fontSize: '14px', color: '#10B981', fontWeight: '500' }}>Effective SOPs</span></div>
+                <div style={{ fontSize: '11px', color: '#64748B', marginTop: '4px' }}>0 Obsolete Documents Active</div>
+              </div>
+
+              <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '8px', padding: '16px' }}>
+                <div style={{ fontSize: '11px', color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Training Completion</div>
+                <div style={{ fontSize: '28px', fontWeight: '800', color: '#38BDF8', marginTop: '4px' }}>94% <span style={{ fontSize: '14px', color: '#94A3B8', fontWeight: '500' }}>Verified</span></div>
+                <div style={{ fontSize: '11px', color: '#64748B', marginTop: '4px' }}>18 Active Quizzes Pending</div>
+              </div>
+
+              <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '8px', padding: '16px' }}>
+                <div style={{ fontSize: '11px', color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Open CAPAs & Deviations</div>
+                <div style={{ fontSize: '28px', fontWeight: '800', color: '#F59E0B', marginTop: '4px' }}>0 <span style={{ fontSize: '14px', color: '#10B981', fontWeight: '500' }}>Overdue CAPAs</span></div>
+                <div style={{ fontSize: '11px', color: '#64748B', marginTop: '4px' }}>Root Cause Investigations Clean</div>
+              </div>
             </div>
-            <div>
-              <div style={{ fontSize: '32px', fontWeight: '800', color: '#A855F7' }}>90% Faster</div>
-              <div style={{ fontSize: '13px', color: '#E5E7EB', fontWeight: '600', marginTop: '4px' }}>SOP Release Cycles</div>
-              <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '2px' }}>Automated approval routing</div>
-            </div>
-            <div>
-              <div style={{ fontSize: '32px', fontWeight: '800', color: '#F59E0B' }}>0 Paper Risk</div>
-              <div style={{ fontSize: '13px', color: '#E5E7EB', fontWeight: '600', marginTop: '4px' }}>Continuous Audit Readiness</div>
-              <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '2px' }}>1-Click FDA CSV export</div>
+
+            {/* Veritas Intelligence Panel Callout inside Mock */}
+            <div style={{ background: 'rgba(16,185,129,0.05)', border: '1px solid rgba(16,185,129,0.2)', borderRadius: '8px', padding: '16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '16px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#10B981' }} />
+                <div>
+                  <span style={{ fontSize: '12px', fontWeight: '700', color: '#10B981' }}>Veritas Intelligence Engine:</span>
+                  <span style={{ fontSize: '12px', color: '#CBD5E1', marginLeft: '8px' }}>SOP-QA-001 Revision v3.0 approved → Automatically updated 18 staff training requirements & linked CAPA-2026-04.</span>
+                </div>
+              </div>
+              <span style={{ fontSize: '11px', color: '#64748B', whiteSpace: 'nowrap' }}>SHA-256 Verified</span>
             </div>
           </div>
         </section>
 
-        {/* Core Value Pillars Section */}
-        <section style={{ padding: '70px 40px', maxWidth: '1200px', margin: '0 auto', width: '100%' }}>
-          <div style={{ textAlign: 'center', marginBottom: '52px' }}>
-            <span style={{ fontSize: '12px', textTransform: 'uppercase', letterSpacing: '1.5px', color: '#10B981', fontWeight: '700' }}>Comprehensive GxP Capabilities</span>
-            <h2 style={{ fontSize: '36px', fontWeight: '800', marginTop: '8px' }}>
-              Built to Solve Life Science Compliance Bottlenecks
+        {/* SECTION 3: TRUST / REGULATORY COMPLIANCE BANNER */}
+        <section id="compliance" style={{ padding: '40px', borderTop: '1px solid rgba(255,255,255,0.06)', borderBottom: '1px solid rgba(255,255,255,0.06)', background: 'rgba(15,23,42,0.4)' }}>
+          <div style={{ maxWidth: '1200px', margin: '0 auto', textAlign: 'center' }}>
+            <div style={{ fontSize: '12px', textTransform: 'uppercase', letterSpacing: '1px', color: '#64748B', fontWeight: '600', marginBottom: '20px' }}>
+              Built for regulated innovation
+            </div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: '32px', alignItems: 'center' }}>
+              {['EU GMP', 'GxP Environment', 'Annex 11 Expectation', '21 CFR Part 11 Ready', 'Data Integrity (ALCOA+)', 'ISO 13485 Support'].map((badge, idx) => (
+                <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#E2E8F0', fontSize: '13px', fontWeight: '600' }}>
+                  <span style={{ color: '#10B981' }}>✓</span> {badge}
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* SECTION 4: THE PROBLEM */}
+        <section style={{ padding: '90px 40px', maxWidth: '1200px', margin: '0 auto', width: '100%' }}>
+          <div style={{ textAlign: 'center', marginBottom: '56px' }}>
+            <span style={{ fontSize: '12px', textTransform: 'uppercase', letterSpacing: '1.2px', color: '#F59E0B', fontWeight: '700' }}>The Compliance Bottleneck</span>
+            <h2 style={{ fontSize: '36px', fontWeight: '800', marginTop: '10px', color: '#FFFFFF' }}>
+              Scientific innovation moves fast. Compliance cannot become a bottleneck.
             </h2>
-            <p style={{ fontSize: '16px', color: 'var(--text-muted)', maxWidth: '680px', margin: '12px auto 0' }}>
-              Eliminate manual spreadsheets, email sign-offs, and audit anxiety with purpose-built GxP workflows.
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '28px' }}>
+            <div style={{ background: '#0F172A', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '12px', padding: '32px' }}>
+              <h3 style={{ fontSize: '18px', fontWeight: '700', color: '#FFFFFF', marginBottom: '12px' }}>Growing companies outgrow spreadsheets</h3>
+              <p style={{ fontSize: '14px', color: '#94A3B8', lineHeight: '1.6' }}>
+                Quality information becomes fragmented across shared drives, emails, spreadsheets, and disconnected tools. Manual versioning leads to audit findings.
+              </p>
+            </div>
+
+            <div style={{ background: '#0F172A', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '12px', padding: '32px' }}>
+              <h3 style={{ fontSize: '18px', fontWeight: '700', color: '#FFFFFF', marginBottom: '12px' }}>Enterprise systems are too heavy</h3>
+              <p style={{ fontSize: '14px', color: '#94A3B8', lineHeight: '1.6' }}>
+                Traditional enterprise software platforms require expensive implementation, long configuration cycles, and dedicated full-time consultants.
+              </p>
+            </div>
+
+            <div style={{ background: '#0F172A', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '12px', padding: '32px' }}>
+              <h3 style={{ fontSize: '18px', fontWeight: '700', color: '#FFFFFF', marginBottom: '12px' }}>Audits expose operational gaps</h3>
+              <p style={{ fontSize: '14px', color: '#94A3B8', lineHeight: '1.6' }}>
+                Under regulatory scrutiny, teams struggle to prove who changed what, who approved what, who completed training, and why decisions were made.
+              </p>
+            </div>
+          </div>
+        </section>
+
+        {/* SECTION 5: INTRODUCING VERITAS — ONE CONNECTED QUALITY ECOSYSTEM */}
+        <section id="solutions" style={{ padding: '90px 40px', background: 'rgba(15,23,42,0.6)', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+          <div style={{ maxWidth: '1200px', margin: '0 auto', textAlign: 'center' }}>
+            <span style={{ fontSize: '12px', textTransform: 'uppercase', letterSpacing: '1.2px', color: '#10B981', fontWeight: '700' }}>Unified Architecture</span>
+            <h2 style={{ fontSize: '38px', fontWeight: '800', marginTop: '10px', color: '#FFFFFF', marginBottom: '16px' }}>
+              One connected quality ecosystem.
+            </h2>
+            <p style={{ fontSize: '16px', color: '#94A3B8', maxWidth: '700px', margin: '0 auto 56px' }}>
+              Simpleafied Veritas connects every quality process into a single, audit-ready compliance matrix.
+            </p>
+
+            {/* Connected Ecosystem Diagram */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '16px', textAlign: 'left' }}>
+              {[
+                { title: 'Document Control', desc: 'SOPs, Work Instructions, Protocols with SHA-256 e-signatures.' },
+                { title: 'Training Management', desc: 'Role-based matrices, automated tasks, knowledge quizzes.' },
+                { title: 'Change Control', desc: 'Impact analysis before implementation, GxP approval workflows.' },
+                { title: 'CAPA & Deviations', desc: 'Root cause investigations, 5-Why analysis, corrective actions.' },
+                { title: 'Audit Readiness', desc: '1-Click FDA CSV export, complete chronological audit trails.' },
+                { title: 'Equipment & Calibration', desc: 'Calibration tracking, out-of-spec deviation triggers.' },
+              ].map((mod, idx) => (
+                <div key={idx} style={{ background: '#0F172A', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '10px', padding: '20px' }}>
+                  <div style={{ fontSize: '12px', color: '#10B981', fontWeight: '700', textTransform: 'uppercase', marginBottom: '6px' }}>Module 0{idx + 1}</div>
+                  <div style={{ fontSize: '16px', fontWeight: '700', color: '#FFFFFF', marginBottom: '6px' }}>{mod.title}</div>
+                  <div style={{ fontSize: '13px', color: '#94A3B8', lineHeight: '1.5' }}>{mod.desc}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* SECTION 6: VERITAS INTELLIGENCE */}
+        <section id="intelligence" style={{ padding: '90px 40px', maxWidth: '1200px', margin: '0 auto', width: '100%' }}>
+          <div style={{ textAlign: 'center', marginBottom: '56px' }}>
+            <span style={{ fontSize: '12px', textTransform: 'uppercase', letterSpacing: '1.2px', color: '#38BDF8', fontWeight: '700' }}>Compliance Intelligence</span>
+            <h2 style={{ fontSize: '38px', fontWeight: '800', marginTop: '10px', color: '#FFFFFF' }}>
+              Compliance intelligence, not just compliance storage.
+            </h2>
+            <p style={{ fontSize: '16px', color: '#94A3B8', maxWidth: '720px', margin: '12px auto 0' }}>
+              Veritas Intelligence automatically maps relationships between regulations, SOPs, training matrices, change controls, and audit evidence.
             </p>
           </div>
 
-          <div className={styles.grid3} style={{ gap: '28px' }}>
-            {/* Value Pillar 1 */}
-            <div className={`${styles.card} ${styles.cardGlow}`}>
-              <div style={{ fontSize: '32px', marginBottom: '14px' }}>📄</div>
-              <h3 style={{ fontSize: '20px', fontWeight: '700', marginBottom: '10px' }}>Document Control & E-Signatures</h3>
-              <p style={{ fontSize: '14px', color: 'var(--text-muted)', lineHeight: '1.6' }}>
-                Complete document lifecycle management (Draft → In Review → Effective → Obsolete). Includes SHA-256 integrity checksums, role-based access clearance, and 21 CFR Part 11 compliant electronic signatures.
-              </p>
+          {/* Intelligence Flow Box */}
+          <div style={{ background: '#0F172A', border: '1px solid rgba(56,189,248,0.3)', borderRadius: '12px', padding: '36px', position: 'relative' }}>
+            <div style={{ fontSize: '13px', fontWeight: '700', color: '#38BDF8', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '24px', textAlign: 'center' }}>
+              Automated Compliance Impact Dependency Flow
             </div>
 
-            {/* Value Pillar 2 */}
-            <div className={`${styles.card} ${styles.cardGlow}`}>
-              <div style={{ fontSize: '32px', marginBottom: '14px' }}>🎓</div>
-              <h3 style={{ fontSize: '20px', fontWeight: '700', marginBottom: '10px' }}>Automated Training & Quiz Verification</h3>
-              <p style={{ fontSize: '14px', color: 'var(--text-muted)', lineHeight: '1.6' }}>
-                Maintain role-based training matrices seamlessly. Releasing an SOP automatically triggers employee training tasks with mandatory knowledge assessment quizzes before sign-off.
-              </p>
+            <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', alignItems: 'center', gap: '16px', fontSize: '13px', fontWeight: '600' }}>
+              <span style={{ background: 'rgba(255,255,255,0.05)', padding: '10px 16px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.1)' }}>Regulatory Requirements</span>
+              <span style={{ color: '#38BDF8' }}>→</span>
+              <span style={{ background: 'rgba(255,255,255,0.05)', padding: '10px 16px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.1)' }}>Quality Processes</span>
+              <span style={{ color: '#38BDF8' }}>→</span>
+              <span style={{ background: 'rgba(16,185,129,0.15)', color: '#10B981', padding: '10px 16px', borderRadius: '6px', border: '1px solid rgba(16,185,129,0.3)' }}>Controlled Documents</span>
+              <span style={{ color: '#38BDF8' }}>→</span>
+              <span style={{ background: 'rgba(255,255,255,0.05)', padding: '10px 16px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.1)' }}>Training Matrix</span>
+              <span style={{ color: '#38BDF8' }}>→</span>
+              <span style={{ background: 'rgba(255,255,255,0.05)', padding: '10px 16px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.1)' }}>Change Control</span>
+              <span style={{ color: '#38BDF8' }}>→</span>
+              <span style={{ background: 'rgba(56,189,248,0.15)', color: '#38BDF8', padding: '10px 16px', borderRadius: '6px', border: '1px solid rgba(56,189,248,0.3)' }}>Audit Evidence</span>
             </div>
 
-            {/* Value Pillar 3 */}
-            <div className={`${styles.card} ${styles.cardGlow}`}>
-              <div style={{ fontSize: '32px', marginBottom: '14px' }}>⚡</div>
-              <h3 style={{ fontSize: '20px', fontWeight: '700', marginBottom: '10px' }}>Quality Events, Deviations & CAPA</h3>
-              <p style={{ fontSize: '14px', color: 'var(--text-muted)', lineHeight: '1.6' }}>
-                Log GxP non-conformances, perform 8D and 5-Why root cause investigations, assign corrective/preventive actions (CAPA), and track closures with electronic signature verification.
-              </p>
-            </div>
-
-            {/* Value Pillar 4 */}
-            <div className={`${styles.card} ${styles.cardGlow}`}>
-              <div style={{ fontSize: '32px', marginBottom: '14px' }}>📦</div>
-              <h3 style={{ fontSize: '20px', fontWeight: '700', marginBottom: '10px' }}>Supplier Quality Management (AVL)</h3>
-              <p style={{ fontSize: '14px', color: 'var(--text-muted)', lineHeight: '1.6' }}>
-                Approved Vendor List (AVL) with risk tiering (Critical/Major/Minor), annual vendor audit logs with Part 11 e-signatures, and incoming raw material inspection with auto-quarantine.
-              </p>
-            </div>
-
-            {/* Value Pillar 5 */}
-            <div className={`${styles.card} ${styles.cardGlow}`}>
-              <div style={{ fontSize: '32px', marginBottom: '14px' }}>🔧</div>
-              <h3 style={{ fontSize: '20px', fontWeight: '700', marginBottom: '10px' }}>Equipment Calibration & Maintenance</h3>
-              <p style={{ fontSize: '14px', color: 'var(--text-muted)', lineHeight: '1.6' }}>
-                Centralized equipment registry tracking calibration due dates, maintenance history, and automatic deviation generation whenever an instrument fails calibration.
-              </p>
-            </div>
-
-            {/* Value Pillar 6 */}
-            <div className={`${styles.card} ${styles.cardGlow}`}>
-              <div style={{ fontSize: '32px', marginBottom: '14px' }}>🛡️</div>
-              <h3 style={{ fontSize: '20px', fontWeight: '700', marginBottom: '10px' }}>21 CFR Part 11 Audit Trail Logs</h3>
-              <p style={{ fontSize: '14px', color: 'var(--text-muted)', lineHeight: '1.6' }}>
-                Immutable, chronological system audit logging recording timestamp, user ID, role, IP address, action, and JSON payload. Export audit trails to CSV instantly during FDA/EMA inspections.
-              </p>
+            <div style={{ marginTop: '32px', background: 'rgba(0,0,0,0.3)', padding: '16px 20px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.06)', fontSize: '13px', color: '#CBD5E1', textAlign: 'center' }}>
+              💡 <strong>Example:</strong> Changing an SOP automatically identifies affected training requirements, updates role matrices, and routes approval tasks to qualified department leads.
             </div>
           </div>
         </section>
 
-        {/* Feature Comparison Matrix Section */}
-        <section style={{ padding: '60px 40px', maxWidth: '1100px', margin: '0 auto', width: '100%' }}>
-          <h2 style={{ fontSize: '30px', fontWeight: '800', textAlign: 'center', marginBottom: '12px' }}>
-            Why Leading Life Sciences Teams Choose Veritas
-          </h2>
-          <p style={{ fontSize: '15px', color: 'var(--text-muted)', textAlign: 'center', marginBottom: '36px' }}>
-            Compare modern eQMS automation against legacy paper processes and generic cloud storage.
-          </p>
+        {/* SECTION 7: WHY SIMPLEAFIED VERITAS — COMPARISON TABLE */}
+        <section id="why-veritas" style={{ padding: '90px 40px', background: 'rgba(15,23,42,0.4)', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+          <div style={{ maxWidth: '1000px', margin: '0 auto' }}>
+            <div style={{ textAlign: 'center', marginBottom: '48px' }}>
+              <span style={{ fontSize: '12px', textTransform: 'uppercase', letterSpacing: '1.2px', color: '#10B981', fontWeight: '700' }}>Platform Comparison</span>
+              <h2 style={{ fontSize: '36px', fontWeight: '800', marginTop: '10px', color: '#FFFFFF' }}>
+                Enterprise compliance engineered for speed
+              </h2>
+            </div>
 
-          <div className="glass" style={{ borderRadius: '16px', padding: '24px', border: '1px solid rgba(255,255,255,0.08)' }}>
-            <table className={styles.table}>
-              <thead>
-                <tr>
-                  <th style={{ width: '35%' }}>Capability / Feature</th>
-                  <th style={{ width: '35%', color: '#10B981' }}>✨ Veritas eQMS</th>
-                  <th style={{ width: '30%', color: 'var(--text-muted)' }}>Legacy / Manual Paper</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr className={styles.tableRow}>
-                  <td><strong>FDA 21 CFR Part 11 Compliance</strong></td>
-                  <td style={{ color: '#10B981', fontWeight: '600' }}>✓ Out-of-the-box (E-Sign + Hashes)</td>
-                  <td style={{ color: '#F87171' }}>✗ High Risk / Manual Signatures</td>
-                </tr>
-                <tr className={styles.tableRow}>
-                  <td><strong>SOP Release & Training Integration</strong></td>
-                  <td style={{ color: '#10B981', fontWeight: '600' }}>✓ Automatic Training & Quizzes</td>
-                  <td style={{ color: '#F87171' }}>✗ Manual Email Tracking</td>
-                </tr>
-                <tr className={styles.tableRow}>
-                  <td><strong>Audit Trail Verification</strong></td>
-                  <td style={{ color: '#10B981', fontWeight: '600' }}>✓ Immutable, 1-Click CSV Export</td>
-                  <td style={{ color: '#F87171' }}>✗ Fragmented Binder Logs</td>
-                </tr>
-                <tr className={styles.tableRow}>
-                  <td><strong>Supplier Quality & Material Quarantine</strong></td>
-                  <td style={{ color: '#10B981', fontWeight: '600' }}>✓ Automated Deviation on Rejection</td>
-                  <td style={{ color: '#F87171' }}>✗ Unlinked Inspection Sheets</td>
-                </tr>
-                <tr className={styles.tableRow}>
-                  <td><strong>Deployment & Provisioning Time</strong></td>
-                  <td style={{ color: '#10B981', fontWeight: '600' }}>✓ Instant Multi-Tenant Onboarding</td>
-                  <td style={{ color: '#F87171' }}>✗ 6 to 12 Months Implementation</td>
-                </tr>
-              </tbody>
-            </table>
+            <div style={{ background: '#0F172A', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', overflow: 'hidden' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '14px' }}>
+                <thead>
+                  <tr style={{ background: 'rgba(255,255,255,0.03)', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
+                    <th style={{ padding: '16px 24px', color: '#94A3B8', fontWeight: '600' }}>Attribute</th>
+                    <th style={{ padding: '16px 24px', color: '#94A3B8', fontWeight: '600' }}>Traditional Enterprise QMS</th>
+                    <th style={{ padding: '16px 24px', color: '#10B981', fontWeight: '700', background: 'rgba(16,185,129,0.05)' }}>Simpleafied Veritas</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {[
+                    { attr: 'Implementation Time', trad: 'Months to Years', veritas: 'Days' },
+                    { attr: 'Platform Complexity', trad: 'High / Consultant-Heavy', veritas: 'Simple & Autonomous' },
+                    { attr: 'Target Audience', trad: 'Large Pharmaceutical Corporates', veritas: 'Emerging Biotech & Medical Innovators' },
+                    { attr: 'Compliance Knowledge', trad: 'Generic Global Standards', veritas: 'EU-Focused GxP & Annex 11' },
+                    { attr: 'User Experience', trad: 'Legacy / Cluttered', veritas: 'Modern, Fast & Clean' },
+                  ].map((row, idx) => (
+                    <tr key={idx} style={{ borderBottom: idx < 4 ? '1px solid rgba(255,255,255,0.05)' : 'none' }}>
+                      <td style={{ padding: '16px 24px', fontWeight: '600', color: '#FFFFFF' }}>{row.attr}</td>
+                      <td style={{ padding: '16px 24px', color: '#94A3B8' }}>{row.trad}</td>
+                      <td style={{ padding: '16px 24px', color: '#10B981', fontWeight: '700', background: 'rgba(16,185,129,0.05)' }}>✓ {row.veritas}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         </section>
 
-        {/* Final Registration Banner */}
-        <section style={{ padding: '80px 40px', background: 'radial-gradient(circle at 50% 50%, rgba(16,185,129,0.12) 0%, rgba(11,14,20,1) 80%)', borderTop: '1px solid rgba(255,255,255,0.08)', textAlign: 'center' }}>
+        {/* SECTION 8: PRODUCT MODULES */}
+        <section id="modules" style={{ padding: '90px 40px', maxWidth: '1200px', margin: '0 auto', width: '100%' }}>
+          <div style={{ textAlign: 'center', marginBottom: '56px' }}>
+            <span style={{ fontSize: '12px', textTransform: 'uppercase', letterSpacing: '1.2px', color: '#10B981', fontWeight: '700' }}>Complete Capabilities</span>
+            <h2 style={{ fontSize: '36px', fontWeight: '800', marginTop: '10px', color: '#FFFFFF' }}>
+              Purpose-built compliance modules
+            </h2>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: '24px' }}>
+            <div style={{ background: '#0F172A', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '12px', padding: '28px' }}>
+              <div style={{ fontSize: '18px', fontWeight: '700', color: '#FFFFFF', marginBottom: '8px' }}>Document Control</div>
+              <p style={{ fontSize: '14px', color: '#94A3B8', lineHeight: '1.6' }}>Create, approve, and control every quality document with SHA-256 integrity checks and 21 CFR Part 11 electronic signatures.</p>
+            </div>
+
+            <div style={{ background: '#0F172A', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '12px', padding: '28px' }}>
+              <div style={{ fontSize: '18px', fontWeight: '700', color: '#FFFFFF', marginBottom: '8px' }}>Training Management</div>
+              <p style={{ fontSize: '14px', color: '#94A3B8', lineHeight: '1.6' }}>Know exactly who is qualified and who is not. Automatic quiz assessment triggers upon SOP revisions.</p>
+            </div>
+
+            <div style={{ background: '#0F172A', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '12px', padding: '28px' }}>
+              <div style={{ fontSize: '18px', fontWeight: '700', color: '#FFFFFF', marginBottom: '8px' }}>Change Control</div>
+              <p style={{ fontSize: '14px', color: '#94A3B8', lineHeight: '1.6' }}>Understand compliance impact before implementation. Evaluate regulatory risk with structured approval routing.</p>
+            </div>
+
+            <div style={{ background: '#0F172A', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '12px', padding: '28px' }}>
+              <div style={{ fontSize: '18px', fontWeight: '700', color: '#FFFFFF', marginBottom: '8px' }}>CAPA & Deviations</div>
+              <p style={{ fontSize: '14px', color: '#94A3B8', lineHeight: '1.6' }}>Resolve quality issues systematically with 5-Why root cause analysis, corrective action tracking, and e-signatures.</p>
+            </div>
+
+            <div style={{ background: '#0F172A', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '12px', padding: '28px' }}>
+              <div style={{ fontSize: '18px', fontWeight: '700', color: '#FFFFFF', marginBottom: '8px' }}>Audit Readiness</div>
+              <p style={{ fontSize: '14px', color: '#94A3B8', lineHeight: '1.6' }}>Generate regulatory evidence instantly. 1-Click CSV export for FDA and EMA regulatory inspections.</p>
+            </div>
+          </div>
+        </section>
+
+        {/* SECTION 9: CUSTOMER JOURNEY */}
+        <section style={{ padding: '90px 40px', background: 'rgba(15,23,42,0.4)', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+          <div style={{ maxWidth: '1100px', margin: '0 auto', textAlign: 'center' }}>
+            <span style={{ fontSize: '12px', textTransform: 'uppercase', letterSpacing: '1.2px', color: '#10B981', fontWeight: '700' }}>Implementation Process</span>
+            <h2 style={{ fontSize: '36px', fontWeight: '800', marginTop: '10px', color: '#FFFFFF', marginBottom: '56px' }}>
+              Three steps to operational compliance
+            </h2>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '32px', textAlign: 'left' }}>
+              <div style={{ background: '#0F172A', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '12px', padding: '28px' }}>
+                <div style={{ fontSize: '32px', fontWeight: '800', color: '#10B981', marginBottom: '12px' }}>01</div>
+                <div style={{ fontSize: '18px', fontWeight: '700', color: '#FFFFFF', marginBottom: '8px' }}>Connect your quality system</div>
+                <div style={{ fontSize: '14px', color: '#94A3B8', lineHeight: '1.6' }}>Import existing documents, configure sites, and define approval workflows.</div>
+              </div>
+
+              <div style={{ background: '#0F172A', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '12px', padding: '28px' }}>
+                <div style={{ fontSize: '32px', fontWeight: '800', color: '#38BDF8', marginBottom: '12px' }}>02</div>
+                <div style={{ fontSize: '18px', fontWeight: '700', color: '#FFFFFF', marginBottom: '8px' }}>Automate compliance operations</div>
+                <div style={{ fontSize: '14px', color: '#94A3B8', lineHeight: '1.6' }}>Manage electronic sign-offs, training assignments, and quality event closures.</div>
+              </div>
+
+              <div style={{ background: '#0F172A', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '12px', padding: '28px' }}>
+                <div style={{ fontSize: '32px', fontWeight: '800', color: '#A855F7', marginBottom: '12px' }}>03</div>
+                <div style={{ fontSize: '18px', fontWeight: '700', color: '#FFFFFF', marginBottom: '8px' }}>Maintain continuous readiness</div>
+                <div style={{ fontSize: '14px', color: '#94A3B8', lineHeight: '1.6' }}>Always know your compliance health score with real-time audit logs.</div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* SECTION 10: FOUNDER & REGULATORY TRUST BANNER */}
+        <section style={{ padding: '90px 40px', background: 'radial-gradient(circle at 50% 50%, rgba(16,185,129,0.1) 0%, rgba(11,14,20,1) 80%)', textAlign: 'center' }}>
           <div style={{ maxWidth: '800px', margin: '0 auto' }}>
-            <h2 style={{ fontSize: '38px', fontWeight: '900', marginBottom: '16px' }}>
-              Ready to Upgrade Your Quality System?
+            <span style={{ fontSize: '12px', textTransform: 'uppercase', letterSpacing: '1.2px', color: '#10B981', fontWeight: '700' }}>European Regulatory Heritage</span>
+            <h2 style={{ fontSize: '38px', fontWeight: '900', color: '#FFFFFF', marginTop: '10px', marginBottom: '20px' }}>
+              Built in Europe. Designed for regulated innovation.
             </h2>
-            <p style={{ fontSize: '17px', color: 'var(--text-muted)', marginBottom: '36px', lineHeight: '1.6' }}>
-              Register your organization today and automatically seed your workspace with compliant SOP templates compliant with 21 CFR Part 11 and ISO 13485.
+            <p style={{ fontSize: '16px', color: '#94A3B8', lineHeight: '1.6', marginBottom: '36px' }}>
+              Simpleafied Veritas delivers enterprise compliance infrastructure designed specifically for life science innovators preparing for regulatory scrutiny, investor due diligence, and commercial scaling.
             </p>
-            <div style={{ display: 'flex', justifyContent: 'center', gap: '16px' }}>
-              <button
-                className={`${styles.btn} ${styles.btnPrimary}`}
-                onClick={() => setShowRegisterModal(true)}
-                style={{ fontSize: '16px', padding: '16px 36px', background: '#10B981', color: '#000', fontWeight: '800', borderRadius: '10px' }}
-              >
-                🏢 Provision Organization & Register
-              </button>
-              <button
-                className={`${styles.btn} ${styles.btnSecondary}`}
-                onClick={() => setShowLoginModal(true)}
-                style={{ fontSize: '16px', padding: '16px 32px', borderRadius: '10px' }}
-              >
-                🔑 Sign In
-              </button>
-            </div>
+            <button
+              className={`${styles.btn} ${styles.btnPrimary}`}
+              onClick={() => setShowDemoRequestModal(true)}
+              style={{ fontSize: '16px', padding: '16px 36px', background: '#10B981', color: '#000', fontWeight: '700', borderRadius: '8px' }}
+            >
+              Request Enterprise Demo
+            </button>
           </div>
         </section>
 
-        {/* Footer */}
-        <footer style={{ padding: '30px 40px', borderTop: '1px solid rgba(255,255,255,0.08)', textAlign: 'center', fontSize: '13px', color: 'var(--text-muted)' }}>
-          Veritas eQMS — 21 CFR Part 11 & ISO 13485 Compliant Quality System | Secured by Neon PostgreSQL
+        {/* FOOTER */}
+        <footer style={{ padding: '48px 40px 32px', borderTop: '1px solid rgba(255,255,255,0.08)', background: '#090C10', fontSize: '13px', color: '#64748B' }}>
+          <div style={{ maxWidth: '1200px', margin: '0 auto', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '32px', textAlign: 'left', marginBottom: '40px' }}>
+            <div>
+              <div style={{ fontSize: '16px', fontWeight: '800', color: '#FFFFFF', marginBottom: '12px' }}>Simpleafied Veritas</div>
+              <p style={{ fontSize: '12px', color: '#64748B', lineHeight: '1.5' }}>The compliance infrastructure layer for emerging life sciences.</p>
+            </div>
+            <div>
+              <div style={{ fontWeight: '700', color: '#F8FAFC', marginBottom: '10px' }}>Product</div>
+              <div>Document Control</div>
+              <div>Training Hub</div>
+              <div>Change Control</div>
+              <div>CAPA & Deviations</div>
+            </div>
+            <div>
+              <div style={{ fontWeight: '700', color: '#F8FAFC', marginBottom: '10px' }}>Compliance</div>
+              <div>EU GMP</div>
+              <div>21 CFR Part 11</div>
+              <div>EU Annex 11</div>
+              <div>ISO 13485</div>
+            </div>
+            <div>
+              <div style={{ fontWeight: '700', color: '#F8FAFC', marginBottom: '10px' }}>Company</div>
+              <div>Simpleafied Solutions</div>
+              <div>Security</div>
+              <div>Privacy Policy</div>
+              <div>Terms of Service</div>
+            </div>
+          </div>
+          <div style={{ textAlign: 'center', borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: '24px' }}>
+            © {new Date().getFullYear()} Simpleafied Solutions. Veritas is a registered trademark of Simpleafied Solutions. All rights reserved.
+          </div>
         </footer>
+
+        {/* ENTERPRISE DEMO REQUEST MODAL */}
+        {showDemoRequestModal && (
+          <div className={styles.modalOverlay}>
+            <div className={styles.modalContent} style={{ maxWidth: '520px' }}>
+              <div className={styles.modalHeader}>
+                <h3>Request Simpleafied Veritas Demo</h3>
+                <button style={{ background: 'transparent', border: 'none', color: '#fff', fontSize: '20px', cursor: 'pointer' }} onClick={() => { setShowDemoRequestModal(false); setDemoSuccess(false); }}>×</button>
+              </div>
+              <div className={styles.modalBody}>
+                {demoSuccess ? (
+                  <div style={{ textAlign: 'center', padding: '24px 0' }}>
+                    <div style={{ fontSize: '40px', marginBottom: '16px' }}>✅</div>
+                    <h4 style={{ fontSize: '20px', fontWeight: '700', color: '#10B981', marginBottom: '10px' }}>Demo Request Submitted</h4>
+                    <p style={{ fontSize: '14px', color: '#94A3B8', lineHeight: '1.5' }}>
+                      Thank you, <strong>{demoName}</strong>. Our European GxP compliance team will contact you at <strong>{demoEmail}</strong> within 24 hours.
+                    </p>
+                    <button
+                      className={`${styles.btn} ${styles.btnPrimary}`}
+                      onClick={() => { setShowDemoRequestModal(false); setDemoSuccess(false); }}
+                      style={{ marginTop: '20px', padding: '10px 24px', background: '#10B981', color: '#000', fontWeight: '700' }}
+                    >
+                      Close Window
+                    </button>
+                  </div>
+                ) : (
+                  <form onSubmit={(e) => { e.preventDefault(); if (demoEmail && demoName) setDemoSuccess(true); }}>
+                    <p style={{ fontSize: '13px', color: '#94A3B8', marginBottom: '20px' }}>
+                      Schedule a 1-on-1 walkthrough with a Simpleafied GxP Quality Architect tailored to your regulatory requirements.
+                    </p>
+
+                    <div className={styles.formGroup}>
+                      <label className={styles.formLabel}>Full Name</label>
+                      <input
+                        className={styles.input}
+                        type="text"
+                        placeholder="Dr. Jane Smith"
+                        value={demoName}
+                        onChange={(e) => setDemoName(e.target.value)}
+                        required
+                      />
+                    </div>
+
+                    <div className={styles.formGroup}>
+                      <label className={styles.formLabel}>Work Email Address</label>
+                      <input
+                        className={styles.input}
+                        type="email"
+                        placeholder="jane.smith@biotech.eu"
+                        value={demoEmail}
+                        onChange={(e) => setDemoEmail(e.target.value)}
+                        required
+                      />
+                    </div>
+
+                    <div className={styles.formGroup}>
+                      <label className={styles.formLabel}>Company / Organization</label>
+                      <input
+                        className={styles.input}
+                        type="text"
+                        placeholder="Acme Therapeutics Ltd."
+                        value={demoCompany}
+                        onChange={(e) => setDemoCompany(e.target.value)}
+                        required
+                      />
+                    </div>
+
+                    <div className={styles.formGroup}>
+                      <label className={styles.formLabel}>Team Size</label>
+                      <select
+                        className={styles.select}
+                        value={demoSize}
+                        onChange={(e) => setDemoSize(e.target.value)}
+                      >
+                        <option value="1-10">1-10 employees (Early Stage)</option>
+                        <option value="11-50">11-50 employees (Clinical Phase)</option>
+                        <option value="51-200">51-200 employees (Scaleup)</option>
+                        <option value="200+">200+ employees (CDMO / CRO)</option>
+                      </select>
+                    </div>
+
+                    <button type="submit" className={`${styles.btn} ${styles.btnPrimary}`} style={{ width: '100%', marginTop: '12px', padding: '12px', background: '#10B981', color: '#000', fontWeight: '700' }}>
+                      Submit Enterprise Demo Request →
+                    </button>
+                  </form>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Registration & Login Modals */}
         {showLoginModal && (
