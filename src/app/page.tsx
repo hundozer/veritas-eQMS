@@ -384,26 +384,46 @@ export default function Home() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
-  // Load tenant users on start
+  // Load tenant users on start & verify active session
   useEffect(() => {
     fetch('/api/users')
       .then((res) => res.json())
       .then((data) => {
         if (data.users) {
           setUsers(data.users);
-          // Set default user as owner@acme.com if no cookie is set
+          // Check for active user session cookie
           const match = document.cookie.match(/user-email=([^;]+)/);
-          const email = match ? decodeURIComponent(match[1]) : 'owner@acme.com';
-          const defaultUser = data.users.find((u: User) => u.email === email) || data.users[0];
-          if (defaultUser) {
-            setCurrentUser(defaultUser);
-            // Save to cookie to make it sticky in api requests
-            document.cookie = `user-email=${defaultUser.email}; path=/; max-age=86400`;
+          if (match) {
+            const email = decodeURIComponent(match[1]);
+            const activeUser = data.users.find((u: User) => u.email === email);
+            if (activeUser) {
+              setCurrentUser(activeUser);
+              setViewMode('app');
+            } else {
+              setCurrentUser(null);
+              setViewMode('landing');
+            }
+          } else {
+            setCurrentUser(null);
+            setViewMode('landing');
           }
         }
       })
-      .catch((err) => console.error('Failed to load users:', err));
+      .catch((err) => {
+        console.error('Failed to load users:', err);
+        setCurrentUser(null);
+        setViewMode('landing');
+      });
   }, []);
+
+  // Handle Sign Out / Logout
+  const handleSignOut = () => {
+    document.cookie = 'user-email=; path=/; max-age=0';
+    setCurrentUser(null);
+    setViewMode('landing');
+    setSuccessMessage('Signed out successfully.');
+    setTimeout(() => setSuccessMessage(null), 4000);
+  };
 
   // Fetch all dashboard data when user switches
   const fetchData = useCallback(async () => {
@@ -1199,15 +1219,7 @@ export default function Home() {
 
   const headerActions = (
     <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-      <button
-        className={`${styles.btn} ${styles.btnSecondary}`}
-        onClick={() => setViewMode('landing')}
-        style={{ fontSize: '12px', padding: '6px 12px' }}
-      >
-        🏠 Landing Page
-      </button>
-
-      {currentUser ? (
+      {currentUser && (
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <span className="glass" style={{ padding: '4px 10px', borderRadius: '16px', fontSize: '12px', color: 'var(--primary)', fontWeight: '600', border: '1px solid rgba(16,185,129,0.3)' }}>
             🏢 {currentUser.tenantName || 'Acme Biotech'}
@@ -1221,24 +1233,16 @@ export default function Home() {
             👤 <strong>{currentUser.fullName}</strong> ({currentUser.role})
             <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>▾ Switch</span>
           </button>
-        </div>
-      ) : (
-        <button
-          className={`${styles.btn} ${styles.btnSecondary}`}
-          onClick={() => setShowLoginModal(true)}
-          style={{ fontSize: '12px' }}
-        >
-          🔑 Select Persona / Login
-        </button>
-      )}
 
-      <button
-        className={`${styles.btn} ${styles.btnPrimary}`}
-        onClick={() => setShowRegisterModal(true)}
-        style={{ fontSize: '12px', padding: '6px 12px' }}
-      >
-        + Onboard New Org
-      </button>
+          <button
+            className={`${styles.btn} ${styles.btnDanger}`}
+            onClick={handleSignOut}
+            style={{ fontSize: '12px', padding: '6px 12px' }}
+          >
+            🔒 Sign Out
+          </button>
+        </div>
+      )}
     </div>
   );
 
@@ -1259,10 +1263,10 @@ export default function Home() {
   if (viewMode === 'landing') {
     return (
       <div style={{ minHeight: '100vh', background: '#0B0E14', color: '#fff', fontFamily: 'var(--font-sans)', display: 'flex', flexDirection: 'column' }}>
-        {/* Top Bar / Navigation Header */}
+        {/* Navigation Header */}
         <header style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '20px 40px', borderBottom: '1px solid rgba(255,255,255,0.08)', backdropFilter: 'blur(12px)', background: 'rgba(11,14,20,0.85)', position: 'sticky', top: 0, zIndex: 100 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <div style={{ width: '36px', height: '36px', borderRadius: '10px', background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '900', color: '#000', fontSize: '18px', boxShadow: '0 0 16px rgba(16,185,129,0.4)' }}>
+            <div style={{ width: '38px', height: '38px', borderRadius: '10px', background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '900', color: '#000', fontSize: '20px', boxShadow: '0 0 16px rgba(16,185,129,0.4)' }}>
               V
             </div>
             <div>
@@ -1271,198 +1275,238 @@ export default function Home() {
             </div>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
             <button
               className={`${styles.btn} ${styles.btnSecondary}`}
               onClick={() => setShowLoginModal(true)}
-              style={{ fontSize: '13px', padding: '8px 16px' }}
+              style={{ fontSize: '13px', padding: '8px 18px' }}
             >
-              🔑 Sign In / Personas
+              🔑 Member Sign In
             </button>
             <button
               className={`${styles.btn} ${styles.btnPrimary}`}
               onClick={() => setShowRegisterModal(true)}
-              style={{ fontSize: '13px', padding: '8px 18px', background: '#10B981', color: '#000', fontWeight: '700' }}
+              style={{ fontSize: '13px', padding: '8px 22px', background: '#10B981', color: '#000', fontWeight: '700', boxShadow: '0 0 16px rgba(16,185,129,0.3)' }}
             >
               🏢 Register Organization
-            </button>
-            <button
-              className={`${styles.btn} ${styles.btnPrimary}`}
-              onClick={() => setViewMode('app')}
-              style={{ fontSize: '13px', padding: '8px 18px' }}
-            >
-              🚀 Launch Workspace
             </button>
           </div>
         </header>
 
         {/* Hero Section */}
-        <section style={{ padding: '80px 40px 60px', maxWidth: '1200px', margin: '0 auto', textAlign: 'center', position: 'relative' }}>
-          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '6px 16px', borderRadius: '20px', background: 'rgba(16,185,129,0.1)', border: '1px solid rgba(16,185,129,0.3)', color: '#10B981', fontSize: '13px', fontWeight: '600', marginBottom: '24px' }}>
-            ⚡ 21 CFR Part 11 & ISO 13485:2016 Certified Architecture
+        <section style={{ padding: '90px 40px 60px', maxWidth: '1200px', margin: '0 auto', textAlign: 'center', position: 'relative' }}>
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '6px 18px', borderRadius: '20px', background: 'rgba(16,185,129,0.1)', border: '1px solid rgba(16,185,129,0.3)', color: '#10B981', fontSize: '13px', fontWeight: '600', marginBottom: '28px' }}>
+            ⚡ 21 CFR Part 11 & ISO 13485:2016 Compliant Architecture
           </div>
 
           <h1 style={{ fontSize: '56px', fontWeight: '900', lineHeight: '1.1', letterSpacing: '-1.5px', marginBottom: '24px', background: 'linear-gradient(180deg, #FFFFFF 0%, #9CA3AF 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
-            The Intelligent, Audit-Ready eQMS<br />for Modern Life Sciences
+            Achieve 100% Audit Readiness &<br />Accelerate Time-to-Market
           </h1>
 
-          <p style={{ fontSize: '18px', color: 'var(--text-muted)', maxWidth: '780px', margin: '0 auto 40px', lineHeight: '1.6' }}>
-            Automate Document Control, Quality Events (Deviations/CAPA), Supplier Quality (AVL), Training Quizzes, and Equipment Calibration with immutable 21 CFR Part 11 electronic signatures and real-time audit trails.
+          <p style={{ fontSize: '18px', color: 'var(--text-muted)', maxWidth: '820px', margin: '0 auto 40px', lineHeight: '1.6' }}>
+            Veritas replaces fragmented paper and legacy software with an automated, 21 CFR Part 11 compliant eQMS engineered specifically for Biotech, Pharma, and Medical Device innovators.
           </p>
 
-          <div style={{ display: 'flex', justifyContent: 'center', gap: '16px', marginBottom: '60px', flexWrap: 'wrap' }}>
-            <button
-              className={`${styles.btn} ${styles.btnPrimary}`}
-              onClick={() => setViewMode('app')}
-              style={{ fontSize: '16px', padding: '14px 28px', background: '#10B981', color: '#000', fontWeight: '700', boxShadow: '0 0 24px rgba(16,185,129,0.4)' }}
-            >
-              🚀 Launch Live eQMS Workspace
-            </button>
+          {/* Primary Registration / Login CTA Gating */}
+          <div style={{ display: 'flex', justifyContent: 'center', gap: '18px', marginBottom: '64px', flexWrap: 'wrap' }}>
             <button
               className={`${styles.btn} ${styles.btnPrimary}`}
               onClick={() => setShowRegisterModal(true)}
-              style={{ fontSize: '16px', padding: '14px 28px' }}
+              style={{ fontSize: '16px', padding: '16px 36px', background: '#10B981', color: '#000', fontWeight: '800', borderRadius: '10px', boxShadow: '0 0 30px rgba(16,185,129,0.45)', cursor: 'pointer' }}
             >
-              🏢 Register Organization
+              🏢 Provision Organization & Register →
             </button>
             <button
               className={`${styles.btn} ${styles.btnSecondary}`}
               onClick={() => setShowLoginModal(true)}
-              style={{ fontSize: '16px', padding: '14px 28px' }}
+              style={{ fontSize: '16px', padding: '16px 32px', borderRadius: '10px', cursor: 'pointer' }}
             >
-              🔑 Sign In / Persona Demo
+              🔑 Sign In to Existing Workspace
             </button>
           </div>
 
-          {/* Live Metrics Showcase Banner */}
-          <div className="glass" style={{ padding: '24px 32px', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.08)', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '24px', textAlign: 'left' }}>
+          {/* Compliance & ROI Metric Banner */}
+          <div className="glass" style={{ padding: '28px 36px', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.08)', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '24px', textAlign: 'left' }}>
             <div>
-              <div style={{ fontSize: '28px', fontWeight: '800', color: '#10B981' }}>21 CFR Part 11</div>
-              <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>FDA Compliant E-Signatures</div>
+              <div style={{ fontSize: '32px', fontWeight: '800', color: '#10B981' }}>21 CFR Part 11</div>
+              <div style={{ fontSize: '13px', color: '#E5E7EB', fontWeight: '600', marginTop: '4px' }}>FDA Electronic Signatures</div>
+              <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '2px' }}>Immutable SHA-256 audit logs</div>
             </div>
             <div>
-              <div style={{ fontSize: '28px', fontWeight: '800', color: '#38BDF8' }}>ISO 13485:2016</div>
-              <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Medical Device QMS Standard</div>
+              <div style={{ fontSize: '32px', fontWeight: '800', color: '#38BDF8' }}>ISO 13485:2016</div>
+              <div style={{ fontSize: '13px', color: '#E5E7EB', fontWeight: '600', marginTop: '4px' }}>Medical Device QMS</div>
+              <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '2px' }}>Automated design & risk controls</div>
             </div>
             <div>
-              <div style={{ fontSize: '28px', fontWeight: '800', color: '#A855F7' }}>EU Annex 11</div>
-              <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Computerized Systems Validation</div>
+              <div style={{ fontSize: '32px', fontWeight: '800', color: '#A855F7' }}>90% Faster</div>
+              <div style={{ fontSize: '13px', color: '#E5E7EB', fontWeight: '600', marginTop: '4px' }}>SOP Release Cycles</div>
+              <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '2px' }}>Automated approval routing</div>
             </div>
             <div>
-              <div style={{ fontSize: '28px', fontWeight: '800', color: '#F59E0B' }}>100% Audit Ready</div>
-              <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Immutable Hash-Linked Logs</div>
+              <div style={{ fontSize: '32px', fontWeight: '800', color: '#F59E0B' }}>0 Paper Risk</div>
+              <div style={{ fontSize: '13px', color: '#E5E7EB', fontWeight: '600', marginTop: '4px' }}>Continuous Audit Readiness</div>
+              <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '2px' }}>1-Click FDA CSV export</div>
             </div>
           </div>
         </section>
 
-        {/* Feature Grid Section */}
-        <section style={{ padding: '60px 40px', maxWidth: '1200px', margin: '0 auto', width: '100%' }}>
-          <h2 style={{ fontSize: '32px', fontWeight: '800', textAlign: 'center', marginBottom: '12px' }}>
-            Complete GxP Quality Management Suite
+        {/* Core Value Pillars Section */}
+        <section style={{ padding: '70px 40px', maxWidth: '1200px', margin: '0 auto', width: '100%' }}>
+          <div style={{ textAlign: 'center', marginBottom: '52px' }}>
+            <span style={{ fontSize: '12px', textTransform: 'uppercase', letterSpacing: '1.5px', color: '#10B981', fontWeight: '700' }}>Comprehensive GxP Capabilities</span>
+            <h2 style={{ fontSize: '36px', fontWeight: '800', marginTop: '8px' }}>
+              Built to Solve Life Science Compliance Bottlenecks
+            </h2>
+            <p style={{ fontSize: '16px', color: 'var(--text-muted)', maxWidth: '680px', margin: '12px auto 0' }}>
+              Eliminate manual spreadsheets, email sign-offs, and audit anxiety with purpose-built GxP workflows.
+            </p>
+          </div>
+
+          <div className={styles.grid3} style={{ gap: '28px' }}>
+            {/* Value Pillar 1 */}
+            <div className={`${styles.card} ${styles.cardGlow}`}>
+              <div style={{ fontSize: '32px', marginBottom: '14px' }}>📄</div>
+              <h3 style={{ fontSize: '20px', fontWeight: '700', marginBottom: '10px' }}>Document Control & E-Signatures</h3>
+              <p style={{ fontSize: '14px', color: 'var(--text-muted)', lineHeight: '1.6' }}>
+                Complete document lifecycle management (Draft → In Review → Effective → Obsolete). Includes SHA-256 integrity checksums, role-based access clearance, and 21 CFR Part 11 compliant electronic signatures.
+              </p>
+            </div>
+
+            {/* Value Pillar 2 */}
+            <div className={`${styles.card} ${styles.cardGlow}`}>
+              <div style={{ fontSize: '32px', marginBottom: '14px' }}>🎓</div>
+              <h3 style={{ fontSize: '20px', fontWeight: '700', marginBottom: '10px' }}>Automated Training & Quiz Verification</h3>
+              <p style={{ fontSize: '14px', color: 'var(--text-muted)', lineHeight: '1.6' }}>
+                Maintain role-based training matrices seamlessly. Releasing an SOP automatically triggers employee training tasks with mandatory knowledge assessment quizzes before sign-off.
+              </p>
+            </div>
+
+            {/* Value Pillar 3 */}
+            <div className={`${styles.card} ${styles.cardGlow}`}>
+              <div style={{ fontSize: '32px', marginBottom: '14px' }}>⚡</div>
+              <h3 style={{ fontSize: '20px', fontWeight: '700', marginBottom: '10px' }}>Quality Events, Deviations & CAPA</h3>
+              <p style={{ fontSize: '14px', color: 'var(--text-muted)', lineHeight: '1.6' }}>
+                Log GxP non-conformances, perform 8D and 5-Why root cause investigations, assign corrective/preventive actions (CAPA), and track closures with electronic signature verification.
+              </p>
+            </div>
+
+            {/* Value Pillar 4 */}
+            <div className={`${styles.card} ${styles.cardGlow}`}>
+              <div style={{ fontSize: '32px', marginBottom: '14px' }}>📦</div>
+              <h3 style={{ fontSize: '20px', fontWeight: '700', marginBottom: '10px' }}>Supplier Quality Management (AVL)</h3>
+              <p style={{ fontSize: '14px', color: 'var(--text-muted)', lineHeight: '1.6' }}>
+                Approved Vendor List (AVL) with risk tiering (Critical/Major/Minor), annual vendor audit logs with Part 11 e-signatures, and incoming raw material inspection with auto-quarantine.
+              </p>
+            </div>
+
+            {/* Value Pillar 5 */}
+            <div className={`${styles.card} ${styles.cardGlow}`}>
+              <div style={{ fontSize: '32px', marginBottom: '14px' }}>🔧</div>
+              <h3 style={{ fontSize: '20px', fontWeight: '700', marginBottom: '10px' }}>Equipment Calibration & Maintenance</h3>
+              <p style={{ fontSize: '14px', color: 'var(--text-muted)', lineHeight: '1.6' }}>
+                Centralized equipment registry tracking calibration due dates, maintenance history, and automatic deviation generation whenever an instrument fails calibration.
+              </p>
+            </div>
+
+            {/* Value Pillar 6 */}
+            <div className={`${styles.card} ${styles.cardGlow}`}>
+              <div style={{ fontSize: '32px', marginBottom: '14px' }}>🛡️</div>
+              <h3 style={{ fontSize: '20px', fontWeight: '700', marginBottom: '10px' }}>21 CFR Part 11 Audit Trail Logs</h3>
+              <p style={{ fontSize: '14px', color: 'var(--text-muted)', lineHeight: '1.6' }}>
+                Immutable, chronological system audit logging recording timestamp, user ID, role, IP address, action, and JSON payload. Export audit trails to CSV instantly during FDA/EMA inspections.
+              </p>
+            </div>
+          </div>
+        </section>
+
+        {/* Feature Comparison Matrix Section */}
+        <section style={{ padding: '60px 40px', maxWidth: '1100px', margin: '0 auto', width: '100%' }}>
+          <h2 style={{ fontSize: '30px', fontWeight: '800', textAlign: 'center', marginBottom: '12px' }}>
+            Why Leading Life Sciences Teams Choose Veritas
           </h2>
-          <p style={{ fontSize: '15px', color: 'var(--text-muted)', textAlign: 'center', marginBottom: '48px' }}>
-            Everything your QA, Regulatory, and Manufacturing teams need to maintain continuous audit readiness.
+          <p style={{ fontSize: '15px', color: 'var(--text-muted)', textAlign: 'center', marginBottom: '36px' }}>
+            Compare modern eQMS automation against legacy paper processes and generic cloud storage.
           </p>
 
-          <div className={styles.grid3} style={{ gap: '24px' }}>
-            {/* Card 1 */}
-            <div className={`${styles.card} ${styles.cardGlow}`}>
-              <div style={{ fontSize: '28px', marginBottom: '12px' }}>📄</div>
-              <h3 style={{ fontSize: '18px', fontWeight: '700', marginBottom: '8px' }}>Document Control</h3>
-              <p style={{ fontSize: '13px', color: 'var(--text-muted)', lineHeight: '1.5' }}>
-                Automated document lifecycle (Draft, Review, Approval, Effective, Obsolete). SHA-256 integrity checksums, role clearance checks, and e-signatures.
-              </p>
-            </div>
-
-            {/* Card 2 */}
-            <div className={`${styles.card} ${styles.cardGlow}`}>
-              <div style={{ fontSize: '28px', marginBottom: '12px' }}>🎓</div>
-              <h3 style={{ fontSize: '18px', fontWeight: '700', marginBottom: '8px' }}>Training Hub & Quizzes</h3>
-              <p style={{ fontSize: '13px', color: 'var(--text-muted)', lineHeight: '1.5' }}>
-                Role-based training matrix. Releasing a document automatically assigns training tasks with knowledge assessment quizzes and e-sign sign-offs.
-              </p>
-            </div>
-
-            {/* Card 3 */}
-            <div className={`${styles.card} ${styles.cardGlow}`}>
-              <div style={{ fontSize: '28px', marginBottom: '12px' }}>⚡</div>
-              <h3 style={{ fontSize: '18px', fontWeight: '700', marginBottom: '8px' }}>Quality Events & CAPA</h3>
-              <p style={{ fontSize: '13px', color: 'var(--text-muted)', lineHeight: '1.5' }}>
-                Root cause analysis (8D / 5-Why), automated deviation logging, CAPA task assignment, due date monitoring, and e-sign closure.
-              </p>
-            </div>
-
-            {/* Card 4 */}
-            <div className={`${styles.card} ${styles.cardGlow}`}>
-              <div style={{ fontSize: '28px', marginBottom: '12px' }}>📦</div>
-              <h3 style={{ fontSize: '18px', fontWeight: '700', marginBottom: '8px' }}>Supplier Quality (AVL)</h3>
-              <p style={{ fontSize: '13px', color: 'var(--text-muted)', lineHeight: '1.5' }}>
-                Approved Vendor List, risk classification (Critical/Major/Minor), annual e-signed audit records, and incoming material quarantine/inspection.
-              </p>
-            </div>
-
-            {/* Card 5 */}
-            <div className={`${styles.card} ${styles.cardGlow}`}>
-              <div style={{ fontSize: '28px', marginBottom: '12px' }}>🔧</div>
-              <h3 style={{ fontSize: '18px', fontWeight: '700', marginBottom: '8px' }}>Equipment Calibration</h3>
-              <p style={{ fontSize: '13px', color: 'var(--text-muted)', lineHeight: '1.5' }}>
-                Equipment registry, calibration interval tracking, maintenance logs with e-signatures, and auto-triggered deviations for out-of-spec failures.
-              </p>
-            </div>
-
-            {/* Card 6 */}
-            <div className={`${styles.card} ${styles.cardGlow}`}>
-              <div style={{ fontSize: '28px', marginBottom: '12px' }}>🛡️</div>
-              <h3 style={{ fontSize: '18px', fontWeight: '700', marginBottom: '8px' }}>21 CFR Part 11 Audit Logs</h3>
-              <p style={{ fontSize: '13px', color: 'var(--text-muted)', lineHeight: '1.5' }}>
-                Chronological event logging, IP address and user role capture, tenant isolation, and 1-click CSV audit trail export for regulatory inspectors.
-              </p>
-            </div>
+          <div className="glass" style={{ borderRadius: '16px', padding: '24px', border: '1px solid rgba(255,255,255,0.08)' }}>
+            <table className={styles.table}>
+              <thead>
+                <tr>
+                  <th style={{ width: '35%' }}>Capability / Feature</th>
+                  <th style={{ width: '35%', color: '#10B981' }}>✨ Veritas eQMS</th>
+                  <th style={{ width: '30%', color: 'var(--text-muted)' }}>Legacy / Manual Paper</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr className={styles.tableRow}>
+                  <td><strong>FDA 21 CFR Part 11 Compliance</strong></td>
+                  <td style={{ color: '#10B981', fontWeight: '600' }}>✓ Out-of-the-box (E-Sign + Hashes)</td>
+                  <td style={{ color: '#F87171' }}>✗ High Risk / Manual Signatures</td>
+                </tr>
+                <tr className={styles.tableRow}>
+                  <td><strong>SOP Release & Training Integration</strong></td>
+                  <td style={{ color: '#10B981', fontWeight: '600' }}>✓ Automatic Training & Quizzes</td>
+                  <td style={{ color: '#F87171' }}>✗ Manual Email Tracking</td>
+                </tr>
+                <tr className={styles.tableRow}>
+                  <td><strong>Audit Trail Verification</strong></td>
+                  <td style={{ color: '#10B981', fontWeight: '600' }}>✓ Immutable, 1-Click CSV Export</td>
+                  <td style={{ color: '#F87171' }}>✗ Fragmented Binder Logs</td>
+                </tr>
+                <tr className={styles.tableRow}>
+                  <td><strong>Supplier Quality & Material Quarantine</strong></td>
+                  <td style={{ color: '#10B981', fontWeight: '600' }}>✓ Automated Deviation on Rejection</td>
+                  <td style={{ color: '#F87171' }}>✗ Unlinked Inspection Sheets</td>
+                </tr>
+                <tr className={styles.tableRow}>
+                  <td><strong>Deployment & Provisioning Time</strong></td>
+                  <td style={{ color: '#10B981', fontWeight: '600' }}>✓ Instant Multi-Tenant Onboarding</td>
+                  <td style={{ color: '#F87171' }}>✗ 6 to 12 Months Implementation</td>
+                </tr>
+              </tbody>
+            </table>
           </div>
         </section>
 
-        {/* Pre-seeded Persona Fast Launch Bar */}
-        <section style={{ padding: '40px', background: 'rgba(255,255,255,0.01)', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
-          <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
-            <h3 style={{ fontSize: '20px', fontWeight: '700', marginBottom: '16px', textAlign: 'center' }}>
-              Instant Demo Personas (1-Click Launch)
-            </h3>
-
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '16px' }}>
-              {users.map((u) => (
-                <div key={u.id} className="glass" style={{ padding: '16px', borderRadius: '12px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
-                  <div>
-                    <div style={{ fontWeight: '700', fontSize: '15px' }}>{u.fullName}</div>
-                    <div style={{ fontSize: '12px', color: '#10B981', marginTop: '2px', fontWeight: '600' }}>{u.role} — {u.department}</div>
-                    <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '4px' }}>{u.email}</div>
-                  </div>
-                  <button
-                    className={`${styles.btn} ${styles.btnSecondary}`}
-                    onClick={() => {
-                      handleLoginUser(u.email);
-                      setViewMode('app');
-                    }}
-                    style={{ marginTop: '12px', fontSize: '12px', width: '100%' }}
-                  >
-                    Launch as {u.fullName.split(' ')[0]} →
-                  </button>
-                </div>
-              ))}
+        {/* Final Registration Banner */}
+        <section style={{ padding: '80px 40px', background: 'radial-gradient(circle at 50% 50%, rgba(16,185,129,0.12) 0%, rgba(11,14,20,1) 80%)', borderTop: '1px solid rgba(255,255,255,0.08)', textAlign: 'center' }}>
+          <div style={{ maxWidth: '800px', margin: '0 auto' }}>
+            <h2 style={{ fontSize: '38px', fontWeight: '900', marginBottom: '16px' }}>
+              Ready to Upgrade Your Quality System?
+            </h2>
+            <p style={{ fontSize: '17px', color: 'var(--text-muted)', marginBottom: '36px', lineHeight: '1.6' }}>
+              Register your organization today and automatically seed your workspace with compliant SOP templates compliant with 21 CFR Part 11 and ISO 13485.
+            </p>
+            <div style={{ display: 'flex', justifyContent: 'center', gap: '16px' }}>
+              <button
+                className={`${styles.btn} ${styles.btnPrimary}`}
+                onClick={() => setShowRegisterModal(true)}
+                style={{ fontSize: '16px', padding: '16px 36px', background: '#10B981', color: '#000', fontWeight: '800', borderRadius: '10px' }}
+              >
+                🏢 Provision Organization & Register
+              </button>
+              <button
+                className={`${styles.btn} ${styles.btnSecondary}`}
+                onClick={() => setShowLoginModal(true)}
+                style={{ fontSize: '16px', padding: '16px 32px', borderRadius: '10px' }}
+              >
+                🔑 Sign In
+              </button>
             </div>
           </div>
         </section>
 
         {/* Footer */}
         <footer style={{ padding: '30px 40px', borderTop: '1px solid rgba(255,255,255,0.08)', textAlign: 'center', fontSize: '13px', color: 'var(--text-muted)' }}>
-          Veritas eQMS — 21 CFR Part 11 & ISO 13485 Compliant Quality System | Connected to Neon PostgreSQL
+          Veritas eQMS — 21 CFR Part 11 & ISO 13485 Compliant Quality System | Secured by Neon PostgreSQL
         </footer>
 
-        {/* Render Modals 14 and 15 so landing page buttons trigger modals seamlessly */}
+        {/* Registration & Login Modals */}
         {showLoginModal && (
           <div className={styles.modalOverlay}>
             <div className={styles.modalContent} style={{ maxWidth: '650px' }}>
               <div className={styles.modalHeader}>
-                <h3>Select Persona or Sign In</h3>
+                <h3>Member Sign In</h3>
                 <button style={{ background: 'transparent', border: 'none', color: '#fff', fontSize: '20px', cursor: 'pointer' }} onClick={() => setShowLoginModal(false)}>×</button>
               </div>
               <div className={styles.modalBody}>
@@ -1472,12 +1516,11 @@ export default function Home() {
                   </div>
                 )}
                 <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '16px' }}>
-                  Select a pre-seeded persona or enter your work email to switch user roles and test 21 CFR Part 11 permission policies.
+                  Select an account or enter your registered work email address to sign into your organization's eQMS workspace.
                 </p>
 
-                {/* Pre-seeded Persona Quick Selection */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '24px' }}>
-                  <span style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', fontWeight: '600' }}>Available Persona Accounts</span>
+                  <span style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', fontWeight: '600' }}>Registered Accounts</span>
                   {users.map((u) => (
                     <div
                       key={u.id}
@@ -1516,7 +1559,6 @@ export default function Home() {
                   ))}
                 </div>
 
-                {/* Custom Email Login Form */}
                 <form onSubmit={async (e) => { e.preventDefault(); if (loginEmail) { const ok = await handleLoginUser(loginEmail); if (ok) setViewMode('app'); } }}>
                   <div className={styles.formGroup}>
                     <label className={styles.formLabel}>Or Sign in with Email</label>
@@ -1544,7 +1586,6 @@ export default function Home() {
           </div>
         )}
 
-        {/* MODAL 15: ORGANIZATION REGISTRATION & ONBOARDING */}
         {showRegisterModal && (
           <div className={styles.modalOverlay}>
             <div className={styles.modalContent} style={{ maxWidth: '650px' }}>
@@ -1559,7 +1600,6 @@ export default function Home() {
                       ⚠ {errorMessage}
                     </div>
                   )}
-
                   <div style={{ padding: '12px 16px', background: 'rgba(16,185,129,0.08)', borderRadius: '8px', border: '1px solid rgba(16,185,129,0.2)', marginBottom: '20px' }}>
                     <div style={{ fontWeight: '600', color: '#10B981', fontSize: '14px' }}>✨ Instant GxP Workspace Provisioning</div>
                     <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px' }}>
