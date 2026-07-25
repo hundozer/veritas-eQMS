@@ -2085,7 +2085,7 @@ export default function Home() {
                       
                       {selectedDoc.status === 'EFFECTIVE' && (
                         <a 
-                          href={`/${selectedDoc.versions[0]?.filePath}`} 
+                          href={`/api/documents/${selectedDoc.id}/pdf`} 
                           target="_blank" 
                           rel="noreferrer"
                           className={`${styles.btn} ${styles.btnSecondary}`}
