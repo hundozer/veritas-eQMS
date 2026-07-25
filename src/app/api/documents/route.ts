@@ -28,7 +28,7 @@ export async function GET(req: NextRequest) {
     });
 
     // Post-evaluate ABAC for each document (e.g., clearance checks)
-    const filteredDocs = dbDocs.filter((doc) => {
+    const filteredDocs = dbDocs.filter((doc: any) => {
       return checkAbac(user, { classification: doc.classification, ownerId: doc.ownerId }, 'view');
     });
 
