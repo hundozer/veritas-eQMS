@@ -59,7 +59,7 @@ export async function GET(req: NextRequest) {
       'Payload Details'
     ];
 
-    const rows = logs.map((log: typeof logs[number]) => [
+    const rows: (string | null | undefined)[][] = logs.map((log: typeof logs[number]) => [
       log.eventId,
       log.timestamp.toISOString(),
       log.userEmail || 'System',
@@ -75,7 +75,7 @@ export async function GET(req: NextRequest) {
 
     const csvContent = [
       headers.join(','),
-      ...rows.map((row) => row.map(csvEscape).join(','))
+      ...rows.map((row: (string | null | undefined)[]) => row.map(csvEscape).join(','))
     ].join('\n');
 
     // Log the export action
