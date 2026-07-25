@@ -164,6 +164,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
             documentId: id,
             versionNumber: nextVersionNumber,
             filePath,
+            fileData: contentBase64,
             hash,
             createdBy: user.fullName,
           },

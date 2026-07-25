@@ -69,6 +69,7 @@ model DocumentVersion {
   document          Document           @relation(fields: [documentId], references: [id], onDelete: Cascade)
   versionNumber     Int
   filePath          String
+  fileData          String?            // Base64 encoded file content
   hash              String             // SHA-256 integrity hash
   createdAt         DateTime           @default(now())
   createdBy         String

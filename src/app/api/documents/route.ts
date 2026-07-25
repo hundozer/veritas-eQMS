@@ -125,6 +125,7 @@ export async function POST(req: NextRequest) {
           documentId: document.id,
           versionNumber: 1,
           filePath,
+          fileData: contentBase64 || null,
           hash,
           createdBy: user.fullName,
         },
