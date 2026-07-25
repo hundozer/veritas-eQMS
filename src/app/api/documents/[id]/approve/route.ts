@@ -62,11 +62,11 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       const manifest = await tx.signatureManifest.upsert({
         where: { documentVersionId: latestVersion.id },
         update: {
-          signedBy: user.id,
+          signer: { connect: { id: user.id } },
           meaning: meaning || 'Approval of Document Release',
           hashSigned: `${latestVersion.hash}-${user.fullName.toUpperCase()}-APPROVED`,
           ipAddress: req.headers.get('x-forwarded-for') || '127.0.0.1',
-          timestamp: new Date(),
+          signedAt: new Date(),
         },
         create: {
           documentVersionId: latestVersion.id,
