@@ -60,10 +60,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: { code: 'Unauthorized', message: 'User context not found' } }, { status: 401 });
     }
 
-    // Role-based permission check: Viewer and Auditor cannot author documents
-    if (user.role === 'EMPLOYEE' || user.role === 'AUDITOR') {
-      return NextResponse.json({ error: { code: 'Forbidden', message: 'Permissions insufficient to create documents' } }, { status: 403 });
-    }
+    // Any authenticated tenant user can author document drafts
 
     const body = await req.json();
     const { title, description, classification, contentBase64, requiredRoles, requiresQuiz, quizQuestions } = body;

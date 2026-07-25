@@ -360,6 +360,40 @@ export default function Home() {
   ]);
   const [newQuizQ1Correct, setNewQuizQ1Correct] = useState(1);
 
+  // Attached Physical File State
+  const [docFileBase64, setDocFileBase64] = useState<string | null>(null);
+  const [docFileName, setDocFileName] = useState('');
+  const [docFileSize, setDocFileSize] = useState('');
+  const [docFileHash, setDocFileHash] = useState('');
+
+  const handleDocFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setDocFileName(file.name);
+    setDocFileSize(`${(file.size / 1024).toFixed(1)} KB`);
+
+    // Calculate SHA-256 Hash
+    try {
+      const arrayBuffer = await file.arrayBuffer();
+      const hashBuffer = await crypto.subtle.digest('SHA-256', arrayBuffer);
+      const hashArray = Array.from(new Uint8Array(hashBuffer));
+      const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+      setDocFileHash(hashHex);
+
+      const reader = new FileReader();
+      reader.onload = () => {
+        const result = reader.result as string;
+        // Strip data url prefix e.g. "data:application/pdf;base64,"
+        const base64 = result.split(',')[1] || result;
+        setDocFileBase64(base64);
+      };
+      reader.readAsDataURL(file);
+    } catch (err) {
+      console.error('File hash calculation error:', err);
+    }
+  };
+
   // Approval form state
   const [esignPassword, setEsignPassword] = useState('');
   const [esignMeaning, setEsignMeaning] = useState('Approval of Document Release');
@@ -810,19 +844,23 @@ export default function Home() {
           requiredRoles: newRequiredRoles,
           requiresQuiz: newRequiresQuiz,
           quizQuestions: newRequiresQuiz ? quizQuestionsList : null,
-          contentBase64: 'JVBERi0xLjQKJcfsj6IKMSAwIG9iagogIDw8L1R5cGUvQ2F0YWxvZy9QYWdlcyAyIDAgUj4+CmVuZG9iagoyIDAgb2JqCiAgPDwvVHlwZS9QYWdlcy9LaWRzWzMgMCBSXS9Db3VudCAxPj4KZW5kb2JqCjMgMCBvYmoKICA8PC9UeXBlL1BhZ2UvUGFyZW50IDIgMCBSL01lZGlhQm94WzAgMCA1OTUgODQyXS9Db250ZW50cyA0IDAgUj4+CmVuZG9iago0IDAgb2JqCiAgPDwvTGVuZ3RoIDU5Pj5zdHJlYW0KQlQKICAvRjEgMjQgVGYKICA3MCA3MDAgVGQKICAoVmVyaXRhcyBlUU1TIC0gR3hQIERvY3VtZW50KSBUagogRVQKZW5kc3RyZWFtCmVuZG9iagp4cmVmCjAgNQowMDAwMDAwMDAwIDY1NTM1IGYgCjAwMDAwMDAwMTkgMDAwMDAgbiAKMDAwMDAwMDA3MCAwMDAwMCBuIAowMDAwMDAwMTI3IDAwMDAwIGYgCjAwMDAwMDAyMDkgMDAwMDAgbiAKdHJhaWxlcgowMDAwMDAwMjg4Cg==', // minimal valid mock PDF base64
+          contentBase64: docFileBase64 || 'JVBERi0xLjQKJcfsj6IKMSAwIG9iagogIDw8L1R5cGUvQ2F0YWxvZy9QYWdlcyAyIDAgUj4+CmVuZG9iagoyIDAgb2JqCiAgPDwvVHlwZS9QYWdlcy9LaWRzWzMgMCBSXS9Db3VudCAxPj4KZW5kb2JqCjMgMCBvYmoKICA8PC9UeXBlL1BhZ2UvUGFyZW50IDIgMCBSL01lZGlhQm94WzAgMCA1OTUgODQyXS9Db250ZW50cyA0IDAgUj4+CmVuZG9iago0IDAgb2JqCiAgPDwvTGVuZ3RoIDU5Pj5zdHJlYW0KQlQKICAvRjEgMjQgVGYKICA3MCA3MDAgVGQKICAoVmVyaXRhcyBlUU1TIC0gR3hQIERvY3VtZW50KSBUagogRVQKZW5kc3RyZWFtCmVuZG9iagp4cmVmCjAgNQowMDAwMDAwMDAwIDY1NTM1IGYgCjAwMDAwMDAwMTkgMDAwMDAgbiAKMDAwMDAwMDA3MCAwMDAwMCBuIAowMDAwMDAwMTI3IDAwMDAwIGYgCjAwMDAwMDAyMDkgMDAwMDAgbiAKdHJhaWxlcgowMDAwMDAwMjg4Cg==',
         }),
       });
 
       const data = await res.json();
       if (res.ok) {
-        setSuccessMessage('Successfully uploaded new document draft!');
+        setSuccessMessage(`Document "${data.document.title}" created successfully!`);
         setShowCreateModal(false);
         setNewTitle('');
         setNewDesc('');
         setNewClassification('CONTROLLED');
         setNewRequiredRoles('EMPLOYEE');
         setNewRequiresQuiz(false);
+        setDocFileBase64(null);
+        setDocFileName('');
+        setDocFileSize('');
+        setDocFileHash('');
         fetchData();
       } else {
         setErrorMessage(data.error?.message || 'Failed to create document');
@@ -830,10 +868,10 @@ export default function Home() {
       setTimeout(() => {
         setSuccessMessage(null);
         setErrorMessage(null);
-      }, 4000);
+      }, 5000);
     } catch (err: any) {
       setErrorMessage(err.message);
-      setTimeout(() => setErrorMessage(null), 4000);
+      setTimeout(() => setErrorMessage(null), 5000);
     }
   };
 
@@ -3203,6 +3241,35 @@ export default function Home() {
             </div>
             <form onSubmit={handleCreateDocument}>
               <div className={styles.modalBody}>
+                {errorMessage && (
+                  <div style={{ background: 'rgba(239,68,68,0.15)', border: '1px solid #EF4444', color: '#F87171', padding: '10px 14px', borderRadius: '6px', fontSize: '13px', marginBottom: '16px' }}>
+                    ⚠ {errorMessage}
+                  </div>
+                )}
+
+                <div className={styles.formGroup}>
+                  <label className={styles.formLabel}>Attach Physical SOP File (.pdf, .docx, .doc, .txt)</label>
+                  <input
+                    type="file"
+                    accept=".pdf,.doc,.docx,.txt,.png"
+                    onChange={handleDocFileSelect}
+                    className={styles.input}
+                    style={{ padding: '8px' }}
+                  />
+                  {docFileName ? (
+                    <div style={{ marginTop: '8px', padding: '10px 14px', background: 'rgba(16,185,129,0.08)', borderRadius: '6px', border: '1px solid rgba(16,185,129,0.2)', fontSize: '12px' }}>
+                      <div style={{ fontWeight: '600', color: '#10B981' }}>📎 Attached: {docFileName} ({docFileSize})</div>
+                      <div style={{ color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', fontSize: '11px', marginTop: '2px' }}>
+                        SHA-256 Checksum: {docFileHash || 'Calculating integrity hash...'}
+                      </div>
+                    </div>
+                  ) : (
+                    <span style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '4px', display: 'block' }}>
+                      If omitted, a standard 21 CFR Part 11 template PDF will be auto-generated for this document draft.
+                    </span>
+                  )}
+                </div>
+
                 <div className={styles.formGroup}>
                   <label className={styles.formLabel}>Document Title</label>
                   <input 
