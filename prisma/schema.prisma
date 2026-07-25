@@ -11,16 +11,18 @@ datasource db {
 }
 
 model Tenant {
-  id         String      @id @default(uuid())
-  name       String
-  createdAt  DateTime    @default(now())
-  users      User[]
-  documents  Document[]
-  auditLogs  AuditLog[]
-  deviations Deviation[]
-  capas      CAPA[]
-  equipment  Equipment[]
-  suppliers  Supplier[]
+  id            String         @id @default(uuid())
+  name          String
+  createdAt     DateTime       @default(now())
+  users         User[]
+  documents     Document[]
+  auditLogs     AuditLog[]
+  deviations    Deviation[]
+  capas         CAPA[]
+  equipment     Equipment[]
+  suppliers     Supplier[]
+  auditPlans    AuditPlan[]
+  notifications Notification[]
 }
 
 model User {
@@ -43,6 +45,8 @@ model User {
   maintenanceLogs      MaintenanceLog[]     @relation("PerformedMaintenance")
   supplierAudits       SupplierAudit[]      @relation("AuditedSupplier")
   materialInspections  MaterialReceipt[]    @relation("InspectedMaterial")
+  auditsLead           AuditPlan[]          @relation("LeadAuditor")
+  notifications        Notification[]
 }
 
 model Document {
@@ -183,20 +187,21 @@ model Deviation {
 }
 
 model CAPA {
-  id           String    @id @default(uuid())
-  tenantId     String
-  tenant       Tenant    @relation(fields: [tenantId], references: [id])
-  title        String
-  actionPlan   String
-  status       String    // e.g. "OPEN", "IN_PROGRESS", "CLOSED"
-  dueDate      DateTime
-  completedAt  DateTime?
-  assignedToId String
-  assignedTo   User      @relation("CapaAssigned", fields: [assignedToId], references: [id])
-  deviationId  String?
-  deviation    Deviation? @relation(fields: [deviationId], references: [id], onDelete: Cascade)
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
+  id            String         @id @default(uuid())
+  tenantId      String
+  tenant        Tenant         @relation(fields: [tenantId], references: [id])
+  title         String
+  actionPlan    String
+  status        String         // e.g. "OPEN", "IN_PROGRESS", "CLOSED"
+  dueDate       DateTime
+  completedAt   DateTime?
+  assignedToId  String
+  assignedTo    User           @relation("CapaAssigned", fields: [assignedToId], references: [id])
+  deviationId   String?
+  deviation     Deviation?     @relation(fields: [deviationId], references: [id], onDelete: Cascade)
+  auditFindings AuditFinding[]
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
 }
 
 model AuditLog {
@@ -301,5 +306,61 @@ model MaterialReceipt {
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 }
+
+model AuditPlan {
+  id              String         @id @default(uuid())
+  tenantId        String
+  tenant          Tenant         @relation(fields: [tenantId], references: [id])
+  title           String
+  scope           String         // e.g. "EU GMP Annex 11 / ISO 13485 Internal Audit"
+  auditType       String         // e.g. "INTERNAL", "SUPPLIER", "REGULATORY_PREPARATION"
+  status          String         // e.g. "PLANNED", "IN_PROGRESS", "REPORT_GENERATED", "CLOSED"
+  scheduledDate   DateTime
+  completedDate   DateTime?
+  leadAuditorId   String
+  leadAuditor     User           @relation("LeadAuditor", fields: [leadAuditorId], references: [id])
+  summary         String?
+  findings        AuditFinding[]
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+}
+
+model AuditFinding {
+  id           String    @id @default(uuid())
+  auditPlanId  String
+  auditPlan    AuditPlan @relation(fields: [auditPlanId], references: [id], onDelete: Cascade)
+  classification String  // e.g. "CRITICAL", "MAJOR", "MINOR", "RECOMMENDATION"
+  description  String
+  capaId       String?
+  capa         CAPA?     @relation(fields: [capaId], references: [id])
+  status       String    // e.g. "OPEN", "CAPA_LINKED", "RESOLVED"
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id])
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title     String
+  message   String
+  type      String   // e.g. "TRAINING_OVERDUE", "DOCUMENT_REVIEW", "CAPA_DUE", "CALIBRATION_ALERT"
+  read      Boolean  @default(false)
+  link      String?
+  createdAt DateTime @default(now())
+}
+
+model VeritasComplianceRule {
+  id              String   @id @default(uuid())
+  standard        String   // e.g. "EU Annex 11", "21 CFR Part 11", "ISO 13485:2016"
+  section         String   // e.g. "11.10(a)", "Annex 11 Clause 4"
+  title           String
+  description     String
+  severity        String   // e.g. "HIGH", "CRITICAL", "MEDIUM"
+  automationCheck String   // Identifier for Veritas Intelligence rule calculation logic
+}
+
 
 
