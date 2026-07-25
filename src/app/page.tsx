@@ -26,6 +26,11 @@ interface User {
   department: string;
   clearance: string;
   tenantId: string;
+  tenantName?: string;
+  tenant?: {
+    id?: string;
+    name: string;
+  };
 }
 
 interface DocumentVersion {
@@ -263,6 +268,19 @@ export default function Home() {
   const [showCreateSupplierModal, setShowCreateSupplierModal] = useState(false);
   const [showAuditSupplierModal, setShowAuditSupplierModal] = useState(false);
   const [showReceiptModal, setShowReceiptModal] = useState(false);
+  const [showLoginModal, setShowLoginModal] = useState(false);
+  const [showRegisterModal, setShowRegisterModal] = useState(false);
+
+  // Auth / Login Form State
+  const [loginEmail, setLoginEmail] = useState('');
+
+  // Company Registration & Onboarding Form State
+  const [regCompanyName, setRegCompanyName] = useState('');
+  const [regFullName, setRegFullName] = useState('');
+  const [regEmail, setRegEmail] = useState('');
+  const [regDepartment, setRegDepartment] = useState('QA');
+  const [regRole, setRegRole] = useState('OWNER');
+  const [regGxPStandard, setRegGxPStandard] = useState('21 CFR Part 11 / ISO 13485');
 
   // Supplier Form State
   const [newSupName, setNewSupName] = useState('');
@@ -1065,6 +1083,69 @@ export default function Home() {
     }
   };
 
+  // Onboard New Company / Organization
+  const handleRegisterCompany = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!regCompanyName.trim() || !regFullName.trim() || !regEmail.trim()) return;
+
+    try {
+      const res = await fetch('/api/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          companyName: regCompanyName,
+          fullName: regFullName,
+          email: regEmail,
+          department: regDepartment,
+          role: regRole,
+          GxPStandard: regGxPStandard,
+        }),
+      });
+
+      const data = await res.json();
+      if (res.ok) {
+        setSuccessMessage(`Organization "${data.tenant.name}" created! Default GxP SOPs generated.`);
+        setCurrentUser(data.user);
+        setShowRegisterModal(false);
+        setRegCompanyName('');
+        setRegFullName('');
+        setRegEmail('');
+        fetchData();
+      } else {
+        setErrorMessage(data.error?.message || 'Registration failed');
+      }
+      setTimeout(() => { setSuccessMessage(null); setErrorMessage(null); }, 5000);
+    } catch (err: any) {
+      setErrorMessage(err.message);
+      setTimeout(() => setErrorMessage(null), 5000);
+    }
+  };
+
+  // Login / Switch User Session
+  const handleLoginUser = async (targetEmail: string) => {
+    try {
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: targetEmail }),
+      });
+
+      const data = await res.json();
+      if (res.ok) {
+        setCurrentUser(data.user);
+        setShowLoginModal(false);
+        setSuccessMessage(`Switched active session to ${data.user.fullName} (${data.user.role})`);
+        fetchData();
+      } else {
+        setErrorMessage(data.error?.message || 'Login failed');
+      }
+      setTimeout(() => { setSuccessMessage(null); setErrorMessage(null); }, 5000);
+    } catch (err: any) {
+      setErrorMessage(err.message);
+      setTimeout(() => setErrorMessage(null), 5000);
+    }
+  };
+
   // Export CSV
   const handleExportAudit = () => {
     if (!currentUser) return;
@@ -1108,28 +1189,39 @@ export default function Home() {
   ];
 
   const headerActions = (
-    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-      <span style={{ fontSize: '13px', color: 'var(--text-muted)' }}>Tenant: <strong>{currentUser ? currentUser.tenantId.substring(0, 8) + '...' : 'Acme Biotech'}</strong></span>
-      <select 
-        style={{
-          background: 'var(--blight)',
-          color: 'var(--t1)',
-          border: '1px solid var(--border)',
-          padding: '6px 12px',
-          borderRadius: '6px',
-          outline: 'none',
-          cursor: 'pointer',
-          fontSize: '13px'
-        }}
-        value={currentUser?.email || ''} 
-        onChange={(e) => handleUserChange(e.target.value)}
+    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+      {currentUser ? (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <span className="glass" style={{ padding: '4px 10px', borderRadius: '16px', fontSize: '12px', color: 'var(--primary)', fontWeight: '600', border: '1px solid rgba(16,185,129,0.3)' }}>
+            🏢 {currentUser.tenantName || 'Acme Biotech'}
+          </span>
+
+          <button
+            className={`${styles.btn} ${styles.btnSecondary}`}
+            onClick={() => setShowLoginModal(true)}
+            style={{ fontSize: '12px', padding: '6px 12px', display: 'flex', alignItems: 'center', gap: '6px' }}
+          >
+            👤 <strong>{currentUser.fullName}</strong> ({currentUser.role})
+            <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>▾ Switch</span>
+          </button>
+        </div>
+      ) : (
+        <button
+          className={`${styles.btn} ${styles.btnSecondary}`}
+          onClick={() => setShowLoginModal(true)}
+          style={{ fontSize: '12px' }}
+        >
+          🔑 Select Persona / Login
+        </button>
+      )}
+
+      <button
+        className={`${styles.btn} ${styles.btnPrimary}`}
+        onClick={() => setShowRegisterModal(true)}
+        style={{ fontSize: '12px', padding: '6px 12px' }}
       >
-        {users.map((u) => (
-          <option key={u.id} value={u.email} style={{ background: 'var(--bg)', color: 'var(--t1)' }}>
-            {u.fullName} ({u.role})
-          </option>
-        ))}
-      </select>
+        + Onboard New Org
+      </button>
     </div>
   );
 
@@ -3694,7 +3786,196 @@ export default function Home() {
           </div>
         </div>
       )}
+      {/* MODAL 14: PERSONA SWITCHER / LOGIN */}
+      {showLoginModal && (
+        <div className={styles.modalOverlay}>
+          <div className={styles.modalContent} style={{ maxWidth: '650px' }}>
+            <div className={styles.modalHeader}>
+              <h3>Select Persona or Sign In</h3>
+              <button style={{ background: 'transparent', border: 'none', color: '#fff', fontSize: '20px', cursor: 'pointer' }} onClick={() => setShowLoginModal(false)}>×</button>
+            </div>
+            <div className={styles.modalBody}>
+              <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '16px' }}>
+                Select a pre-seeded persona or enter your work email to switch user roles and test 21 CFR Part 11 permission policies.
+              </p>
+
+              {/* Pre-seeded Persona Quick Selection */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '24px' }}>
+                <span style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', fontWeight: '600' }}>Available Persona Accounts</span>
+                {users.map((u) => (
+                  <div
+                    key={u.id}
+                    className="glass"
+                    onClick={() => handleLoginUser(u.email)}
+                    style={{
+                      padding: '12px 16px',
+                      borderRadius: '8px',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      background: currentUser?.email === u.email ? 'rgba(16,185,129,0.1)' : 'rgba(255,255,255,0.02)',
+                      border: currentUser?.email === u.email ? '1px solid var(--primary)' : '1px solid rgba(255,255,255,0.06)',
+                    }}
+                  >
+                    <div>
+                      <div style={{ fontWeight: '600', fontSize: '14px' }}>
+                        {u.fullName}
+                        {currentUser?.email === u.email && <span style={{ color: '#10B981', marginLeft: '8px', fontSize: '12px' }}>✓ Active</span>}
+                      </div>
+                      <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '2px' }}>
+                        {u.email} | Dept: {u.department} | Tenant: {u.tenant?.name || 'Acme Biotech'}
+                      </div>
+                    </div>
+                    <span className={`${styles.badge} ${
+                      u.role === 'ADMIN' || u.role === 'OWNER' ? styles.badgeEffective :
+                      u.role === 'AUDITOR' ? styles.badgeReview : styles.badgeDraft
+                    }`}>
+                      {u.role}
+                    </span>
+                  </div>
+                ))}
+              </div>
+
+              {/* Custom Email Login Form */}
+              <form onSubmit={(e) => { e.preventDefault(); if (loginEmail) handleLoginUser(loginEmail); }}>
+                <div className={styles.formGroup}>
+                  <label className={styles.formLabel}>Or Sign in with Email</label>
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <input
+                      className={styles.input}
+                      type="email"
+                      placeholder="user@company.com"
+                      value={loginEmail}
+                      onChange={(e) => setLoginEmail(e.target.value)}
+                    />
+                    <button type="submit" className={`${styles.btn} ${styles.btnPrimary}`} style={{ whiteSpace: 'nowrap' }}>
+                      Sign In
+                    </button>
+                  </div>
+                </div>
+              </form>
+            </div>
+            <div className={styles.modalFooter}>
+              <button type="button" className={`${styles.btn} ${styles.btnSecondary}`} onClick={() => setShowLoginModal(false)}>
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL 15: ORGANIZATION REGISTRATION & ONBOARDING */}
+      {showRegisterModal && (
+        <div className={styles.modalOverlay}>
+          <div className={styles.modalContent} style={{ maxWidth: '650px' }}>
+            <div className={styles.modalHeader}>
+              <h3>Onboard New Organization & Quality Owner</h3>
+              <button style={{ background: 'transparent', border: 'none', color: '#fff', fontSize: '20px', cursor: 'pointer' }} onClick={() => setShowRegisterModal(false)}>×</button>
+            </div>
+            <form onSubmit={handleRegisterCompany}>
+              <div className={styles.modalBody}>
+                <div style={{ padding: '12px 16px', background: 'rgba(16,185,129,0.08)', borderRadius: '8px', border: '1px solid rgba(16,185,129,0.2)', marginBottom: '20px' }}>
+                  <div style={{ fontWeight: '600', color: '#10B981', fontSize: '14px' }}>✨ Instant GxP Workspace Provisioning</div>
+                  <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px' }}>
+                    Registering creates your tenant organization and auto-generates your starter SOP library compliant with 21 CFR Part 11 and ISO 13485.
+                  </div>
+                </div>
+
+                <div className={styles.formGroup}>
+                  <label className={styles.formLabel}>Company / Organization Name</label>
+                  <input
+                    className={styles.input}
+                    type="text"
+                    placeholder="e.g. Nova Therapeutics Inc."
+                    value={regCompanyName}
+                    onChange={(e) => setRegCompanyName(e.target.value)}
+                    required
+                  />
+                </div>
+
+                <div className={styles.grid2} style={{ margin: 0, gap: '12px' }}>
+                  <div className={styles.formGroup}>
+                    <label className={styles.formLabel}>Quality Owner Full Name</label>
+                    <input
+                      className={styles.input}
+                      type="text"
+                      placeholder="e.g. Dr. Sarah Jenkins"
+                      value={regFullName}
+                      onChange={(e) => setRegFullName(e.target.value)}
+                      required
+                    />
+                  </div>
+
+                  <div className={styles.formGroup}>
+                    <label className={styles.formLabel}>Work Email</label>
+                    <input
+                      className={styles.input}
+                      type="email"
+                      placeholder="sarah@novatx.com"
+                      value={regEmail}
+                      onChange={(e) => setRegEmail(e.target.value)}
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div className={styles.grid3} style={{ margin: 0, gap: '12px' }}>
+                  <div className={styles.formGroup}>
+                    <label className={styles.formLabel}>Department</label>
+                    <select
+                      className={styles.input}
+                      value={regDepartment}
+                      onChange={(e) => setRegDepartment(e.target.value)}
+                    >
+                      <option value="QA">Quality Assurance (QA)</option>
+                      <option value="QC">Quality Control (QC)</option>
+                      <option value="PRODUCTION">Manufacturing</option>
+                      <option value="REGULATORY">Regulatory Affairs</option>
+                    </select>
+                  </div>
+
+                  <div className={styles.formGroup}>
+                    <label className={styles.formLabel}>User Role</label>
+                    <select
+                      className={styles.input}
+                      value={regRole}
+                      onChange={(e) => setRegRole(e.target.value)}
+                    >
+                      <option value="OWNER">System Owner (Full Admin)</option>
+                      <option value="ADMIN">QA Administrator</option>
+                      <option value="AUDITOR">Auditor</option>
+                    </select>
+                  </div>
+
+                  <div className={styles.formGroup}>
+                    <label className={styles.formLabel}>Primary Standard</label>
+                    <select
+                      className={styles.input}
+                      value={regGxPStandard}
+                      onChange={(e) => setRegGxPStandard(e.target.value)}
+                    >
+                      <option value="21 CFR Part 11 / ISO 13485">21 CFR Part 11 & ISO 13485</option>
+                      <option value="EU Annex 11 / GMP">EU Annex 11 & GMP</option>
+                      <option value="ISO 9001 / GAMP 5">ISO 9001 & GAMP 5</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+              <div className={styles.modalFooter}>
+                <button type="button" className={`${styles.btn} ${styles.btnSecondary}`} onClick={() => setShowRegisterModal(false)}>
+                  Cancel
+                </button>
+                <button type="submit" className={`${styles.btn} ${styles.btnPrimary}`}>
+                  Provision GxP Organization
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </AppShell>
   );
 }
+
 
