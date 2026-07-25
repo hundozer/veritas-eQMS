@@ -239,7 +239,7 @@ export default function Home() {
   const [viewMode, setViewMode] = useState<'landing' | 'app'>('landing');
 
   // Navigation
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'documents' | 'training' | 'audit' | 'audits-management' | 'change-control' | 'quality-events' | 'equipment' | 'suppliers'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'documents' | 'training' | 'audit' | 'audits-management' | 'users-management' | 'change-control' | 'quality-events' | 'equipment' | 'suppliers'>('dashboard');
 
   // Users / Personas
   const [users, setUsers] = useState<User[]>([]);
@@ -276,6 +276,17 @@ export default function Home() {
   const [showReceiptModal, setShowReceiptModal] = useState(false);
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [showRegisterModal, setShowRegisterModal] = useState(false);
+  const [showInviteUserModal, setShowInviteUserModal] = useState(false);
+  const [showEditUserModal, setShowEditUserModal] = useState(false);
+
+  // User Management State
+  const [inviteEmail, setInviteEmail] = useState('');
+  const [inviteFullName, setInviteFullName] = useState('');
+  const [inviteRole, setInviteRole] = useState('EMPLOYEE');
+  const [inviteDept, setInviteDept] = useState('QA');
+  const [editingUser, setEditingUser] = useState<User | null>(null);
+  const [editRole, setEditRole] = useState('EMPLOYEE');
+  const [editDept, setEditDept] = useState('QA');
 
   // Auth / Login Form State
   const [loginEmail, setLoginEmail] = useState('');
@@ -557,6 +568,77 @@ export default function Home() {
   useEffect(() => {
     fetchData();
   }, [fetchData]);
+
+  // Invite new employee & assign role
+  const handleInviteUser = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!inviteEmail || !inviteFullName || !currentUser) return;
+
+    try {
+      setErrorMessage('');
+      const res = await fetch('/api/users', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-user-email': currentUser.email,
+        },
+        body: JSON.stringify({
+          email: inviteEmail,
+          fullName: inviteFullName,
+          role: inviteRole,
+          department: inviteDept,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        setErrorMessage(data.error?.message || 'Failed to invite user');
+        return;
+      }
+
+      setSuccessMessage(`User ${inviteFullName} successfully invited as ${inviteRole} in ${inviteDept}`);
+      setShowInviteUserModal(false);
+      setInviteEmail('');
+      setInviteFullName('');
+      fetchData();
+    } catch (err: any) {
+      setErrorMessage(err.message || 'Error inviting team member');
+    }
+  };
+
+  // Update existing user role & department
+  const handleUpdateUserRole = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingUser || !currentUser) return;
+
+    try {
+      setErrorMessage('');
+      const res = await fetch(`/api/users/${editingUser.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-user-email': currentUser.email,
+        },
+        body: JSON.stringify({
+          role: editRole,
+          department: editDept,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        setErrorMessage(data.error?.message || 'Failed to update user role');
+        return;
+      }
+
+      setSuccessMessage(`Role for ${editingUser.fullName} updated to ${editRole} (${editDept})`);
+      setShowEditUserModal(false);
+      setEditingUser(null);
+      fetchData();
+    } catch (err: any) {
+      setErrorMessage(err.message || 'Error updating user role');
+    }
+  };
 
   // Log new Deviation
   const handleCreateDeviation = async (e: React.FormEvent) => {
@@ -1273,6 +1355,9 @@ export default function Home() {
         { id: 'equipment', label: 'Equipment Cal.', route: 'equipment', icon: <BuildIcon /> },
         { id: 'suppliers', label: 'Suppliers (AVL)', route: 'suppliers', icon: <SupplierIcon /> },
         { id: 'audits-management', label: 'GxP Audits', route: 'audits-management', icon: <HistoryIcon /> },
+        ...(currentUser?.role && (currentUser.role === 'ADMIN' || currentUser.role === 'OWNER') ? [
+          { id: 'users-management', label: 'User Roles & RBAC', route: 'users-management', icon: <SchoolIcon /> }
+        ] : []),
         ...(currentUser?.role && (currentUser.role === 'ADMIN' || currentUser.role === 'AUDITOR' || currentUser.role === 'OWNER') ? [
           { id: 'audit', label: 'Compliance Audit Logs', route: 'audit', icon: <HistoryIcon /> }
         ] : []),
@@ -1319,6 +1404,7 @@ export default function Home() {
       case 'equipment': return 'Equipment Calibration & Maintenance';
       case 'suppliers': return 'Supplier Quality & Approved Vendor List';
       case 'audits-management': return 'Internal & Supplier Audit Planning';
+      case 'users-management': return 'Organization User & Role RBAC Management';
       case 'audit': return 'GxP 21 CFR Part 11 Audit Trail Logs';
       default: return 'Veritas eQMS';
     }
@@ -3324,6 +3410,81 @@ export default function Home() {
           </div>
         )}
 
+        {/* TAB: USER ROLES & RBAC MANAGEMENT */}
+        {activeTab === 'users-management' && (
+          <div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+              <div>
+                <h2>Organization User & Role RBAC Management</h2>
+                <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '4px' }}>
+                  Manage team members, assign GxP security roles, departments, and clearance levels compliant with 21 CFR Part 11 and EU Annex 11.
+                </p>
+              </div>
+              <button
+                className={`${styles.btn} ${styles.btnPrimary}`}
+                onClick={() => setShowInviteUserModal(true)}
+                style={{ background: '#10B981', color: '#000', fontWeight: '700' }}
+              >
+                ➕ Invite Team Member & Assign Role
+              </button>
+            </div>
+
+            <div className={styles.card}>
+              <div className={styles.cardTitle}>Active Organization Roster ({users.length} Users)</div>
+              <div className={styles.tableWrapper}>
+                <table className={styles.table}>
+                  <thead>
+                    <tr>
+                      <th>Employee Name</th>
+                      <th>Work Email</th>
+                      <th>Assigned GxP Role</th>
+                      <th>Department</th>
+                      <th>Clearance</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {users.map((u) => (
+                      <tr key={u.id} className={styles.tableRow}>
+                        <td style={{ fontWeight: '600' }}>
+                          {u.fullName} {u.id === currentUser?.id && <span style={{ fontSize: '10px', background: 'rgba(16,185,129,0.2)', color: '#10B981', padding: '2px 6px', borderRadius: '4px', marginLeft: '6px' }}>YOU</span>}
+                        </td>
+                        <td>{u.email}</td>
+                        <td>
+                          <span className={styles.currentBadge} style={{
+                            background: u.role === 'OWNER' ? 'rgba(168,85,247,0.15)' : u.role === 'ADMIN' ? 'rgba(239,68,68,0.15)' : u.role === 'APPROVER' ? 'rgba(245,158,11,0.15)' : 'rgba(59,130,246,0.15)',
+                            color: u.role === 'OWNER' ? '#A855F7' : u.role === 'ADMIN' ? '#EF4444' : u.role === 'APPROVER' ? '#F59E0B' : '#3B82F6',
+                          }}>
+                            {u.role}
+                          </span>
+                        </td>
+                        <td><span className={styles.badge}>{u.department}</span></td>
+                        <td><span className={styles.badge}>{u.clearance || 'INTERNAL'}</span></td>
+                        <td>
+                          <div style={{ display: 'flex', gap: '8px' }}>
+                            <button
+                              className={`${styles.btn} ${styles.btnSecondary}`}
+                              style={{ fontSize: '11px', padding: '4px 8px' }}
+                              onClick={() => {
+                                setEditingUser(u);
+                                setEditRole(u.role);
+                                setEditDept(u.department);
+                                setShowEditUserModal(true);
+                              }}
+                            >
+                              ✏️ Reassign Role
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* TAB 4: COMPLIANCE LOGS */}
         {activeTab === 'audit' && (
           <div className={styles.card}>
@@ -4688,8 +4849,146 @@ export default function Home() {
           </div>
         </div>
       )}
-    </AppShell>
-  );
-}
+
+        {/* MODAL 16: INVITE TEAM MEMBER */}
+        {showInviteUserModal && (
+          <div className={styles.modalOverlay}>
+            <div className={styles.modalContent} style={{ maxWidth: '600px' }}>
+              <div className={styles.modalHeader}>
+                <h3>Invite New Employee & Assign Role</h3>
+                <button style={{ background: 'transparent', border: 'none', color: '#fff', fontSize: '20px', cursor: 'pointer' }} onClick={() => setShowInviteUserModal(false)}>×</button>
+              </div>
+              <form onSubmit={handleInviteUser}>
+                <div className={styles.modalBody}>
+                  <div className={styles.formGroup}>
+                    <label className={styles.formLabel}>Full Name</label>
+                    <input
+                      className={styles.input}
+                      type="text"
+                      placeholder="e.g. Dr. Alex Mercer"
+                      value={inviteFullName}
+                      onChange={(e) => setInviteFullName(e.target.value)}
+                      required
+                    />
+                  </div>
+
+                  <div className={styles.formGroup}>
+                    <label className={styles.formLabel}>Work Email</label>
+                    <input
+                      className={styles.input}
+                      type="email"
+                      placeholder="alex.mercer@biotech.com"
+                      value={inviteEmail}
+                      onChange={(e) => setInviteEmail(e.target.value)}
+                      required
+                    />
+                  </div>
+
+                  <div className={styles.grid2} style={{ margin: 0, gap: '12px' }}>
+                    <div className={styles.formGroup}>
+                      <label className={styles.formLabel}>Assigned GxP Role</label>
+                      <select
+                        className={styles.input}
+                        value={inviteRole}
+                        onChange={(e) => setInviteRole(e.target.value)}
+                      >
+                        <option value="EMPLOYEE">Employee (Document Consumer / Trainee)</option>
+                        <option value="APPROVER">Approver (Signatory)</option>
+                        <option value="QUALITY_MANAGER">Quality Manager</option>
+                        <option value="ADMIN">QA Administrator</option>
+                        <option value="AUDITOR">Auditor (Read-Only Compliance)</option>
+                        <option value="OWNER">Organization Owner</option>
+                      </select>
+                    </div>
+
+                    <div className={styles.formGroup}>
+                      <label className={styles.formLabel}>Department</label>
+                      <select
+                        className={styles.input}
+                        value={inviteDept}
+                        onChange={(e) => setInviteDept(e.target.value)}
+                      >
+                        <option value="QA">Quality Assurance (QA)</option>
+                        <option value="QC">Quality Control (QC)</option>
+                        <option value="PRODUCTION">Manufacturing</option>
+                        <option value="REGULATORY">Regulatory Affairs</option>
+                        <option value="ENGINEERING">Engineering & Calibration</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+                <div className={styles.modalFooter}>
+                  <button type="button" className={`${styles.btn} ${styles.btnSecondary}`} onClick={() => setShowInviteUserModal(false)}>
+                    Cancel
+                  </button>
+                  <button type="submit" className={`${styles.btn} ${styles.btnPrimary}`} style={{ background: '#10B981', color: '#000', fontWeight: '700' }}>
+                    ➕ Send Invitation & Assign Role
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {/* MODAL 17: REASSIGN USER ROLE */}
+        {showEditUserModal && editingUser && (
+          <div className={styles.modalOverlay}>
+            <div className={styles.modalContent} style={{ maxWidth: '550px' }}>
+              <div className={styles.modalHeader}>
+                <h3>Reassign GxP Role: {editingUser.fullName}</h3>
+                <button style={{ background: 'transparent', border: 'none', color: '#fff', fontSize: '20px', cursor: 'pointer' }} onClick={() => setShowEditUserModal(false)}>×</button>
+              </div>
+              <form onSubmit={handleUpdateUserRole}>
+                <div className={styles.modalBody}>
+                  <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '16px' }}>
+                    Target Email: <strong>{editingUser.email}</strong>
+                  </div>
+
+                  <div className={styles.formGroup}>
+                    <label className={styles.formLabel}>Assigned Role</label>
+                    <select
+                      className={styles.input}
+                      value={editRole}
+                      onChange={(e) => setEditRole(e.target.value)}
+                    >
+                      <option value="EMPLOYEE">Employee (Document Consumer / Trainee)</option>
+                      <option value="APPROVER">Approver (Signatory)</option>
+                      <option value="QUALITY_MANAGER">Quality Manager</option>
+                      <option value="ADMIN">QA Administrator</option>
+                      <option value="AUDITOR">Auditor (Read-Only Compliance)</option>
+                      <option value="OWNER">Organization Owner</option>
+                    </select>
+                  </div>
+
+                  <div className={styles.formGroup}>
+                    <label className={styles.formLabel}>Department</label>
+                    <select
+                      className={styles.input}
+                      value={editDept}
+                      onChange={(e) => setEditDept(e.target.value)}
+                    >
+                      <option value="QA">Quality Assurance (QA)</option>
+                      <option value="QC">Quality Control (QC)</option>
+                      <option value="PRODUCTION">Manufacturing</option>
+                      <option value="REGULATORY">Regulatory Affairs</option>
+                      <option value="ENGINEERING">Engineering & Calibration</option>
+                    </select>
+                  </div>
+                </div>
+                <div className={styles.modalFooter}>
+                  <button type="button" className={`${styles.btn} ${styles.btnSecondary}`} onClick={() => setShowEditUserModal(false)}>
+                    Cancel
+                  </button>
+                  <button type="submit" className={`${styles.btn} ${styles.btnPrimary}`}>
+                    💾 Save Role Assignment
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+      </AppShell>
+    );
+  }
 
 
