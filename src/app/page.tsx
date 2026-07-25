@@ -14,7 +14,8 @@ import {
   PublishedWithChanges as ChangeIcon,
   Report as ReportIcon,
   History as HistoryIcon,
-  Build as BuildIcon
+  Build as BuildIcon,
+  LocalShipping as SupplierIcon
 } from '@mui/icons-material';
 
 interface User {
@@ -172,6 +173,50 @@ interface Equipment {
   deviations: Deviation[];
 }
 
+interface SupplierAudit {
+  id: string;
+  supplierId: string;
+  auditorId: string;
+  auditor: User;
+  auditDate: string;
+  auditType: string;
+  findings: string;
+  result: string;
+  esignSignatureId: string | null;
+  createdAt: string;
+}
+
+interface MaterialReceipt {
+  id: string;
+  supplierId: string;
+  materialName: string;
+  lotNumber: string;
+  quantityReceived: number;
+  unit: string;
+  inspectionStatus: string;
+  inspectedById: string;
+  inspectedBy: User;
+  notes: string | null;
+  receivedAt: string;
+  createdAt: string;
+}
+
+interface Supplier {
+  id: string;
+  name: string;
+  contactEmail: string | null;
+  contactPhone: string | null;
+  category: string;
+  status: string;
+  riskClassification: string;
+  qualificationDate: string;
+  reEvaluationDueDate: string;
+  notes: string | null;
+  createdAt: string;
+  audits: SupplierAudit[];
+  materialReceipts: MaterialReceipt[];
+}
+
 interface QuizQuestion {
   id: string;
   text: string;
@@ -186,7 +231,7 @@ interface QuizAnswer {
 
 export default function Home() {
   // Navigation
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'documents' | 'training' | 'audit' | 'change-control' | 'quality-events' | 'equipment'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'documents' | 'training' | 'audit' | 'change-control' | 'quality-events' | 'equipment' | 'suppliers'>('dashboard');
 
   // Users / Personas
   const [users, setUsers] = useState<User[]>([]);
@@ -200,6 +245,7 @@ export default function Home() {
   const [deviations, setDeviations] = useState<Deviation[]>([]);
   const [capas, setCapas] = useState<CAPA[]>([]);
   const [equipmentList, setEquipmentList] = useState<Equipment[]>([]);
+  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
 
   // Selected Detail views
   const [selectedDocId, setSelectedDocId] = useState<string | null>(null);
@@ -208,11 +254,38 @@ export default function Home() {
   const [selectedDeviationId, setSelectedDeviationId] = useState<string | null>(null);
   const [selectedCapaId, setSelectedCapaId] = useState<string | null>(null);
   const [selectedEquipmentId, setSelectedEquipmentId] = useState<string | null>(null);
+  const [selectedSupplierId, setSelectedSupplierId] = useState<string | null>(null);
 
   // Forms / Modals
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showApproveModal, setShowApproveModal] = useState(false);
   const [showTrainingModal, setShowTrainingModal] = useState(false);
+  const [showCreateSupplierModal, setShowCreateSupplierModal] = useState(false);
+  const [showAuditSupplierModal, setShowAuditSupplierModal] = useState(false);
+  const [showReceiptModal, setShowReceiptModal] = useState(false);
+
+  // Supplier Form State
+  const [newSupName, setNewSupName] = useState('');
+  const [newSupEmail, setNewSupEmail] = useState('');
+  const [newSupPhone, setNewSupPhone] = useState('');
+  const [newSupCategory, setNewSupCategory] = useState('RAW_MATERIAL');
+  const [newSupRisk, setNewSupRisk] = useState('CRITICAL');
+  const [newSupNotes, setNewSupNotes] = useState('');
+  const [newSupInterval, setNewSupInterval] = useState('365');
+
+  // Supplier Audit Form State
+  const [auditType, setAuditType] = useState('ROUTINE_ANNUAL');
+  const [auditFindings, setAuditFindings] = useState('');
+  const [auditResult, setAuditResult] = useState('PASS');
+  const [auditPassword, setAuditPassword] = useState('');
+
+  // Material Receipt Form State
+  const [recMaterialName, setRecMaterialName] = useState('');
+  const [recLotNumber, setRecLotNumber] = useState('');
+  const [recQty, setRecQty] = useState('100');
+  const [recUnit, setRecUnit] = useState('units');
+  const [recInspectionStatus, setRecInspectionStatus] = useState('PASSED');
+  const [recNotes, setRecNotes] = useState('');
   const [showCreateCRModal, setShowCreateCRModal] = useState(false);
   const [showCRSignModal, setShowCRSignModal] = useState(false);
   const [showCreateDeviationModal, setShowCreateDeviationModal] = useState(false);
@@ -370,6 +443,13 @@ export default function Home() {
       });
       const eqData = await eqRes.json();
       if (eqData.equipment) setEquipmentList(eqData.equipment);
+
+      // Fetch Suppliers
+      const supRes = await fetch('/api/suppliers', {
+        headers: { 'x-user-email': currentUser.email },
+      });
+      const supData = await supRes.json();
+      if (supData.suppliers) setSuppliers(supData.suppliers);
     } catch (err) {
       console.error('Fetch data error:', err);
     }
@@ -862,6 +942,129 @@ export default function Home() {
     }
   };
 
+  // Register new supplier
+  const handleCreateSupplier = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newSupName.trim()) return;
+
+    try {
+      const res = await fetch('/api/suppliers', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-user-email': currentUser?.email || '',
+        },
+        body: JSON.stringify({
+          name: newSupName,
+          contactEmail: newSupEmail,
+          contactPhone: newSupPhone,
+          category: newSupCategory,
+          riskClassification: newSupRisk,
+          reEvaluationIntervalDays: newSupInterval,
+          notes: newSupNotes,
+        }),
+      });
+
+      const data = await res.json();
+      if (res.ok) {
+        setSuccessMessage(`Supplier "${data.supplier.name}" registered successfully.`);
+        setShowCreateSupplierModal(false);
+        setNewSupName('');
+        setNewSupEmail('');
+        setNewSupPhone('');
+        setNewSupNotes('');
+        fetchData();
+      } else {
+        setErrorMessage(data.error?.message || 'Failed to register supplier');
+      }
+      setTimeout(() => { setSuccessMessage(null); setErrorMessage(null); }, 5000);
+    } catch (err: any) {
+      setErrorMessage(err.message);
+      setTimeout(() => setErrorMessage(null), 5000);
+    }
+  };
+
+  // Log Supplier Audit (E-Signed)
+  const handleAuditSupplier = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedSupplierId || !auditFindings.trim() || !auditPassword) return;
+
+    try {
+      const res = await fetch(`/api/suppliers/${selectedSupplierId}/audits`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-user-email': currentUser?.email || '',
+        },
+        body: JSON.stringify({
+          auditType,
+          findings: auditFindings,
+          result: auditResult,
+          signaturePassword: auditPassword,
+        }),
+      });
+
+      const data = await res.json();
+      if (res.ok) {
+        setSuccessMessage(`Audit logged successfully! Status updated to ${data.newStatus}.`);
+        setShowAuditSupplierModal(false);
+        setAuditFindings('');
+        setAuditPassword('');
+        fetchData();
+      } else {
+        setErrorMessage(data.error?.message || 'Audit submission failed');
+      }
+      setTimeout(() => { setSuccessMessage(null); setErrorMessage(null); }, 5000);
+    } catch (err: any) {
+      setErrorMessage(err.message);
+      setTimeout(() => setErrorMessage(null), 5000);
+    }
+  };
+
+  // Log Material Receipt & Inspection
+  const handleMaterialReceipt = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedSupplierId || !recMaterialName.trim() || !recLotNumber.trim()) return;
+
+    try {
+      const res = await fetch(`/api/suppliers/${selectedSupplierId}/receipts`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-user-email': currentUser?.email || '',
+        },
+        body: JSON.stringify({
+          materialName: recMaterialName,
+          lotNumber: recLotNumber,
+          quantityReceived: recQty,
+          unit: recUnit,
+          inspectionStatus: recInspectionStatus,
+          notes: recNotes,
+        }),
+      });
+
+      const data = await res.json();
+      if (res.ok) {
+        let msg = `Material receipt logged for Lot ${data.receipt.lotNumber}.`;
+        if (data.createdDeviationId) {
+          msg += ` ⚠ Auto-deviation created for rejected material inspection.`;
+        }
+        setSuccessMessage(msg);
+        setShowReceiptModal(false);
+        setRecMaterialName('');
+        setRecLotNumber('');
+        setRecNotes('');
+        fetchData();
+      } else {
+        setErrorMessage(data.error?.message || 'Failed to log material receipt');
+      }
+      setTimeout(() => { setSuccessMessage(null); setErrorMessage(null); }, 5000);
+    } catch (err: any) {
+      setErrorMessage(err.message);
+      setTimeout(() => setErrorMessage(null), 5000);
+    }
+  };
+
   // Export CSV
   const handleExportAudit = () => {
     if (!currentUser) return;
@@ -880,6 +1083,7 @@ export default function Home() {
   const statOverdueEquipment = equipmentList.filter((eq) => new Date(eq.nextCalibrationDueDate) < new Date() || eq.status === 'OUT_OF_SERVICE').length;
   const statTotalEquipment = equipmentList.length;
   const selectedEquipment = equipmentList.find((eq) => eq.id === selectedEquipmentId) || null;
+  const selectedSupplier = suppliers.find((sup) => sup.id === selectedSupplierId) || null;
 
   const { mode, toggleTheme } = useThemeMode();
 
@@ -895,6 +1099,7 @@ export default function Home() {
         ] : []),
         { id: 'quality-events', label: 'Quality Events', route: 'quality-events', icon: <ReportIcon /> },
         { id: 'equipment', label: 'Equipment Cal.', route: 'equipment', icon: <BuildIcon /> },
+        { id: 'suppliers', label: 'Suppliers (AVL)', route: 'suppliers', icon: <SupplierIcon /> },
         ...(currentUser?.role && (currentUser.role === 'ADMIN' || currentUser.role === 'AUDITOR') ? [
           { id: 'audit', label: 'Compliance Logs', route: 'audit', icon: <HistoryIcon /> }
         ] : []),
@@ -934,9 +1139,10 @@ export default function Home() {
       case 'documents': return 'Document Repository';
       case 'training': return 'Training matrix & assignments';
       case 'change-control': return 'Change Request Workflows';
-      case 'quality-events': return 'GxP Quality Events (Deviation & CAPA)';
+      case 'quality-events': return 'GxP Deviations & CAPA Workflow';
       case 'equipment': return 'Equipment Calibration & Maintenance';
-      case 'audit': return 'GxP Chronological Audit Log';
+      case 'suppliers': return 'Supplier Quality & Approved Vendor List';
+      case 'audit': return 'GxP 21 CFR Part 11 Audit Trail Logs';
       default: return 'Veritas eQMS';
     }
   };
@@ -2081,6 +2287,271 @@ export default function Home() {
           </div>
         )}
 
+        {/* TAB 8: SUPPLIERS (APPROVED VENDOR LIST) */}
+        {activeTab === 'suppliers' && (
+          <div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+              <div>
+                <h2>Approved Vendor List (AVL) & Supplier Quality</h2>
+                <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+                  Manage qualified vendors, audit records, risk classifications, and incoming material inspections (21 CFR 820.50 / ISO 13485).
+                </span>
+              </div>
+              {(currentUser?.role === 'ADMIN' || currentUser?.role === 'OWNER' || currentUser?.department === 'QA') && (
+                <button 
+                  className={`${styles.btn} ${styles.btnPrimary}`}
+                  onClick={() => setShowCreateSupplierModal(true)}
+                >
+                  + Register New Supplier
+                </button>
+              )}
+            </div>
+
+            {/* Split Pane: Left = Supplier List, Right = Supplier Detail */}
+            <div className={styles.grid2}>
+              {/* Left Column: Supplier List */}
+              <div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  {suppliers.length > 0 ? (
+                    suppliers.map((sup) => (
+                      <div
+                        key={sup.id}
+                        className={styles.card}
+                        onClick={() => setSelectedSupplierId(sup.id)}
+                        style={{
+                          cursor: 'pointer',
+                          borderColor: selectedSupplierId === sup.id ? 'var(--secondary)' : 'rgba(255,255,255,0.06)'
+                        }}
+                      >
+                        <div className={styles.cardTitle}>
+                          <span>{sup.name}</span>
+                          <span className={`${styles.badge} ${
+                            sup.status === 'APPROVED' ? styles.badgeEffective :
+                            sup.status === 'CONDITIONALLY_APPROVED' ? styles.badgeReview :
+                            sup.status === 'DISQUALIFIED' ? styles.badgeObsolete : styles.badgeDraft
+                          }`}>
+                            {sup.status}
+                          </span>
+                        </div>
+                        <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '4px' }}>
+                          Category: <strong>{sup.category}</strong> | Risk: <strong style={{
+                            color: sup.riskClassification === 'CRITICAL' ? 'var(--danger)' :
+                                   sup.riskClassification === 'MAJOR' ? 'var(--warning)' : '#10B981'
+                          }}>{sup.riskClassification}</strong>
+                        </p>
+                        <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '8px', display: 'flex', justifyContent: 'space-between' }}>
+                          <span>Audits: {sup.audits?.length || 0} | Receipts: {sup.materialReceipts?.length || 0}</span>
+                          <span style={{
+                            color: new Date(sup.reEvaluationDueDate) < new Date() ? 'var(--danger)' : 'var(--text-muted)'
+                          }}>
+                            Re-eval: {new Date(sup.reEvaluationDueDate).toLocaleDateString()}
+                            {new Date(sup.reEvaluationDueDate) < new Date() && ' ⚠ OVERDUE'}
+                          </span>
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="glass" style={{ padding: '24px', textAlign: 'center', color: 'var(--text-muted)' }}>
+                      No suppliers registered yet.
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Right Column: Selected Supplier Detail View */}
+              <div>
+                {selectedSupplier ? (
+                  <div>
+                    <h2>Supplier Detail: {selectedSupplier.name}</h2>
+                    <div className={styles.card} style={{ marginTop: '16px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                      
+                      {/* Header Info */}
+                      <div className={styles.cardTitle}>
+                        <span>{selectedSupplier.id} — {selectedSupplier.name}</span>
+                        <span className={`${styles.badge} ${
+                          selectedSupplier.status === 'APPROVED' ? styles.badgeEffective :
+                          selectedSupplier.status === 'CONDITIONALLY_APPROVED' ? styles.badgeReview :
+                          selectedSupplier.status === 'DISQUALIFIED' ? styles.badgeObsolete : styles.badgeDraft
+                        }`}>
+                          {selectedSupplier.status}
+                        </span>
+                      </div>
+
+                      {/* Metadata Grid */}
+                      <div className={styles.grid3} style={{ margin: 0, gap: '12px' }}>
+                        <div>
+                          <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Category</span>
+                          <div style={{ fontWeight: '600' }}>{selectedSupplier.category}</div>
+                        </div>
+                        <div>
+                          <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Risk Classification</span>
+                          <div style={{
+                            fontWeight: '700',
+                            color: selectedSupplier.riskClassification === 'CRITICAL' ? 'var(--danger)' :
+                                   selectedSupplier.riskClassification === 'MAJOR' ? 'var(--warning)' : '#10B981'
+                          }}>
+                            {selectedSupplier.riskClassification}
+                          </div>
+                        </div>
+                        <div>
+                          <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Contact Email</span>
+                          <div style={{ fontWeight: '600', fontSize: '13px' }}>{selectedSupplier.contactEmail || 'N/A'}</div>
+                        </div>
+                      </div>
+
+                      <div className={styles.grid3} style={{ margin: 0, gap: '12px' }}>
+                        <div>
+                          <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Qualified Date</span>
+                          <div style={{ fontWeight: '600' }}>{new Date(selectedSupplier.qualificationDate).toLocaleDateString()}</div>
+                        </div>
+                        <div>
+                          <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Re-Evaluation Due</span>
+                          <div style={{
+                            fontWeight: '600',
+                            color: new Date(selectedSupplier.reEvaluationDueDate) < new Date() ? 'var(--danger)' : '#10B981'
+                          }}>
+                            {new Date(selectedSupplier.reEvaluationDueDate).toLocaleDateString()}
+                            {new Date(selectedSupplier.reEvaluationDueDate) < new Date() && ' (OVERDUE)'}
+                          </div>
+                        </div>
+                        <div>
+                          <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Contact Phone</span>
+                          <div style={{ fontWeight: '600', fontSize: '13px' }}>{selectedSupplier.contactPhone || 'N/A'}</div>
+                        </div>
+                      </div>
+
+                      {selectedSupplier.notes && (
+                        <div className="glass" style={{ padding: '12px 16px', background: 'rgba(0,0,0,0.15)' }}>
+                          <span style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'block', marginBottom: '4px' }}>Vendor Quality Notes</span>
+                          <p style={{ fontSize: '13px', margin: 0 }}>{selectedSupplier.notes}</p>
+                        </div>
+                      )}
+
+                      {/* Action Buttons */}
+                      <div style={{ display: 'flex', gap: '12px' }}>
+                        {(currentUser?.role === 'ADMIN' || currentUser?.role === 'OWNER' || currentUser?.role === 'AUDITOR') && (
+                          <button
+                            className={`${styles.btn} ${styles.btnPrimary}`}
+                            onClick={() => setShowAuditSupplierModal(true)}
+                          >
+                            📋 Log Supplier Audit (E-Sign)
+                          </button>
+                        )}
+                        <button
+                          className={`${styles.btn} ${styles.btnSecondary}`}
+                          onClick={() => setShowReceiptModal(true)}
+                        >
+                          📦 Log Material Inspection
+                        </button>
+                      </div>
+
+                      {/* Audit Log History */}
+                      <div>
+                        <h4 style={{ marginBottom: '8px' }}>Supplier Audit History</h4>
+                        {selectedSupplier.audits && selectedSupplier.audits.length > 0 ? (
+                          <div className={styles.tableWrapper}>
+                            <table className={styles.table}>
+                              <thead>
+                                <tr>
+                                  <th>Audit Date</th>
+                                  <th>Type</th>
+                                  <th>Result</th>
+                                  <th>Auditor</th>
+                                  <th>E-Sign</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {selectedSupplier.audits.map((a) => (
+                                  <tr key={a.id} className={styles.tableRow}>
+                                    <td>{new Date(a.auditDate).toLocaleDateString()}</td>
+                                    <td>
+                                      <span className={`${styles.badge} ${styles.badgeDraft}`} style={{ fontSize: '10px' }}>
+                                        {a.auditType}
+                                      </span>
+                                    </td>
+                                    <td>
+                                      <span style={{
+                                        fontWeight: '700',
+                                        color: a.result === 'PASS' ? '#10B981' :
+                                               a.result === 'CONDITIONAL_PASS' ? 'var(--warning)' : 'var(--danger)'
+                                      }}>{a.result}</span>
+                                    </td>
+                                    <td>{a.auditor?.fullName || 'Unknown'}</td>
+                                    <td>
+                                      {a.esignSignatureId ? (
+                                        <span style={{ color: '#10B981', fontSize: '11px' }}>✓ Signed</span>
+                                      ) : (
+                                        <span style={{ color: 'var(--text-muted)', fontSize: '11px' }}>—</span>
+                                      )}
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        ) : (
+                          <div className="glass" style={{ padding: '16px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '13px' }}>
+                            No audits logged yet for this supplier.
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Material Inspection Receipts */}
+                      <div>
+                        <h4 style={{ marginBottom: '8px' }}>Incoming Material Inspection Log</h4>
+                        {selectedSupplier.materialReceipts && selectedSupplier.materialReceipts.length > 0 ? (
+                          <div className={styles.tableWrapper}>
+                            <table className={styles.table}>
+                              <thead>
+                                <tr>
+                                  <th>Receipt Date</th>
+                                  <th>Material Name</th>
+                                  <th>Lot Number</th>
+                                  <th>Qty</th>
+                                  <th>Inspection Status</th>
+                                  <th>Inspected By</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {selectedSupplier.materialReceipts.map((mr) => (
+                                  <tr key={mr.id} className={styles.tableRow}>
+                                    <td>{new Date(mr.receivedAt).toLocaleDateString()}</td>
+                                    <td style={{ fontWeight: '600' }}>{mr.materialName}</td>
+                                    <td><code>{mr.lotNumber}</code></td>
+                                    <td>{mr.quantityReceived} {mr.unit}</td>
+                                    <td>
+                                      <span className={`${styles.badge} ${
+                                        mr.inspectionStatus === 'PASSED' ? styles.badgeEffective :
+                                        mr.inspectionStatus === 'QUARANTINE' ? styles.badgeReview : styles.badgeObsolete
+                                      }`}>
+                                        {mr.inspectionStatus}
+                                      </span>
+                                    </td>
+                                    <td>{mr.inspectedBy?.fullName || 'QC Staff'}</td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        ) : (
+                          <div className="glass" style={{ padding: '16px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '13px' }}>
+                            No material receipts logged for this supplier.
+                          </div>
+                        )}
+                      </div>
+
+                    </div>
+                  </div>
+                ) : (
+                  <div className="glass" style={{ padding: '32px', textAlign: 'center', color: 'var(--text-muted)', marginTop: '16px' }}>
+                    Select a supplier from the Approved Vendor List to view qualification status, audit history, and incoming material receipts.
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* TAB 4: COMPLIANCE LOGS */}
         {activeTab === 'audit' && (
           <div className={styles.card}>
@@ -2921,6 +3392,309 @@ export default function Home() {
           </div>
         </div>
       )}
+
+      {/* MODAL 11: REGISTER SUPPLIER */}
+      {showCreateSupplierModal && (
+        <div className={styles.modalOverlay}>
+          <div className={styles.modalContent} style={{ maxWidth: '600px' }}>
+            <div className={styles.modalHeader}>
+              <h3>Register New Supplier / Vendor</h3>
+              <button style={{ background: 'transparent', border: 'none', color: '#fff', fontSize: '20px', cursor: 'pointer' }} onClick={() => setShowCreateSupplierModal(false)}>×</button>
+            </div>
+            <form onSubmit={handleCreateSupplier}>
+              <div className={styles.modalBody}>
+                <div className={styles.formGroup}>
+                  <label className={styles.formLabel}>Supplier / Vendor Name</label>
+                  <input
+                    className={styles.input}
+                    type="text"
+                    placeholder="e.g. BioChem Solutions Inc."
+                    value={newSupName}
+                    onChange={(e) => setNewSupName(e.target.value)}
+                    required
+                  />
+                </div>
+
+                <div className={styles.grid2} style={{ margin: 0, gap: '12px' }}>
+                  <div className={styles.formGroup}>
+                    <label className={styles.formLabel}>Supplier Category</label>
+                    <select
+                      className={styles.input}
+                      value={newSupCategory}
+                      onChange={(e) => setNewSupCategory(e.target.value)}
+                    >
+                      <option value="RAW_MATERIAL">Raw Material Supplier</option>
+                      <option value="PACKAGING">Packaging Vendor</option>
+                      <option value="CONTRACT_LAB">Contract Testing Lab</option>
+                      <option value="SOFTWARE">Software / SaaS Vendor</option>
+                    </select>
+                  </div>
+
+                  <div className={styles.formGroup}>
+                    <label className={styles.formLabel}>Risk Classification</label>
+                    <select
+                      className={styles.input}
+                      value={newSupRisk}
+                      onChange={(e) => setNewSupRisk(e.target.value)}
+                    >
+                      <option value="CRITICAL">CRITICAL (High Impact)</option>
+                      <option value="MAJOR">MAJOR (Medium Impact)</option>
+                      <option value="MINOR">MINOR (Low Impact)</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className={styles.grid2} style={{ margin: 0, gap: '12px' }}>
+                  <div className={styles.formGroup}>
+                    <label className={styles.formLabel}>Contact Email</label>
+                    <input
+                      className={styles.input}
+                      type="email"
+                      placeholder="qa@supplier.com"
+                      value={newSupEmail}
+                      onChange={(e) => setNewSupEmail(e.target.value)}
+                    />
+                  </div>
+
+                  <div className={styles.formGroup}>
+                    <label className={styles.formLabel}>Contact Phone</label>
+                    <input
+                      className={styles.input}
+                      type="text"
+                      placeholder="+1 (555) 000-0000"
+                      value={newSupPhone}
+                      onChange={(e) => setNewSupPhone(e.target.value)}
+                    />
+                  </div>
+                </div>
+
+                <div className={styles.formGroup}>
+                  <label className={styles.formLabel}>Re-Evaluation Interval (Days)</label>
+                  <input
+                    className={styles.input}
+                    type="number"
+                    value={newSupInterval}
+                    onChange={(e) => setNewSupInterval(e.target.value)}
+                    required
+                  />
+                </div>
+
+                <div className={styles.formGroup}>
+                  <label className={styles.formLabel}>Vendor Quality Notes</label>
+                  <textarea
+                    className={styles.input}
+                    rows={3}
+                    placeholder="Quality agreement details, scope of supply, initial notes..."
+                    value={newSupNotes}
+                    onChange={(e) => setNewSupNotes(e.target.value)}
+                    style={{ resize: 'vertical' }}
+                  />
+                </div>
+              </div>
+              <div className={styles.modalFooter}>
+                <button type="button" className={`${styles.btn} ${styles.btnSecondary}`} onClick={() => setShowCreateSupplierModal(false)}>
+                  Cancel
+                </button>
+                <button type="submit" className={`${styles.btn} ${styles.btnPrimary}`}>
+                  Register Supplier
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL 12: LOG SUPPLIER AUDIT (E-SIGNED) */}
+      {showAuditSupplierModal && selectedSupplierId && selectedSupplier && (
+        <div className={styles.modalOverlay}>
+          <div className={styles.modalContent} style={{ maxWidth: '600px' }}>
+            <div className={styles.modalHeader}>
+              <h3>Log Supplier Quality Audit</h3>
+              <button style={{ background: 'transparent', border: 'none', color: '#fff', fontSize: '20px', cursor: 'pointer' }} onClick={() => setShowAuditSupplierModal(false)}>×</button>
+            </div>
+            <form onSubmit={handleAuditSupplier}>
+              <div className={styles.modalBody}>
+                <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '16px' }}>
+                  Auditing Supplier: <strong style={{ color: '#fff' }}>{selectedSupplier.name}</strong> ({selectedSupplier.id})
+                </div>
+
+                <div className={styles.grid2} style={{ margin: 0, gap: '12px' }}>
+                  <div className={styles.formGroup}>
+                    <label className={styles.formLabel}>Audit Type</label>
+                    <select
+                      className={styles.input}
+                      value={auditType}
+                      onChange={(e) => setAuditType(e.target.value)}
+                    >
+                      <option value="ROUTINE_ANNUAL">Routine Annual Audit</option>
+                      <option value="INITIAL_QUALIFICATION">Initial Qualification Audit</option>
+                      <option value="FOR_CAUSE">For-Cause Audit</option>
+                    </select>
+                  </div>
+
+                  <div className={styles.formGroup}>
+                    <label className={styles.formLabel}>Audit Result</label>
+                    <select
+                      className={styles.input}
+                      value={auditResult}
+                      onChange={(e) => setAuditResult(e.target.value)}
+                    >
+                      <option value="PASS">PASS ✓ (Updates status to APPROVED)</option>
+                      <option value="CONDITIONAL_PASS">CONDITIONAL PASS ⚠ (CONDITIONALLY APPROVED)</option>
+                      <option value="FAIL">FAIL ✗ (DISQUALIFIED)</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className={styles.formGroup}>
+                  <label className={styles.formLabel}>Audit Findings & Summary</label>
+                  <textarea
+                    className={styles.input}
+                    rows={4}
+                    placeholder="Document audit scope, findings, major/minor observations, CAPA requirements..."
+                    value={auditFindings}
+                    onChange={(e) => setAuditFindings(e.target.value)}
+                    required
+                    style={{ resize: 'vertical', minHeight: '80px' }}
+                  />
+                </div>
+
+                <div className={`${styles.formGroup} ${styles.esignHighlight}`}>
+                  <label className={styles.formLabel} style={{ color: 'var(--warning)', fontWeight: '600' }}>
+                    21 CFR Part 11 Electronic Signature
+                  </label>
+                  <input
+                    className={styles.input}
+                    type="password"
+                    placeholder="Enter password to sign audit report"
+                    value={auditPassword}
+                    onChange={(e) => setAuditPassword(e.target.value)}
+                    required
+                  />
+                  <span style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '4px', display: 'block' }}>
+                    Signing certifies that this supplier audit was conducted according to GxP vendor qualification procedures.
+                  </span>
+                </div>
+              </div>
+              <div className={styles.modalFooter}>
+                <button type="button" className={`${styles.btn} ${styles.btnSecondary}`} onClick={() => setShowAuditSupplierModal(false)}>
+                  Cancel
+                </button>
+                <button type="submit" className={`${styles.btn} ${styles.btnPrimary}`}>
+                  Submit E-Signed Audit
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL 13: LOG MATERIAL INSPECTION */}
+      {showReceiptModal && selectedSupplierId && selectedSupplier && (
+        <div className={styles.modalOverlay}>
+          <div className={styles.modalContent} style={{ maxWidth: '600px' }}>
+            <div className={styles.modalHeader}>
+              <h3>Log Incoming Material Inspection</h3>
+              <button style={{ background: 'transparent', border: 'none', color: '#fff', fontSize: '20px', cursor: 'pointer' }} onClick={() => setShowReceiptModal(false)}>×</button>
+            </div>
+            <form onSubmit={handleMaterialReceipt}>
+              <div className={styles.modalBody}>
+                <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '16px' }}>
+                  Material Source: <strong style={{ color: '#fff' }}>{selectedSupplier.name}</strong>
+                </div>
+
+                <div className={styles.formGroup}>
+                  <label className={styles.formLabel}>Material Name / Description</label>
+                  <input
+                    className={styles.input}
+                    type="text"
+                    placeholder="e.g. DMEM High Glucose Media (500mL)"
+                    value={recMaterialName}
+                    onChange={(e) => setRecMaterialName(e.target.value)}
+                    required
+                  />
+                </div>
+
+                <div className={styles.grid3} style={{ margin: 0, gap: '12px' }}>
+                  <div className={styles.formGroup}>
+                    <label className={styles.formLabel}>Lot / Batch Number</label>
+                    <input
+                      className={styles.input}
+                      type="text"
+                      placeholder="LOT-2026-X"
+                      value={recLotNumber}
+                      onChange={(e) => setRecLotNumber(e.target.value)}
+                      required
+                    />
+                  </div>
+
+                  <div className={styles.formGroup}>
+                    <label className={styles.formLabel}>Quantity</label>
+                    <input
+                      className={styles.input}
+                      type="number"
+                      value={recQty}
+                      onChange={(e) => setRecQty(e.target.value)}
+                      required
+                    />
+                  </div>
+
+                  <div className={styles.formGroup}>
+                    <label className={styles.formLabel}>Unit</label>
+                    <input
+                      className={styles.input}
+                      type="text"
+                      placeholder="kg, L, bottles, units"
+                      value={recUnit}
+                      onChange={(e) => setRecUnit(e.target.value)}
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div className={styles.formGroup}>
+                  <label className={styles.formLabel}>QC Inspection Result</label>
+                  <select
+                    className={styles.input}
+                    value={recInspectionStatus}
+                    onChange={(e) => setRecInspectionStatus(e.target.value)}
+                  >
+                    <option value="PASSED">PASSED ✓ (Released to Inventory)</option>
+                    <option value="QUARANTINE">QUARANTINE ⚠ (Pending Testing)</option>
+                    <option value="REJECTED">REJECTED ✗ (Auto-triggers Deviation)</option>
+                  </select>
+                  {recInspectionStatus === 'REJECTED' && (
+                    <span style={{ fontSize: '11px', color: 'var(--danger)', marginTop: '4px', display: 'block' }}>
+                      ⚠ Rejecting an incoming material batch will auto-create a Quality Deviation.
+                    </span>
+                  )}
+                </div>
+
+                <div className={styles.formGroup}>
+                  <label className={styles.formLabel}>QC Inspection Notes / CoA Verification</label>
+                  <textarea
+                    className={styles.input}
+                    rows={3}
+                    placeholder="CoA verification notes, physical inspection observations..."
+                    value={recNotes}
+                    onChange={(e) => setRecNotes(e.target.value)}
+                    style={{ resize: 'vertical' }}
+                  />
+                </div>
+              </div>
+              <div className={styles.modalFooter}>
+                <button type="button" className={`${styles.btn} ${styles.btnSecondary}`} onClick={() => setShowReceiptModal(false)}>
+                  Cancel
+                </button>
+                <button type="submit" className={`${styles.btn} ${styles.btnPrimary}`}>
+                  Log Inspection Receipt
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </AppShell>
   );
 }
+

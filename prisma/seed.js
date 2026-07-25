@@ -4,6 +4,9 @@ const prisma = new PrismaClient();
 async function main() {
   console.log('Seeding database...');
 
+  await prisma.materialReceipt.deleteMany({});
+  await prisma.supplierAudit.deleteMany({});
+  await prisma.supplier.deleteMany({});
   await prisma.maintenanceLog.deleteMany({});
   await prisma.equipment.deleteMany({});
   await prisma.cAPA.deleteMany({});
@@ -424,8 +427,110 @@ async function main() {
   });
 
   console.log('Created Equipment & Maintenance Logs');
+
+  // 10. Create Suppliers, Audits, and Material Receipts
+  const sup1 = await prisma.supplier.create({
+    data: {
+      id: 'SUP-2026-001',
+      tenantId: acme.id,
+      name: 'BioChem Solutions Inc.',
+      contactEmail: 'qa@biochemsolutions.com',
+      contactPhone: '+1 (555) 234-5678',
+      category: 'RAW_MATERIAL',
+      status: 'APPROVED',
+      riskClassification: 'CRITICAL',
+      qualificationDate: new Date(Date.now() - 1000 * 60 * 60 * 24 * 180),
+      reEvaluationDueDate: new Date(Date.now() + 1000 * 60 * 60 * 24 * 185),
+      notes: 'Primary supplier of GMP-grade cell culture media and reagents.',
+      audits: {
+        create: [
+          {
+            auditorId: acmeAdmin.id,
+            auditDate: new Date(Date.now() - 1000 * 60 * 60 * 24 * 180),
+            auditType: 'INITIAL_QUALIFICATION',
+            findings: 'Full GMP audit conducted on-site. Zero critical or major findings.',
+            result: 'PASS',
+            esignSignatureId: 'SIG-SUP-AUD-001'
+          }
+        ]
+      },
+      materialReceipts: {
+        create: [
+          {
+            materialName: 'DMEM High Glucose Media (500mL)',
+            lotNumber: 'LOT-2026-881A',
+            quantityReceived: 50,
+            unit: 'bottles',
+            inspectionStatus: 'PASSED',
+            inspectedById: acmeEmployee.id,
+            notes: 'CoA verified against specification SPEC-001 Rev 2.'
+          }
+        ]
+      }
+    }
+  });
+
+  const sup2 = await prisma.supplier.create({
+    data: {
+      id: 'SUP-2026-002',
+      tenantId: acme.id,
+      name: 'PharmaPack International',
+      contactEmail: 'orders@pharmapack-int.com',
+      contactPhone: '+1 (555) 987-6543',
+      category: 'PACKAGING',
+      status: 'CONDITIONALLY_APPROVED',
+      riskClassification: 'MAJOR',
+      qualificationDate: new Date(Date.now() - 1000 * 60 * 60 * 24 * 365),
+      reEvaluationDueDate: new Date(Date.now() - 1000 * 60 * 60 * 24 * 10), // Overdue for re-evaluation
+      notes: 'Secondary supplier of sterile vials and stopper seals.',
+      audits: {
+        create: [
+          {
+            auditorId: acmeAdmin.id,
+            auditDate: new Date(Date.now() - 1000 * 60 * 60 * 24 * 365),
+            auditType: 'ROUTINE_ANNUAL',
+            findings: 'Minor CAPA open regarding particle contamination in lot PK-991.',
+            result: 'CONDITIONAL_PASS',
+            esignSignatureId: 'SIG-SUP-AUD-002'
+          }
+        ]
+      },
+      materialReceipts: {
+        create: [
+          {
+            materialName: '10mL Type 1 Glass Vials',
+            lotNumber: 'LOT-PK-9912',
+            quantityReceived: 5000,
+            unit: 'units',
+            inspectionStatus: 'QUARANTINE',
+            inspectedById: acmeEmployee.id,
+            notes: 'Pending particulate inspection and bioburden testing.'
+          }
+        ]
+      }
+    }
+  });
+
+  const sup3 = await prisma.supplier.create({
+    data: {
+      id: 'SUP-2026-003',
+      tenantId: acme.id,
+      name: 'Apex Analytical Labs',
+      contactEmail: 'compliance@apexanalytical.com',
+      contactPhone: '+1 (555) 345-6789',
+      category: 'CONTRACT_LAB',
+      status: 'UNDER_EVALUATION',
+      riskClassification: 'CRITICAL',
+      qualificationDate: new Date(),
+      reEvaluationDueDate: new Date(Date.now() + 1000 * 60 * 60 * 24 * 30),
+      notes: 'Third-party sterility and endotoxin testing vendor.',
+    }
+  });
+
+  console.log('Created Suppliers, Audits, and Material Receipts');
   console.log('Seeding finished successfully!');
 }
+
 
 main()
   .catch((e) => {
