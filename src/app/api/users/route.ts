@@ -35,7 +35,7 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json();
-    const { email, fullName, role, department, clearance } = body;
+    const { email, fullName, role, department, clearance, site, employmentType, expiresAt, firstName, lastName, phone } = body;
 
     if (!email || !fullName || !role) {
       return NextResponse.json({ error: { code: 'ValidationFailed', message: 'Email, Full Name, and Role are required' } }, { status: 400 });
@@ -51,9 +51,15 @@ export async function POST(req: NextRequest) {
       data: {
         email,
         fullName,
+        firstName: firstName || fullName.split(' ')[0],
+        lastName: lastName || fullName.split(' ').slice(1).join(' '),
+        phone: phone || null,
         role: role || 'EMPLOYEE',
         department: department || 'QA',
         clearance: clearance || 'INTERNAL',
+        site: site || 'Main Facility',
+        employmentType: employmentType || 'EMPLOYEE',
+        expiresAt: expiresAt ? new Date(expiresAt) : null,
         tenantId: adminUser.tenantId,
       },
     });

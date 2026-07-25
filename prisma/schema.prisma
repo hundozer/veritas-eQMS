@@ -26,27 +26,43 @@ model Tenant {
 }
 
 model User {
-  id                   String               @id @default(uuid())
-  email                String               @unique
-  fullName             String
-  role                 String               // e.g. "ADMIN", "OWNER", "APPROVER", "EMPLOYEE", "AUDITOR"
-  department           String               // e.g. "QA", "QC", "PRODUCTION", "ENGINEERING"
-  clearance            String               // e.g. "INTERNAL", "RESTRICTED"
-  tenantId             String
-  tenant               Tenant               @relation(fields: [tenantId], references: [id])
-  documentOwner        Document[]           @relation("DocumentOwner")
-  approvals            ApprovalRouteStep[]
-  signatures           SignatureManifest[]
-  trainingAssignments  TrainingAssignment[]
-  quizResults          QuizResult[]
-  deviationsDetected   Deviation[]          @relation("DetectedBy")
-  deviationsInvestigated Deviation[]        @relation("Investigator")
-  capasAssigned        CAPA[]               @relation("CapaAssigned")
-  maintenanceLogs      MaintenanceLog[]     @relation("PerformedMaintenance")
-  supplierAudits       SupplierAudit[]      @relation("AuditedSupplier")
-  materialInspections  MaterialReceipt[]    @relation("InspectedMaterial")
-  auditsLead           AuditPlan[]          @relation("LeadAuditor")
-  notifications        Notification[]
+  id                      String               @id @default(uuid())
+  email                   String               @unique
+  fullName                String
+  firstName               String?
+  lastName                String?
+  phone                   String?
+  profilePicture          String?
+  mfaEnabled              Boolean              @default(false)
+  accountStatus           String               @default("ACTIVE") // ACTIVE, INACTIVE, SUSPENDED, PENDING_INVITATION
+  role                    String               // e.g. "ADMIN", "OWNER", "QUALITY_MANAGER", "QA_REVIEWER", "DOCUMENT_OWNER", "DEPARTMENT_MANAGER", "TRAINING_COORDINATOR", "INVESTIGATOR", "APPROVER", "EMPLOYEE", "EXTERNAL_AUDITOR", "SUPPLIER", "CONSULTANT"
+  department              String               // e.g. "QA", "QC", "PRODUCTION", "REGULATORY", "ENGINEERING"
+  businessUnit            String?
+  site                    String               @default("Main Facility") // e.g. "Dublin Lab A", "Frankfurt Plant 2"
+  location                String?
+  country                 String?              @default("Germany")
+  employmentType          String               @default("EMPLOYEE") // EMPLOYEE, CONTRACTOR, CONSULTANT, EXTERNAL_AUDITOR, SUPPLIER
+  trainingStatus          String               @default("QUALIFIED")
+  digitalSignatureEnabled Boolean              @default(true)
+  signatureAuthorityLevel String               @default("LEVEL_1")
+  approvalAuthorityLevel  String               @default("LEVEL_1")
+  clearance               String               @default("INTERNAL") // e.g. "INTERNAL", "RESTRICTED"
+  expiresAt               DateTime?            // For temporary Consultant / External Auditor access
+  tenantId                String
+  tenant                  Tenant               @relation(fields: [tenantId], references: [id])
+  documentOwner           Document[]           @relation("DocumentOwner")
+  approvals               ApprovalRouteStep[]
+  signatures              SignatureManifest[]
+  trainingAssignments     TrainingAssignment[]
+  quizResults             QuizResult[]
+  deviationsDetected      Deviation[]          @relation("DetectedBy")
+  deviationsInvestigated  Deviation[]          @relation("Investigator")
+  capasAssigned           CAPA[]               @relation("CapaAssigned")
+  maintenanceLogs         MaintenanceLog[]     @relation("PerformedMaintenance")
+  supplierAudits          SupplierAudit[]      @relation("AuditedSupplier")
+  materialInspections     MaterialReceipt[]    @relation("InspectedMaterial")
+  auditsLead              AuditPlan[]          @relation("LeadAuditor")
+  notifications           Notification[]
 }
 
 model Document {

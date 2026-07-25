@@ -21,7 +21,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     }
 
     const body = await req.json();
-    const { role, department, clearance, fullName } = body;
+    const { role, department, clearance, fullName, site, employmentType, expiresAt } = body;
 
     const previousRole = targetUser.role;
     const previousDept = targetUser.department;
@@ -33,6 +33,9 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
         department: department || targetUser.department,
         clearance: clearance || targetUser.clearance,
         fullName: fullName || targetUser.fullName,
+        site: site !== undefined ? site : targetUser.site,
+        employmentType: employmentType !== undefined ? employmentType : targetUser.employmentType,
+        expiresAt: expiresAt !== undefined ? (expiresAt ? new Date(expiresAt) : null) : targetUser.expiresAt,
       },
     });
 

@@ -7,6 +7,7 @@ import type { NavGroup } from '@/ui';
 import dynamic from 'next/dynamic';
 
 const DashboardAnalytics = dynamic(() => import('@/components/DashboardAnalytics'), { ssr: false });
+import { DEFAULT_SYSTEM_ROLES, SYSTEM_PERMISSIONS } from '@/lib/permissions';
 import {
   Dashboard as DashboardIcon,
   Description as DescriptionIcon,
@@ -3410,14 +3411,14 @@ export default function Home() {
           </div>
         )}
 
-        {/* TAB: USER ROLES & RBAC MANAGEMENT */}
+        {/* TAB: USER ROLES & RBAC/ABAC MANAGEMENT */}
         {activeTab === 'users-management' && (
           <div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
               <div>
-                <h2>Organization User & Role RBAC Management</h2>
+                <h2>Organization User Access, RBAC & ABAC Policy Management</h2>
                 <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '4px' }}>
-                  Manage team members, assign GxP security roles, departments, and clearance levels compliant with 21 CFR Part 11 and EU Annex 11.
+                  Manage team members, site clearances, 13 default GxP security roles, and Segregation of Duties (SoD) policies.
                 </p>
               </div>
               <button
@@ -3429,7 +3430,21 @@ export default function Home() {
               </button>
             </div>
 
-            <div className={styles.card}>
+            {/* Segregation of Duties (SoD) Compliance Guard Banner */}
+            <div className="glass" style={{ padding: '16px 20px', borderRadius: '12px', background: 'linear-gradient(135deg, rgba(16,185,129,0.08) 0%, rgba(15,23,42,0.6) 100%)', border: '1px solid rgba(16,185,129,0.25)', marginBottom: '24px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <span style={{ fontSize: '20px' }}>🛡️</span>
+                <div>
+                  <div style={{ fontWeight: '700', color: '#10B981', fontSize: '14px' }}>Segregation of Duties (SoD) Conflict Guard Active</div>
+                  <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '2px' }}>
+                    Veritas automatically enforces EU Annex 11 & 21 CFR Part 11 SoD policies: Authors cannot approve their own SOPs, investigators cannot close their own CAPAs, and deviation logs require independent QA sign-off.
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* User Organization Roster */}
+            <div className={styles.card} style={{ marginBottom: '28px' }}>
               <div className={styles.cardTitle}>Active Organization Roster ({users.length} Users)</div>
               <div className={styles.tableWrapper}>
                 <table className={styles.table}>
@@ -3437,6 +3452,8 @@ export default function Home() {
                     <tr>
                       <th>Employee Name</th>
                       <th>Work Email</th>
+                      <th>Site / Facility</th>
+                      <th>Employment</th>
                       <th>Assigned GxP Role</th>
                       <th>Department</th>
                       <th>Clearance</th>
@@ -3444,12 +3461,14 @@ export default function Home() {
                     </tr>
                   </thead>
                   <tbody>
-                    {users.map((u) => (
+                    {users.map((u: any) => (
                       <tr key={u.id} className={styles.tableRow}>
                         <td style={{ fontWeight: '600' }}>
                           {u.fullName} {u.id === currentUser?.id && <span style={{ fontSize: '10px', background: 'rgba(16,185,129,0.2)', color: '#10B981', padding: '2px 6px', borderRadius: '4px', marginLeft: '6px' }}>YOU</span>}
                         </td>
                         <td>{u.email}</td>
+                        <td><span className={styles.badge}>{u.site || 'Main Facility'}</span></td>
+                        <td><span className={styles.currentBadge} style={{ background: 'rgba(255,255,255,0.06)' }}>{u.employmentType || 'EMPLOYEE'}</span></td>
                         <td>
                           <span className={styles.currentBadge} style={{
                             background: u.role === 'OWNER' ? 'rgba(168,85,247,0.15)' : u.role === 'ADMIN' ? 'rgba(239,68,68,0.15)' : u.role === 'APPROVER' ? 'rgba(245,158,11,0.15)' : 'rgba(59,130,246,0.15)',
@@ -3476,6 +3495,54 @@ export default function Home() {
                             </button>
                           </div>
                         </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* Visual Permission Matrix (Roles × Permissions Grid) */}
+            <div className={styles.card}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
+                <div className={styles.cardTitle} style={{ margin: 0 }}>📊 Visual Permission Matrix (13 System Roles × Permissions)</div>
+                <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Configurable by Organization Owners</span>
+              </div>
+              <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '20px' }}>
+                Interactive security grid mapping all 13 default GxP system roles against granular permission scopes across Documents, Training, CAPA, Deviations, Audits, and System Administration.
+              </p>
+
+              <div className={styles.tableWrapper} style={{ maxHeight: '550px', overflowY: 'auto' }}>
+                <table className={styles.table} style={{ fontSize: '12px' }}>
+                  <thead>
+                    <tr>
+                      <th style={{ position: 'sticky', left: 0, background: '#0B0E14', zIndex: 10, minWidth: '180px' }}>Granular Permission</th>
+                      {DEFAULT_SYSTEM_ROLES.map((r) => (
+                        <th key={r.key} style={{ textAlign: 'center', minWidth: '95px', padding: '8px 4px' }}>
+                          <div style={{ fontSize: '11px', fontWeight: '700', color: '#E2E8F0' }}>{r.name}</div>
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {SYSTEM_PERMISSIONS.map((perm) => (
+                      <tr key={perm.key} className={styles.tableRow}>
+                        <td style={{ position: 'sticky', left: 0, background: '#0B0E14', zIndex: 5, fontWeight: '600' }}>
+                          <div>{perm.label}</div>
+                          <div style={{ fontSize: '10px', color: 'var(--text-muted)' }}><code>{perm.key}</code></div>
+                        </td>
+                        {DEFAULT_SYSTEM_ROLES.map((role) => {
+                          const hasPerm = role.permissions.includes(perm.key);
+                          return (
+                            <td key={`${role.key}-${perm.key}`} style={{ textAlign: 'center' }}>
+                              {hasPerm ? (
+                                <span style={{ color: '#10B981', fontWeight: '800', fontSize: '15px' }}>✓</span>
+                              ) : (
+                                <span style={{ color: 'rgba(255,255,255,0.15)', fontSize: '14px' }}>-</span>
+                              )}
+                            </td>
+                          );
+                        })}
                       </tr>
                     ))}
                   </tbody>
@@ -4892,12 +4959,19 @@ export default function Home() {
                         value={inviteRole}
                         onChange={(e) => setInviteRole(e.target.value)}
                       >
-                        <option value="EMPLOYEE">Employee (Document Consumer / Trainee)</option>
-                        <option value="APPROVER">Approver (Signatory)</option>
-                        <option value="QUALITY_MANAGER">Quality Manager</option>
+                        <option value="EMPLOYEE">Employee (Standard User)</option>
+                        <option value="QUALITY_MANAGER">Quality Manager (QMS Owner)</option>
+                        <option value="QA_REVIEWER">QA Reviewer (Independent Review)</option>
+                        <option value="DOCUMENT_OWNER">Document Owner (Author)</option>
+                        <option value="DEPARTMENT_MANAGER">Department Manager</option>
+                        <option value="TRAINING_COORDINATOR">Training Coordinator</option>
+                        <option value="INVESTIGATOR">Investigator (Deviation / CAPA)</option>
+                        <option value="APPROVER">Approver (21 CFR Part 11 Signatory)</option>
                         <option value="ADMIN">QA Administrator</option>
-                        <option value="AUDITOR">Auditor (Read-Only Compliance)</option>
                         <option value="OWNER">Organization Owner</option>
+                        <option value="EXTERNAL_AUDITOR">External Auditor (Temporary Read-Only)</option>
+                        <option value="SUPPLIER">Supplier (External Vendor Portal)</option>
+                        <option value="CONSULTANT">Consultant (Temporary Scope)</option>
                       </select>
                     </div>
 
