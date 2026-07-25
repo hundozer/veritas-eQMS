@@ -235,6 +235,9 @@ interface QuizAnswer {
 }
 
 export default function Home() {
+  // Mode: Landing Page vs eQMS Workspace App
+  const [viewMode, setViewMode] = useState<'landing' | 'app'>('landing');
+
   // Navigation
   const [activeTab, setActiveTab] = useState<'dashboard' | 'documents' | 'training' | 'audit' | 'change-control' | 'quality-events' | 'equipment' | 'suppliers'>('dashboard');
 
@@ -1190,6 +1193,14 @@ export default function Home() {
 
   const headerActions = (
     <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+      <button
+        className={`${styles.btn} ${styles.btnSecondary}`}
+        onClick={() => setViewMode('landing')}
+        style={{ fontSize: '12px', padding: '6px 12px' }}
+      >
+        🏠 Landing Page
+      </button>
+
       {currentUser ? (
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <span className="glass" style={{ padding: '4px 10px', borderRadius: '16px', fontSize: '12px', color: 'var(--primary)', fontWeight: '600', border: '1px solid rgba(16,185,129,0.3)' }}>
@@ -1238,6 +1249,399 @@ export default function Home() {
       default: return 'Veritas eQMS';
     }
   };
+
+  if (viewMode === 'landing') {
+    return (
+      <div style={{ minHeight: '100vh', background: '#0B0E14', color: '#fff', fontFamily: 'var(--font-sans)', display: 'flex', flexDirection: 'column' }}>
+        {/* Top Bar / Navigation Header */}
+        <header style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '20px 40px', borderBottom: '1px solid rgba(255,255,255,0.08)', backdropFilter: 'blur(12px)', background: 'rgba(11,14,20,0.85)', position: 'sticky', top: 0, zIndex: 100 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <div style={{ width: '36px', height: '36px', borderRadius: '10px', background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '900', color: '#000', fontSize: '18px', boxShadow: '0 0 16px rgba(16,185,129,0.4)' }}>
+              V
+            </div>
+            <div>
+              <div style={{ fontSize: '20px', fontWeight: '800', letterSpacing: '-0.5px' }}>VERITAS</div>
+              <div style={{ fontSize: '10px', color: '#10B981', letterSpacing: '1px', textTransform: 'uppercase', fontWeight: '600' }}>Life Sciences eQMS</div>
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <button
+              className={`${styles.btn} ${styles.btnSecondary}`}
+              onClick={() => setShowLoginModal(true)}
+              style={{ fontSize: '13px', padding: '8px 16px' }}
+            >
+              🔑 Sign In / Personas
+            </button>
+            <button
+              className={`${styles.btn} ${styles.btnPrimary}`}
+              onClick={() => setShowRegisterModal(true)}
+              style={{ fontSize: '13px', padding: '8px 18px', background: '#10B981', color: '#000', fontWeight: '700' }}
+            >
+              🏢 Register Organization
+            </button>
+            <button
+              className={`${styles.btn} ${styles.btnPrimary}`}
+              onClick={() => setViewMode('app')}
+              style={{ fontSize: '13px', padding: '8px 18px' }}
+            >
+              🚀 Launch Workspace
+            </button>
+          </div>
+        </header>
+
+        {/* Hero Section */}
+        <section style={{ padding: '80px 40px 60px', maxWidth: '1200px', margin: '0 auto', textAlign: 'center', position: 'relative' }}>
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '6px 16px', borderRadius: '20px', background: 'rgba(16,185,129,0.1)', border: '1px solid rgba(16,185,129,0.3)', color: '#10B981', fontSize: '13px', fontWeight: '600', marginBottom: '24px' }}>
+            ⚡ 21 CFR Part 11 & ISO 13485:2016 Certified Architecture
+          </div>
+
+          <h1 style={{ fontSize: '56px', fontWeight: '900', lineHeight: '1.1', letterSpacing: '-1.5px', marginBottom: '24px', background: 'linear-gradient(180deg, #FFFFFF 0%, #9CA3AF 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+            The Intelligent, Audit-Ready eQMS<br />for Modern Life Sciences
+          </h1>
+
+          <p style={{ fontSize: '18px', color: 'var(--text-muted)', maxWidth: '780px', margin: '0 auto 40px', lineHeight: '1.6' }}>
+            Automate Document Control, Quality Events (Deviations/CAPA), Supplier Quality (AVL), Training Quizzes, and Equipment Calibration with immutable 21 CFR Part 11 electronic signatures and real-time audit trails.
+          </p>
+
+          <div style={{ display: 'flex', justifyContent: 'center', gap: '16px', marginBottom: '60px', flexWrap: 'wrap' }}>
+            <button
+              className={`${styles.btn} ${styles.btnPrimary}`}
+              onClick={() => setViewMode('app')}
+              style={{ fontSize: '16px', padding: '14px 28px', background: '#10B981', color: '#000', fontWeight: '700', boxShadow: '0 0 24px rgba(16,185,129,0.4)' }}
+            >
+              🚀 Launch Live eQMS Workspace
+            </button>
+            <button
+              className={`${styles.btn} ${styles.btnPrimary}`}
+              onClick={() => setShowRegisterModal(true)}
+              style={{ fontSize: '16px', padding: '14px 28px' }}
+            >
+              🏢 Register Organization
+            </button>
+            <button
+              className={`${styles.btn} ${styles.btnSecondary}`}
+              onClick={() => setShowLoginModal(true)}
+              style={{ fontSize: '16px', padding: '14px 28px' }}
+            >
+              🔑 Sign In / Persona Demo
+            </button>
+          </div>
+
+          {/* Live Metrics Showcase Banner */}
+          <div className="glass" style={{ padding: '24px 32px', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.08)', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '24px', textAlign: 'left' }}>
+            <div>
+              <div style={{ fontSize: '28px', fontWeight: '800', color: '#10B981' }}>21 CFR Part 11</div>
+              <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>FDA Compliant E-Signatures</div>
+            </div>
+            <div>
+              <div style={{ fontSize: '28px', fontWeight: '800', color: '#38BDF8' }}>ISO 13485:2016</div>
+              <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Medical Device QMS Standard</div>
+            </div>
+            <div>
+              <div style={{ fontSize: '28px', fontWeight: '800', color: '#A855F7' }}>EU Annex 11</div>
+              <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Computerized Systems Validation</div>
+            </div>
+            <div>
+              <div style={{ fontSize: '28px', fontWeight: '800', color: '#F59E0B' }}>100% Audit Ready</div>
+              <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Immutable Hash-Linked Logs</div>
+            </div>
+          </div>
+        </section>
+
+        {/* Feature Grid Section */}
+        <section style={{ padding: '60px 40px', maxWidth: '1200px', margin: '0 auto', width: '100%' }}>
+          <h2 style={{ fontSize: '32px', fontWeight: '800', textAlign: 'center', marginBottom: '12px' }}>
+            Complete GxP Quality Management Suite
+          </h2>
+          <p style={{ fontSize: '15px', color: 'var(--text-muted)', textAlign: 'center', marginBottom: '48px' }}>
+            Everything your QA, Regulatory, and Manufacturing teams need to maintain continuous audit readiness.
+          </p>
+
+          <div className={styles.grid3} style={{ gap: '24px' }}>
+            {/* Card 1 */}
+            <div className={`${styles.card} ${styles.cardGlow}`}>
+              <div style={{ fontSize: '28px', marginBottom: '12px' }}>📄</div>
+              <h3 style={{ fontSize: '18px', fontWeight: '700', marginBottom: '8px' }}>Document Control</h3>
+              <p style={{ fontSize: '13px', color: 'var(--text-muted)', lineHeight: '1.5' }}>
+                Automated document lifecycle (Draft, Review, Approval, Effective, Obsolete). SHA-256 integrity checksums, role clearance checks, and e-signatures.
+              </p>
+            </div>
+
+            {/* Card 2 */}
+            <div className={`${styles.card} ${styles.cardGlow}`}>
+              <div style={{ fontSize: '28px', marginBottom: '12px' }}>🎓</div>
+              <h3 style={{ fontSize: '18px', fontWeight: '700', marginBottom: '8px' }}>Training Hub & Quizzes</h3>
+              <p style={{ fontSize: '13px', color: 'var(--text-muted)', lineHeight: '1.5' }}>
+                Role-based training matrix. Releasing a document automatically assigns training tasks with knowledge assessment quizzes and e-sign sign-offs.
+              </p>
+            </div>
+
+            {/* Card 3 */}
+            <div className={`${styles.card} ${styles.cardGlow}`}>
+              <div style={{ fontSize: '28px', marginBottom: '12px' }}>⚡</div>
+              <h3 style={{ fontSize: '18px', fontWeight: '700', marginBottom: '8px' }}>Quality Events & CAPA</h3>
+              <p style={{ fontSize: '13px', color: 'var(--text-muted)', lineHeight: '1.5' }}>
+                Root cause analysis (8D / 5-Why), automated deviation logging, CAPA task assignment, due date monitoring, and e-sign closure.
+              </p>
+            </div>
+
+            {/* Card 4 */}
+            <div className={`${styles.card} ${styles.cardGlow}`}>
+              <div style={{ fontSize: '28px', marginBottom: '12px' }}>📦</div>
+              <h3 style={{ fontSize: '18px', fontWeight: '700', marginBottom: '8px' }}>Supplier Quality (AVL)</h3>
+              <p style={{ fontSize: '13px', color: 'var(--text-muted)', lineHeight: '1.5' }}>
+                Approved Vendor List, risk classification (Critical/Major/Minor), annual e-signed audit records, and incoming material quarantine/inspection.
+              </p>
+            </div>
+
+            {/* Card 5 */}
+            <div className={`${styles.card} ${styles.cardGlow}`}>
+              <div style={{ fontSize: '28px', marginBottom: '12px' }}>🔧</div>
+              <h3 style={{ fontSize: '18px', fontWeight: '700', marginBottom: '8px' }}>Equipment Calibration</h3>
+              <p style={{ fontSize: '13px', color: 'var(--text-muted)', lineHeight: '1.5' }}>
+                Equipment registry, calibration interval tracking, maintenance logs with e-signatures, and auto-triggered deviations for out-of-spec failures.
+              </p>
+            </div>
+
+            {/* Card 6 */}
+            <div className={`${styles.card} ${styles.cardGlow}`}>
+              <div style={{ fontSize: '28px', marginBottom: '12px' }}>🛡️</div>
+              <h3 style={{ fontSize: '18px', fontWeight: '700', marginBottom: '8px' }}>21 CFR Part 11 Audit Logs</h3>
+              <p style={{ fontSize: '13px', color: 'var(--text-muted)', lineHeight: '1.5' }}>
+                Chronological event logging, IP address and user role capture, tenant isolation, and 1-click CSV audit trail export for regulatory inspectors.
+              </p>
+            </div>
+          </div>
+        </section>
+
+        {/* Pre-seeded Persona Fast Launch Bar */}
+        <section style={{ padding: '40px', background: 'rgba(255,255,255,0.01)', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+          <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
+            <h3 style={{ fontSize: '20px', fontWeight: '700', marginBottom: '16px', textAlign: 'center' }}>
+              Instant Demo Personas (1-Click Launch)
+            </h3>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '16px' }}>
+              {users.map((u) => (
+                <div key={u.id} className="glass" style={{ padding: '16px', borderRadius: '12px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+                  <div>
+                    <div style={{ fontWeight: '700', fontSize: '15px' }}>{u.fullName}</div>
+                    <div style={{ fontSize: '12px', color: '#10B981', marginTop: '2px', fontWeight: '600' }}>{u.role} — {u.department}</div>
+                    <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '4px' }}>{u.email}</div>
+                  </div>
+                  <button
+                    className={`${styles.btn} ${styles.btnSecondary}`}
+                    onClick={() => {
+                      handleLoginUser(u.email);
+                      setViewMode('app');
+                    }}
+                    style={{ marginTop: '12px', fontSize: '12px', width: '100%' }}
+                  >
+                    Launch as {u.fullName.split(' ')[0]} →
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* Footer */}
+        <footer style={{ padding: '30px 40px', borderTop: '1px solid rgba(255,255,255,0.08)', textAlign: 'center', fontSize: '13px', color: 'var(--text-muted)' }}>
+          Veritas eQMS — 21 CFR Part 11 & ISO 13485 Compliant Quality System | Connected to Neon PostgreSQL
+        </footer>
+
+        {/* Render Modals 14 and 15 so landing page buttons trigger modals seamlessly */}
+        {showLoginModal && (
+          <div className={styles.modalOverlay}>
+            <div className={styles.modalContent} style={{ maxWidth: '650px' }}>
+              <div className={styles.modalHeader}>
+                <h3>Select Persona or Sign In</h3>
+                <button style={{ background: 'transparent', border: 'none', color: '#fff', fontSize: '20px', cursor: 'pointer' }} onClick={() => setShowLoginModal(false)}>×</button>
+              </div>
+              <div className={styles.modalBody}>
+                <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '16px' }}>
+                  Select a pre-seeded persona or enter your work email to switch user roles and test 21 CFR Part 11 permission policies.
+                </p>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '24px' }}>
+                  <span style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', fontWeight: '600' }}>Available Persona Accounts</span>
+                  {users.map((u) => (
+                    <div
+                      key={u.id}
+                      className="glass"
+                      onClick={() => {
+                        handleLoginUser(u.email);
+                        setViewMode('app');
+                      }}
+                      style={{
+                        padding: '12px 16px',
+                        borderRadius: '8px',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        background: currentUser?.email === u.email ? 'rgba(16,185,129,0.1)' : 'rgba(255,255,255,0.02)',
+                        border: currentUser?.email === u.email ? '1px solid var(--primary)' : '1px solid rgba(255,255,255,0.06)',
+                      }}
+                    >
+                      <div>
+                        <div style={{ fontWeight: '600', fontSize: '14px' }}>
+                          {u.fullName}
+                          {currentUser?.email === u.email && <span style={{ color: '#10B981', marginLeft: '8px', fontSize: '12px' }}>✓ Active</span>}
+                        </div>
+                        <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '2px' }}>
+                          {u.email} | Dept: {u.department} | Tenant: {u.tenant?.name || 'Acme Biotech'}
+                        </div>
+                      </div>
+                      <span className={`${styles.badge} ${
+                        u.role === 'ADMIN' || u.role === 'OWNER' ? styles.badgeEffective :
+                        u.role === 'AUDITOR' ? styles.badgeReview : styles.badgeDraft
+                      }`}>
+                        {u.role}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+
+                <form onSubmit={(e) => { e.preventDefault(); if (loginEmail) { handleLoginUser(loginEmail); setViewMode('app'); } }}>
+                  <div className={styles.formGroup}>
+                    <label className={styles.formLabel}>Or Sign in with Email</label>
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                      <input
+                        className={styles.input}
+                        type="email"
+                        placeholder="user@company.com"
+                        value={loginEmail}
+                        onChange={(e) => setLoginEmail(e.target.value)}
+                      />
+                      <button type="submit" className={`${styles.btn} ${styles.btnPrimary}`} style={{ whiteSpace: 'nowrap' }}>
+                        Sign In & Launch
+                      </button>
+                    </div>
+                  </div>
+                </form>
+              </div>
+              <div className={styles.modalFooter}>
+                <button type="button" className={`${styles.btn} ${styles.btnSecondary}`} onClick={() => setShowLoginModal(false)}>
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {showRegisterModal && (
+          <div className={styles.modalOverlay}>
+            <div className={styles.modalContent} style={{ maxWidth: '650px' }}>
+              <div className={styles.modalHeader}>
+                <h3>Onboard New Organization & Quality Owner</h3>
+                <button style={{ background: 'transparent', border: 'none', color: '#fff', fontSize: '20px', cursor: 'pointer' }} onClick={() => setShowRegisterModal(false)}>×</button>
+              </div>
+              <form onSubmit={(e) => { handleRegisterCompany(e); setViewMode('app'); }}>
+                <div className={styles.modalBody}>
+                  <div style={{ padding: '12px 16px', background: 'rgba(16,185,129,0.08)', borderRadius: '8px', border: '1px solid rgba(16,185,129,0.2)', marginBottom: '20px' }}>
+                    <div style={{ fontWeight: '600', color: '#10B981', fontSize: '14px' }}>✨ Instant GxP Workspace Provisioning</div>
+                    <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px' }}>
+                      Registering creates your tenant organization and auto-generates your starter SOP library compliant with 21 CFR Part 11 and ISO 13485.
+                    </div>
+                  </div>
+
+                  <div className={styles.formGroup}>
+                    <label className={styles.formLabel}>Company / Organization Name</label>
+                    <input
+                      className={styles.input}
+                      type="text"
+                      placeholder="e.g. Nova Therapeutics Inc."
+                      value={regCompanyName}
+                      onChange={(e) => setRegCompanyName(e.target.value)}
+                      required
+                    />
+                  </div>
+
+                  <div className={styles.grid2} style={{ margin: 0, gap: '12px' }}>
+                    <div className={styles.formGroup}>
+                      <label className={styles.formLabel}>Quality Owner Full Name</label>
+                      <input
+                        className={styles.input}
+                        type="text"
+                        placeholder="e.g. Dr. Sarah Jenkins"
+                        value={regFullName}
+                        onChange={(e) => setRegFullName(e.target.value)}
+                        required
+                      />
+                    </div>
+
+                    <div className={styles.formGroup}>
+                      <label className={styles.formLabel}>Work Email</label>
+                      <input
+                        className={styles.input}
+                        type="email"
+                        placeholder="sarah@novatx.com"
+                        value={regEmail}
+                        onChange={(e) => setRegEmail(e.target.value)}
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  <div className={styles.grid3} style={{ margin: 0, gap: '12px' }}>
+                    <div className={styles.formGroup}>
+                      <label className={styles.formLabel}>Department</label>
+                      <select
+                        className={styles.input}
+                        value={regDepartment}
+                        onChange={(e) => setRegDepartment(e.target.value)}
+                      >
+                        <option value="QA">Quality Assurance (QA)</option>
+                        <option value="QC">Quality Control (QC)</option>
+                        <option value="PRODUCTION">Manufacturing</option>
+                        <option value="REGULATORY">Regulatory Affairs</option>
+                      </select>
+                    </div>
+
+                    <div className={styles.formGroup}>
+                      <label className={styles.formLabel}>User Role</label>
+                      <select
+                        className={styles.input}
+                        value={regRole}
+                        onChange={(e) => setRegRole(e.target.value)}
+                      >
+                        <option value="OWNER">System Owner (Full Admin)</option>
+                        <option value="ADMIN">QA Administrator</option>
+                        <option value="AUDITOR">Auditor</option>
+                      </select>
+                    </div>
+
+                    <div className={styles.formGroup}>
+                      <label className={styles.formLabel}>Primary Standard</label>
+                      <select
+                        className={styles.input}
+                        value={regGxPStandard}
+                        onChange={(e) => setRegGxPStandard(e.target.value)}
+                      >
+                        <option value="21 CFR Part 11 / ISO 13485">21 CFR Part 11 & ISO 13485</option>
+                        <option value="EU Annex 11 / GMP">EU Annex 11 & GMP</option>
+                        <option value="ISO 9001 / GAMP 5">ISO 9001 & GAMP 5</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+                <div className={styles.modalFooter}>
+                  <button type="button" className={`${styles.btn} ${styles.btnSecondary}`} onClick={() => setShowRegisterModal(false)}>
+                    Cancel
+                  </button>
+                  <button type="submit" className={`${styles.btn} ${styles.btnPrimary}`}>
+                    Provision GxP Organization
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
 
   return (
     <AppShell
