@@ -58,9 +58,17 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         data: { status: 'EFFECTIVE' },
       });
 
-      // 2. Create E-Signature Manifest (21 CFR Part 11 record)
-      const manifest = await tx.signatureManifest.create({
-        data: {
+      // 2. Create or Update E-Signature Manifest (21 CFR Part 11 record)
+      const manifest = await tx.signatureManifest.upsert({
+        where: { documentVersionId: latestVersion.id },
+        update: {
+          signedBy: user.id,
+          meaning: meaning || 'Approval of Document Release',
+          hashSigned: `${latestVersion.hash}-${user.fullName.toUpperCase()}-APPROVED`,
+          ipAddress: req.headers.get('x-forwarded-for') || '127.0.0.1',
+          timestamp: new Date(),
+        },
+        create: {
           documentVersionId: latestVersion.id,
           signedBy: user.id,
           meaning: meaning || 'Approval of Document Release',
