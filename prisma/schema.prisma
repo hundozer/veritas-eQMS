@@ -1,0 +1,210 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Tenant {
+  id         String      @id @default(uuid())
+  name       String
+  createdAt  DateTime    @default(now())
+  users      User[]
+  documents  Document[]
+  auditLogs  AuditLog[]
+  deviations Deviation[]
+  capas      CAPA[]
+}
+
+model User {
+  id                   String               @id @default(uuid())
+  email                String               @unique
+  fullName             String
+  role                 String               // e.g. "ADMIN", "OWNER", "APPROVER", "EMPLOYEE", "AUDITOR"
+  department           String               // e.g. "QA", "QC", "PRODUCTION", "ENGINEERING"
+  clearance            String               // e.g. "INTERNAL", "RESTRICTED"
+  tenantId             String
+  tenant               Tenant               @relation(fields: [tenantId], references: [id])
+  documentOwner        Document[]           @relation("DocumentOwner")
+  approvals            ApprovalRouteStep[]
+  signatures           SignatureManifest[]
+  trainingAssignments  TrainingAssignment[]
+  quizResults          QuizResult[]
+  deviationsDetected   Deviation[]          @relation("DetectedBy")
+  deviationsInvestigated Deviation[]        @relation("Investigator")
+  capasAssigned        CAPA[]               @relation("CapaAssigned")
+}
+
+model Document {
+  id                   String                  @id @default(uuid())
+  title                String
+  description          String
+  classification       String                  // e.g. "CONTROLLED", "INTERNAL", "HIGHLY_RESTRICTED"
+  status               String                  // e.g. "DRAFT", "IN_REVIEW", "APPROVED", "EFFECTIVE", "OBSOLETE"
+  ownerId              String
+  owner                User                    @relation("DocumentOwner", fields: [ownerId], references: [id])
+  tenantId             String
+  tenant               Tenant                  @relation(fields: [tenantId], references: [id])
+  versions             DocumentVersion[]
+  currentVersionNumber Int                     @default(1)
+  createdAt            DateTime                @default(now())
+  updatedAt            DateTime                @updatedAt
+  trainingRequirement  TrainingRequirement?
+  changeRequests       ChangeRequestDocument[]
+}
+
+model DocumentVersion {
+  id                String             @id @default(uuid())
+  documentId        String
+  document          Document           @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  versionNumber     Int
+  filePath          String
+  hash              String             // SHA-256 integrity hash
+  createdAt         DateTime           @default(now())
+  createdBy         String
+  signatureManifest SignatureManifest?
+  approvalRoutes    ApprovalRoute[]
+}
+
+model ApprovalRoute {
+  id                String              @id @default(uuid())
+  documentVersionId String
+  documentVersion   DocumentVersion     @relation(fields: [documentVersionId], references: [id], onDelete: Cascade)
+  steps             ApprovalRouteStep[]
+  status            String              // e.g. "PENDING", "APPROVED", "REJECTED"
+  createdAt         DateTime            @default(now())
+}
+
+model ApprovalRouteStep {
+  id              String        @id @default(uuid())
+  approvalRouteId String
+  approvalRoute   ApprovalRoute @relation(fields: [approvalRouteId], references: [id], onDelete: Cascade)
+  approverId      String
+  approver        User          @relation(fields: [approverId], references: [id])
+  sequence        Int
+  status          String        // e.g. "PENDING", "APPROVED", "REJECTED"
+  signedAt        DateTime?
+  comment         String?
+}
+
+model SignatureManifest {
+  id                String          @id @default(uuid())
+  documentVersionId String          @unique
+  documentVersion   DocumentVersion @relation(fields: [documentVersionId], references: [id], onDelete: Cascade)
+  signedBy          String
+  signer            User            @relation(fields: [signedBy], references: [id])
+  signedAt          DateTime        @default(now())
+  meaning           String          // e.g. "Authorship", "Approval", "Review"
+  hashSigned        String
+  ipAddress         String
+}
+
+model TrainingRequirement {
+  id              String               @id @default(uuid())
+  documentId      String               @unique
+  document        Document             @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  requiredForRoles String               // Comma-separated roles or departments
+  requiresQuiz    Boolean              @default(false)
+  quizQuestions   String?              // JSON string containing questions, options, and correct answers
+  assignments     TrainingAssignment[]
+}
+
+model TrainingAssignment {
+  id            String              @id @default(uuid())
+  requirementId String
+  requirement   TrainingRequirement @relation(fields: [requirementId], references: [id], onDelete: Cascade)
+  userId        String
+  user          User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  status        String              // e.g. "ASSIGNED", "COMPLETED", "OVERDUE"
+  assignedAt    DateTime            @default(now())
+  completedAt   DateTime?
+  quizResultId  String?             @unique
+  quizResult    QuizResult?         @relation(fields: [quizResultId], references: [id])
+}
+
+model QuizResult {
+  id                 String              @id @default(uuid())
+  userId             String
+  user               User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  score              Int
+  passed             Boolean
+  createdAt          DateTime            @default(now())
+  trainingAssignment TrainingAssignment?
+}
+
+model ChangeRequest {
+  id        String                  @id @default(uuid())
+  title     String
+  reason    String
+  riskLevel String                  // e.g. "LOW", "MEDIUM", "HIGH"
+  status    String                  // e.g. "DRAFT", "UNDER_REVIEW", "APPROVED", "CLOSED"
+  createdAt DateTime                @default(now())
+  documents ChangeRequestDocument[]
+}
+
+model ChangeRequestDocument {
+  changeRequestId String
+  changeRequest   ChangeRequest @relation(fields: [changeRequestId], references: [id], onDelete: Cascade)
+  documentId      String
+  document        Document      @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  @@id([changeRequestId, documentId])
+}
+
+model Deviation {
+  id                 String   @id @default(uuid())
+  tenantId           String
+  tenant             Tenant   @relation(fields: [tenantId], references: [id])
+  title              String
+  description        String
+  classification     String   // e.g. "MINOR", "MAJOR", "CRITICAL"
+  status             String   // e.g. "LOGGED", "UNDER_INVESTIGATION", "QA_REVIEW", "CLOSED"
+  detectedById       String
+  detectedBy         User     @relation("DetectedBy", fields: [detectedById], references: [id])
+  investigatorId     String?
+  investigator       User?    @relation("Investigator", fields: [investigatorId], references: [id])
+  investigationNotes String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+  capas              CAPA[]
+}
+
+model CAPA {
+  id           String    @id @default(uuid())
+  tenantId     String
+  tenant       Tenant    @relation(fields: [tenantId], references: [id])
+  title        String
+  actionPlan   String
+  status       String    // e.g. "OPEN", "IN_PROGRESS", "CLOSED"
+  dueDate      DateTime
+  completedAt  DateTime?
+  assignedToId String
+  assignedTo   User      @relation("CapaAssigned", fields: [assignedToId], references: [id])
+  deviationId  String?
+  deviation    Deviation? @relation(fields: [deviationId], references: [id], onDelete: Cascade)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+}
+
+model AuditLog {
+  id          String   @id @default(uuid())
+  tenantId    String
+  tenant      Tenant   @relation(fields: [tenantId], references: [id])
+  eventId     String   @unique // UUID for client-side correlation and WORM checks
+  timestamp   DateTime @default(now())
+  userId      String?
+  userEmail   String?
+  userRole    String?
+  action      String   // e.g. Document.Create, Document.View, ESign.Execute
+  objectType  String   // e.g. Document, User, Tenant
+  objectId    String?
+  payload     String   // JSON payload (includes before/after for CUD, fieldsReturned for reads)
+  status      String   // Success, Failed, Denied
+  sourceIp    String?
+  requestUrl  String?
+}

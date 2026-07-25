@@ -1,0 +1,89 @@
+:root {
+  /* Map eQMS colors to the framework's design system tokens */
+  --bg-main: var(--bg);
+  --bg-surface: var(--card-bg);
+  --bg-card: var(--card-bg);
+  --bg-hover: var(--card-hover);
+  --border-color: var(--border);
+  --border-glow: rgba(191, 229, 48, 0.15);
+  
+  /* Accent Colors */
+  --primary: var(--lime);
+  --primary-hover: var(--lime2);
+  --primary-glow: rgba(191, 229, 48, 0.35);
+  
+  --secondary: var(--olive);
+  --secondary-hover: var(--dark);
+  --secondary-glow: rgba(154, 169, 129, 0.25);
+  
+  --warning: var(--gold);
+  --danger: var(--danger);
+  
+  /* Text Colors */
+  --text-main: var(--t1);
+  --text-muted: var(--t2);
+  --text-dark: var(--t3);
+  
+  /* Typography */
+  --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+
+  /* Shadows & Blur */
+  --shadow-lg: var(--shadow-lg);
+  --backdrop-blur: 16px;
+  --radius-sm: var(--radius-sm);
+  --radius-md: var(--radius-md);
+  --radius-lg: var(--radius-lg);
+}
+
+* {
+  box-sizing: border-box;
+  padding: 0;
+  margin: 0;
+}
+
+html, body {
+  background-color: var(--bg-main);
+  color: var(--text-main);
+  font-family: var(--font-sans);
+  font-size: 14px;
+  min-height: 100vh;
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Beautiful custom scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: var(--scroll-track);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--olive);
+  border-radius: var(--radius-sm);
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--dark);
+}
+
+/* Global Transition Rules for Micro-Animations */
+button, a, input, select, textarea {
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Utility Glassmorphism Class */
+.glass {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md);
+  padding: 20px;
+}
+
+.gradient-text {
+  background: linear-gradient(135deg, var(--lime2) 0%, var(--lime) 50%, var(--olive) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
