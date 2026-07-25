@@ -19,6 +19,7 @@ model Tenant {
   auditLogs  AuditLog[]
   deviations Deviation[]
   capas      CAPA[]
+  equipment  Equipment[]
 }
 
 model User {
@@ -38,6 +39,7 @@ model User {
   deviationsDetected   Deviation[]          @relation("DetectedBy")
   deviationsInvestigated Deviation[]        @relation("Investigator")
   capasAssigned        CAPA[]               @relation("CapaAssigned")
+  maintenanceLogs      MaintenanceLog[]     @relation("PerformedMaintenance")
 }
 
 model Document {
@@ -172,6 +174,8 @@ model Deviation {
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
   capas              CAPA[]
+  equipmentId        String?
+  equipment          Equipment? @relation("EquipmentDeviations", fields: [equipmentId], references: [id])
 }
 
 model CAPA {
@@ -207,4 +211,38 @@ model AuditLog {
   status      String   // Success, Failed, Denied
   sourceIp    String?
   requestUrl  String?
+}
+
+model Equipment {
+  id                      String           @id @default(uuid())
+  tenantId                String
+  tenant                  Tenant           @relation(fields: [tenantId], references: [id])
+  name                    String
+  description             String?
+  modelNumber             String?
+  serialNumber            String?
+  location                String           // e.g. "Cleanroom Suite A"
+  status                  String           // e.g. "ACTIVE", "OUT_OF_SERVICE", "UNDER_MAINTENANCE", "CALIBRATION_DUE"
+  calibrationIntervalDays Int              // e.g. 90, 180, 365
+  lastCalibratedAt        DateTime         @default(now())
+  nextCalibrationDueDate  DateTime
+  createdAt               DateTime         @default(now())
+  updatedAt               DateTime         @updatedAt
+  maintenanceLogs         MaintenanceLog[]
+  deviations              Deviation[]      @relation("EquipmentDeviations")
+}
+
+model MaintenanceLog {
+  id              String    @id @default(uuid())
+  equipmentId     String
+  equipment       Equipment @relation(fields: [equipmentId], references: [id], onDelete: Cascade)
+  performedById   String
+  performedBy     User      @relation("PerformedMaintenance", fields: [performedById], references: [id])
+  performedAt     DateTime  @default(now())
+  activityType    String    // e.g. "CALIBRATION", "PREVENTATIVE_MAINTENANCE", "REPAIR"
+  notes           String
+  result          String    // e.g. "PASS", "FAIL"
+  esignSignatureId String?   // 21 CFR Part 11 signature record if signed
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 }

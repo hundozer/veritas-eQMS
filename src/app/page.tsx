@@ -10,7 +10,8 @@ import {
   School as SchoolIcon,
   PublishedWithChanges as ChangeIcon,
   Report as ReportIcon,
-  History as HistoryIcon
+  History as HistoryIcon,
+  Build as BuildIcon
 } from '@mui/icons-material';
 
 interface User {
@@ -139,9 +140,38 @@ interface CAPA {
   createdAt: string;
 }
 
+interface MaintenanceLog {
+  id: string;
+  equipmentId: string;
+  performedById: string;
+  performedBy: User;
+  performedAt: string;
+  activityType: string;
+  notes: string;
+  result: string;
+  esignSignatureId: string | null;
+  createdAt: string;
+}
+
+interface Equipment {
+  id: string;
+  name: string;
+  description: string | null;
+  modelNumber: string | null;
+  serialNumber: string | null;
+  location: string;
+  status: string;
+  calibrationIntervalDays: number;
+  lastCalibratedAt: string;
+  nextCalibrationDueDate: string;
+  createdAt: string;
+  maintenanceLogs: MaintenanceLog[];
+  deviations: Deviation[];
+}
+
 export default function Home() {
   // Navigation
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'documents' | 'training' | 'audit' | 'change-control' | 'quality-events'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'documents' | 'training' | 'audit' | 'change-control' | 'quality-events' | 'equipment'>('dashboard');
 
   // Users / Personas
   const [users, setUsers] = useState<User[]>([]);
@@ -154,6 +184,7 @@ export default function Home() {
   const [changeRequests, setChangeRequests] = useState<ChangeRequest[]>([]);
   const [deviations, setDeviations] = useState<Deviation[]>([]);
   const [capas, setCapas] = useState<CAPA[]>([]);
+  const [equipmentList, setEquipmentList] = useState<Equipment[]>([]);
 
   // Selected Detail views
   const [selectedDocId, setSelectedDocId] = useState<string | null>(null);
@@ -161,6 +192,7 @@ export default function Home() {
   const [selectedCRId, setSelectedCRId] = useState<string | null>(null);
   const [selectedDeviationId, setSelectedDeviationId] = useState<string | null>(null);
   const [selectedCapaId, setSelectedCapaId] = useState<string | null>(null);
+  const [selectedEquipmentId, setSelectedEquipmentId] = useState<string | null>(null);
 
   // Forms / Modals
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -172,6 +204,7 @@ export default function Home() {
   const [showCreateCapaModal, setShowCreateCapaModal] = useState(false);
   const [showCapaSignModal, setShowCapaSignModal] = useState(false);
   const [showDeviationInvestigateModal, setShowDeviationInvestigateModal] = useState(false);
+  const [showLogMaintenanceModal, setShowLogMaintenanceModal] = useState(false);
 
   // Deviation form state
   const [newDevTitle, setNewDevTitle] = useState('');
@@ -231,6 +264,12 @@ export default function Home() {
   // Audit Filters
   const [auditActionFilter, setAuditActionFilter] = useState('');
   const [auditTypeFilter, setAuditTypeFilter] = useState('');
+
+  // Equipment Maintenance form state
+  const [eqLogActivityType, setEqLogActivityType] = useState('CALIBRATION');
+  const [eqLogNotes, setEqLogNotes] = useState('');
+  const [eqLogResult, setEqLogResult] = useState('PASS');
+  const [eqLogPassword, setEqLogPassword] = useState('');
 
   // General Notification / Error messages
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -309,6 +348,13 @@ export default function Home() {
       });
       const capaData = await capaRes.json();
       if (capaData.capas) setCapas(capaData.capas);
+
+      // Fetch Equipment
+      const eqRes = await fetch('/api/equipment', {
+        headers: { 'x-user-email': currentUser.email },
+      });
+      const eqData = await eqRes.json();
+      if (eqData.equipment) setEquipmentList(eqData.equipment);
     } catch (err) {
       console.error('Fetch data error:', err);
     }
@@ -756,6 +802,51 @@ export default function Home() {
     }
   };
 
+  // Log Equipment Maintenance/Calibration with E-Sign
+  const handleLogMaintenance = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedEquipmentId || !eqLogNotes.trim() || !eqLogPassword) return;
+
+    try {
+      const res = await fetch(`/api/equipment/${selectedEquipmentId}/logs`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-user-email': currentUser?.email || '',
+        },
+        body: JSON.stringify({
+          activityType: eqLogActivityType,
+          notes: eqLogNotes,
+          result: eqLogResult,
+          password: eqLogPassword,
+        }),
+      });
+
+      const data = await res.json();
+      if (res.ok) {
+        const resultMsg = eqLogResult === 'FAIL'
+          ? 'Activity logged as FAIL — equipment taken OUT_OF_SERVICE and MAJOR deviation auto-created.'
+          : 'Activity logged successfully. Equipment status updated.';
+        setSuccessMessage(resultMsg);
+        setShowLogMaintenanceModal(false);
+        setEqLogNotes('');
+        setEqLogPassword('');
+        setEqLogResult('PASS');
+        setEqLogActivityType('CALIBRATION');
+        fetchData();
+      } else {
+        setErrorMessage(data.error?.message || 'Failed to log maintenance activity');
+      }
+      setTimeout(() => {
+        setSuccessMessage(null);
+        setErrorMessage(null);
+      }, 5000);
+    } catch (err: any) {
+      setErrorMessage(err.message);
+      setTimeout(() => setErrorMessage(null), 4000);
+    }
+  };
+
   // Export CSV
   const handleExportAudit = () => {
     if (!currentUser) return;
@@ -771,6 +862,9 @@ export default function Home() {
   const statEffectiveDocs = documents.filter((d) => d.status === 'EFFECTIVE').length;
   const statPendingTrainings = trainings.filter((t) => t.status === 'ASSIGNED').length;
   const statPendingApprovals = documents.filter((d) => d.status === 'DRAFT' || d.status === 'IN_REVIEW').length;
+  const statOverdueEquipment = equipmentList.filter((eq) => new Date(eq.nextCalibrationDueDate) < new Date() || eq.status === 'OUT_OF_SERVICE').length;
+  const statTotalEquipment = equipmentList.length;
+  const selectedEquipment = equipmentList.find((eq) => eq.id === selectedEquipmentId) || null;
 
   const { mode, toggleTheme } = useThemeMode();
 
@@ -785,6 +879,7 @@ export default function Home() {
           { id: 'change-control', label: 'Change Control', route: 'change-control', icon: <ChangeIcon /> }
         ] : []),
         { id: 'quality-events', label: 'Quality Events', route: 'quality-events', icon: <ReportIcon /> },
+        { id: 'equipment', label: 'Equipment Cal.', route: 'equipment', icon: <BuildIcon /> },
         ...(currentUser?.role && (currentUser.role === 'ADMIN' || currentUser.role === 'AUDITOR') ? [
           { id: 'audit', label: 'Compliance Logs', route: 'audit', icon: <HistoryIcon /> }
         ] : []),
@@ -825,6 +920,7 @@ export default function Home() {
       case 'training': return 'Training matrix & assignments';
       case 'change-control': return 'Change Request Workflows';
       case 'quality-events': return 'GxP Quality Events (Deviation & CAPA)';
+      case 'equipment': return 'Equipment Calibration & Maintenance';
       case 'audit': return 'GxP Chronological Audit Log';
       default: return 'Veritas eQMS';
     }
@@ -1749,6 +1845,216 @@ export default function Home() {
           </div>
         )}
 
+        {/* TAB 6: EQUIPMENT CALIBRATION & MAINTENANCE */}
+        {activeTab === 'equipment' && (
+          <div className={styles.grid2}>
+            {/* Equipment Registry List */}
+            <div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                <h2>Equipment Registry</h2>
+                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                  <span className={`${styles.badge} ${statOverdueEquipment > 0 ? styles.badgeObsolete : styles.badgeEffective}`} style={{ fontSize: '11px' }}>
+                    {statOverdueEquipment} Overdue / OOS
+                  </span>
+                  <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{statTotalEquipment} total</span>
+                </div>
+              </div>
+
+              <div className={styles.docGrid}>
+                {equipmentList.map((eq) => {
+                  const isDue = new Date(eq.nextCalibrationDueDate) < new Date();
+                  const isOOS = eq.status === 'OUT_OF_SERVICE';
+                  return (
+                    <div
+                      key={eq.id}
+                      className={`${styles.docItem} ${selectedEquipmentId === eq.id ? 'glass' : ''}`}
+                      onClick={() => setSelectedEquipmentId(eq.id)}
+                      style={{
+                        cursor: 'pointer',
+                        borderColor: selectedEquipmentId === eq.id ? 'var(--primary)' :
+                                     (isDue || isOOS) ? 'rgba(239, 68, 68, 0.3)' : 'rgba(255,255,255,0.06)'
+                      }}
+                    >
+                      <div className={styles.docLeft}>
+                        <span className={styles.docTitle}>{eq.name}</span>
+                        <div className={styles.docMeta}>
+                          <span>{eq.location}</span>
+                          <span>{eq.modelNumber || 'N/A'}</span>
+                          <span>S/N: {eq.serialNumber || 'N/A'}</span>
+                        </div>
+                      </div>
+                      <div className={styles.docRight}>
+                        <span className={`${styles.badge} ${
+                          eq.status === 'ACTIVE' ? styles.badgeEffective :
+                          eq.status === 'OUT_OF_SERVICE' ? styles.badgeObsolete :
+                          eq.status === 'CALIBRATION_DUE' ? styles.badgeReview : styles.badgeDraft
+                        }`}>
+                          {eq.status}
+                        </span>
+                        {isDue && eq.status !== 'OUT_OF_SERVICE' && (
+                          <span style={{ fontSize: '10px', color: 'var(--danger)', marginTop: '4px', display: 'block', fontWeight: 600 }}>⚠ OVERDUE</span>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+                {equipmentList.length === 0 && (
+                  <div className="glass" style={{ padding: '32px', textAlign: 'center', color: 'var(--text-muted)' }}>
+                    No equipment registered. Equipment data will appear after seeding.
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Equipment Detail + Maintenance Logs */}
+            <div>
+              <h2>Equipment Details & Calibration History</h2>
+              {selectedEquipment ? (
+                <div className={styles.card} style={{ marginTop: '16px' }}>
+                  <div className={styles.cardTitle} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span>{selectedEquipment.name}</span>
+                    <span className={`${styles.badge} ${
+                      selectedEquipment.status === 'ACTIVE' ? styles.badgeEffective :
+                      selectedEquipment.status === 'OUT_OF_SERVICE' ? styles.badgeObsolete : styles.badgeReview
+                    }`}>{selectedEquipment.status}</span>
+                  </div>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                    <div style={{ fontSize: '13px', color: 'var(--text-muted)' }}>
+                      {selectedEquipment.description || 'No description available.'}
+                    </div>
+
+                    <div className={styles.grid3} style={{ margin: 0, gap: '12px' }}>
+                      <div>
+                        <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Model</span>
+                        <div style={{ fontWeight: '600' }}>{selectedEquipment.modelNumber || 'N/A'}</div>
+                      </div>
+                      <div>
+                        <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Serial Number</span>
+                        <div style={{ fontWeight: '600' }}>{selectedEquipment.serialNumber || 'N/A'}</div>
+                      </div>
+                      <div>
+                        <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Location</span>
+                        <div style={{ fontWeight: '600' }}>{selectedEquipment.location}</div>
+                      </div>
+                    </div>
+
+                    <div className={styles.grid3} style={{ margin: 0, gap: '12px' }}>
+                      <div>
+                        <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Cal. Interval</span>
+                        <div style={{ fontWeight: '600' }}>{selectedEquipment.calibrationIntervalDays} days</div>
+                      </div>
+                      <div>
+                        <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Last Calibrated</span>
+                        <div style={{ fontWeight: '600' }}>{new Date(selectedEquipment.lastCalibratedAt).toLocaleDateString()}</div>
+                      </div>
+                      <div>
+                        <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Next Due Date</span>
+                        <div style={{
+                          fontWeight: '600',
+                          color: new Date(selectedEquipment.nextCalibrationDueDate) < new Date() ? 'var(--danger)' : '#10B981'
+                        }}>
+                          {new Date(selectedEquipment.nextCalibrationDueDate).toLocaleDateString()}
+                          {new Date(selectedEquipment.nextCalibrationDueDate) < new Date() && ' (OVERDUE)'}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Action Button */}
+                    {(currentUser?.role === 'ADMIN' || currentUser?.role === 'OWNER') && (
+                      <div>
+                        <button
+                          className={`${styles.btn} ${styles.btnPrimary}`}
+                          onClick={() => setShowLogMaintenanceModal(true)}
+                        >
+                          📋 Log Calibration / Maintenance Activity
+                        </button>
+                      </div>
+                    )}
+
+                    {/* Linked Deviations */}
+                    {selectedEquipment.deviations && selectedEquipment.deviations.length > 0 && (
+                      <div>
+                        <h4 style={{ marginBottom: '8px', color: 'var(--danger)' }}>⚠ Linked Deviations</h4>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                          {selectedEquipment.deviations.map((dev) => (
+                            <div key={dev.id} className="glass" style={{ padding: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                              <div>
+                                <strong style={{ fontSize: '13px' }}>{dev.title}</strong>
+                                <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>
+                                  {dev.classification} | {dev.status} | {new Date(dev.createdAt).toLocaleDateString()}
+                                </div>
+                              </div>
+                              <span className={`${styles.badge} ${
+                                dev.classification === 'CRITICAL' ? styles.badgeObsolete :
+                                dev.classification === 'MAJOR' ? styles.badgeReview : styles.badgeEffective
+                              }`}>{dev.classification}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Maintenance Log History */}
+                    <div>
+                      <h4 style={{ marginBottom: '8px' }}>Maintenance & Calibration History</h4>
+                      {selectedEquipment.maintenanceLogs && selectedEquipment.maintenanceLogs.length > 0 ? (
+                        <div className={styles.tableWrapper}>
+                          <table className={styles.table}>
+                            <thead>
+                              <tr>
+                                <th>Date</th>
+                                <th>Type</th>
+                                <th>Result</th>
+                                <th>Performed By</th>
+                                <th>E-Sign</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {selectedEquipment.maintenanceLogs.map((log) => (
+                                <tr key={log.id} className={styles.tableRow}>
+                                  <td>{new Date(log.performedAt).toLocaleDateString()}</td>
+                                  <td>
+                                    <span className={`${styles.badge} ${styles.badgeDraft}`} style={{ fontSize: '10px' }}>
+                                      {log.activityType}
+                                    </span>
+                                  </td>
+                                  <td>
+                                    <span style={{
+                                      fontWeight: '700',
+                                      color: log.result === 'PASS' ? '#10B981' : 'var(--danger)'
+                                    }}>{log.result}</span>
+                                  </td>
+                                  <td>{log.performedBy?.fullName || 'Unknown'}</td>
+                                  <td>
+                                    {log.esignSignatureId ? (
+                                      <span style={{ color: '#10B981', fontSize: '11px' }}>✓ Signed</span>
+                                    ) : (
+                                      <span style={{ color: 'var(--text-muted)', fontSize: '11px' }}>—</span>
+                                    )}
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      ) : (
+                        <div className="glass" style={{ padding: '16px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '13px' }}>
+                          No maintenance activities logged yet.
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="glass" style={{ padding: '32px', textAlign: 'center', color: 'var(--text-muted)', marginTop: '16px' }}>
+                  Select an equipment item from the registry to view calibration details, maintenance logs, and compliance status.
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* TAB 4: COMPLIANCE LOGS */}
         {activeTab === 'audit' && (
           <div className={styles.card}>
@@ -2494,6 +2800,95 @@ export default function Home() {
                 </button>
                 <button type="submit" className={`${styles.btn} ${styles.btnPrimary}`} style={{ background: 'var(--warning)', color: '#000' }}>
                   Execute E-Sign & Close CAPA
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL 10: EQUIPMENT MAINTENANCE LOG */}
+      {showLogMaintenanceModal && selectedEquipmentId && selectedEquipment && (
+        <div className={styles.modalOverlay}>
+          <div className={styles.modalContent} style={{ maxWidth: '600px' }}>
+            <div className={styles.modalHeader}>
+              <h3>Log Calibration / Maintenance Activity</h3>
+              <button style={{ background: 'transparent', border: 'none', color: '#fff', fontSize: '20px', cursor: 'pointer' }} onClick={() => setShowLogMaintenanceModal(false)}>×</button>
+            </div>
+            <form onSubmit={handleLogMaintenance}>
+              <div className={styles.modalBody}>
+                <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '16px' }}>
+                  Recording activity for: <strong style={{ color: '#fff' }}>{selectedEquipment.name}</strong>
+                  <br />
+                  <span style={{ fontSize: '11px' }}>Location: {selectedEquipment.location} | S/N: {selectedEquipment.serialNumber || 'N/A'}</span>
+                </div>
+
+                <div className={styles.formGroup}>
+                  <label className={styles.formLabel}>Activity Type</label>
+                  <select
+                    className={styles.input}
+                    value={eqLogActivityType}
+                    onChange={(e) => setEqLogActivityType(e.target.value)}
+                  >
+                    <option value="CALIBRATION">Calibration</option>
+                    <option value="PREVENTATIVE_MAINTENANCE">Preventative Maintenance</option>
+                    <option value="REPAIR">Repair</option>
+                  </select>
+                </div>
+
+                <div className={styles.formGroup}>
+                  <label className={styles.formLabel}>Result</label>
+                  <select
+                    className={styles.input}
+                    value={eqLogResult}
+                    onChange={(e) => setEqLogResult(e.target.value)}
+                  >
+                    <option value="PASS">PASS ✓</option>
+                    <option value="FAIL">FAIL ✗ (triggers auto-deviation)</option>
+                  </select>
+                  {eqLogResult === 'FAIL' && (
+                    <span style={{ fontSize: '11px', color: 'var(--danger)', marginTop: '4px', display: 'block' }}>
+                      ⚠ A FAIL result will auto-create a MAJOR Deviation and take the equipment OUT_OF_SERVICE.
+                    </span>
+                  )}
+                </div>
+
+                <div className={styles.formGroup}>
+                  <label className={styles.formLabel}>Activity Notes / Observations</label>
+                  <textarea
+                    className={styles.input}
+                    rows={4}
+                    placeholder="Describe the calibration/maintenance performed, observations, measurements..."
+                    value={eqLogNotes}
+                    onChange={(e) => setEqLogNotes(e.target.value)}
+                    required
+                    style={{ resize: 'vertical', minHeight: '80px' }}
+                  />
+                </div>
+
+                <div className={`${styles.formGroup} ${styles.esignHighlight}`}>
+                  <label className={styles.formLabel} style={{ color: 'var(--warning)', fontWeight: '600' }}>
+                    21 CFR Part 11 Electronic Signature
+                  </label>
+                  <input
+                    className={styles.input}
+                    type="password"
+                    placeholder="Enter password to E-Sign this record"
+                    value={eqLogPassword}
+                    onChange={(e) => setEqLogPassword(e.target.value)}
+                    required
+                  />
+                  <span style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '4px', display: 'block' }}>
+                    Your electronic signature certifies the accuracy and completeness of this maintenance record per 21 CFR Part 11.
+                  </span>
+                </div>
+              </div>
+              <div className={styles.modalFooter}>
+                <button type="button" className={`${styles.btn} ${styles.btnSecondary}`} onClick={() => setShowLogMaintenanceModal(false)}>
+                  Cancel
+                </button>
+                <button type="submit" className={`${styles.btn} ${styles.btnPrimary}`}>
+                  Submit E-Signed Record
                 </button>
               </div>
             </form>

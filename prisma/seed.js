@@ -4,6 +4,8 @@ const prisma = new PrismaClient();
 async function main() {
   console.log('Seeding database...');
 
+  await prisma.maintenanceLog.deleteMany({});
+  await prisma.equipment.deleteMany({});
   await prisma.cAPA.deleteMany({});
   await prisma.deviation.deleteMany({});
   await prisma.changeRequestDocument.deleteMany({});
@@ -333,6 +335,95 @@ async function main() {
   });
 
   console.log('Created Deviations & CAPAs');
+
+  // 8. Create mock Equipment & Maintenance Logs
+  const eq1 = await prisma.equipment.create({
+    data: {
+      id: 'EQ-2026-001',
+      tenantId: acme.id,
+      name: 'Analytical Balance Mettler Toledo',
+      description: 'High-precision microbalance for raw material weighing.',
+      modelNumber: 'XPR205',
+      serialNumber: 'MT-58493021',
+      location: 'Cleanroom Suite A',
+      status: 'ACTIVE',
+      calibrationIntervalDays: 90,
+      lastCalibratedAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 5), // 5 days ago
+      nextCalibrationDueDate: new Date(Date.now() + 1000 * 60 * 60 * 24 * 85), // 85 days out
+    }
+  });
+
+  await prisma.maintenanceLog.create({
+    data: {
+      equipmentId: eq1.id,
+      performedById: acmeEmployee.id,
+      performedAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 5),
+      activityType: 'CALIBRATION',
+      notes: 'Completed routine 3-point mass calibration. Verified linearity and repeatability. Readings within tolerances.',
+      result: 'PASS',
+      esignSignatureId: 'sig-eq-2026-001-cal',
+    }
+  });
+
+  const eq2 = await prisma.equipment.create({
+    data: {
+      id: 'EQ-2026-002',
+      tenantId: acme.id,
+      name: 'Autoclave Sterilizer Apex',
+      description: 'Steam sterilizer for cleanroom tools and components.',
+      modelNumber: 'AV-600',
+      serialNumber: 'AP-9284102',
+      location: 'Sterilization Lab 102',
+      status: 'OUT_OF_SERVICE',
+      calibrationIntervalDays: 180,
+      lastCalibratedAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 10), // 10 days ago
+      nextCalibrationDueDate: new Date(Date.now() + 1000 * 60 * 60 * 24 * 170), // 170 days out
+    }
+  });
+
+  await prisma.maintenanceLog.create({
+    data: {
+      equipmentId: eq2.id,
+      performedById: acmeEmployee.id,
+      performedAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 10),
+      activityType: 'CALIBRATION',
+      notes: 'Routine calibration failed. Temperature sensors registered 123.4C during holding phase (holding limit: 121.0C +/- 1.0C). Unit taken out of service.',
+      result: 'FAIL',
+      esignSignatureId: 'sig-eq-2026-002-failed-cal',
+    }
+  });
+
+  // Create deviation linked to failed autoclave calibration
+  const eqDev = await prisma.deviation.create({
+    data: {
+      tenantId: acme.id,
+      title: 'DEV-2026-002: Autoclave EQ-2026-002 Calibration Failure',
+      description: 'Equipment Autoclave Sterilizer Apex (EQ-2026-002) failed routine calibration checks. Chamber temperature registered 123.4C (holding limit: 121.0C +/- 1.0C).',
+      classification: 'MAJOR',
+      status: 'LOGGED',
+      detectedById: acmeEmployee.id,
+      equipmentId: eq2.id,
+    }
+  });
+
+  // Create Overdue Freezer (nextCalibrationDueDate is 35 days in the past)
+  const eq3 = await prisma.equipment.create({
+    data: {
+      id: 'EQ-2026-003',
+      tenantId: acme.id,
+      name: 'Ultra-Low Freezer Revco',
+      description: 'Biological storage freezer (-80C).',
+      modelNumber: 'UxF400',
+      serialNumber: 'RV-1029483',
+      location: 'Cold Storage 105',
+      status: 'ACTIVE', // Will auto-trigger CALIBRATION_DUE and Deviation when compliance runs
+      calibrationIntervalDays: 365,
+      lastCalibratedAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 400), // 400 days ago
+      nextCalibrationDueDate: new Date(Date.now() - 1000 * 60 * 60 * 24 * 35), // 35 days in past
+    }
+  });
+
+  console.log('Created Equipment & Maintenance Logs');
   console.log('Seeding finished successfully!');
 }
 
