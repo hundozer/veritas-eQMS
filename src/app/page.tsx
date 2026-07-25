@@ -1718,45 +1718,6 @@ export default function Home() {
                     🔒 Secure Sign In (21 CFR Part 11)
                   </button>
                 </form>
-
-                {/* Collapsible Sandbox Demo Persona Switcher (Development Only) */}
-                <div style={{ marginTop: '24px', paddingTop: '16px', borderTop: '1px solid rgba(255,255,255,0.08)' }}>
-                  <button
-                    type="button"
-                    onClick={() => setShowDemoPersonas(!showDemoPersonas)}
-                    style={{ background: 'transparent', border: 'none', color: '#94A3B8', fontSize: '12px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', margin: '0 auto' }}
-                  >
-                    🧪 {showDemoPersonas ? 'Hide Sandbox Test Personas' : 'Development Sandbox: Switch Test Personas ▾'}
-                  </button>
-
-                  {showDemoPersonas && (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '14px', background: 'rgba(0,0,0,0.3)', padding: '12px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.06)' }}>
-                      <span style={{ fontSize: '11px', color: '#F59E0B', fontWeight: '700', textTransform: 'uppercase' }}>⚠️ Demo / Sandbox Persona Accounts</span>
-                      {users.map((u) => (
-                        <div
-                          key={u.id}
-                          onClick={() => { handleLoginUser(u.email); setViewMode('app'); }}
-                          style={{
-                            padding: '10px 12px',
-                            borderRadius: '6px',
-                            cursor: 'pointer',
-                            display: 'flex',
-                            justifyContent: 'space-between',
-                            alignItems: 'center',
-                            background: currentUser?.email === u.email ? 'rgba(16,185,129,0.1)' : 'rgba(255,255,255,0.02)',
-                            border: currentUser?.email === u.email ? '1px solid #10B981' : '1px solid rgba(255,255,255,0.06)',
-                          }}
-                        >
-                          <div>
-                            <div style={{ fontWeight: '600', fontSize: '13px' }}>{u.fullName}</div>
-                            <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{u.email} ({u.department})</div>
-                          </div>
-                          <span className={styles.currentBadge} style={{ fontSize: '10px' }}>{u.role}</span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
               </div>
               <div className={styles.modalFooter}>
                 <button type="button" className={`${styles.btn} ${styles.btnSecondary}`} onClick={() => setShowLoginModal(false)}>
@@ -4823,45 +4784,6 @@ export default function Home() {
                   🔒 Secure Sign In (21 CFR Part 11)
                 </button>
               </form>
-
-              {/* Collapsible Sandbox Demo Persona Switcher (Development Only) */}
-              <div style={{ marginTop: '24px', paddingTop: '16px', borderTop: '1px solid rgba(255,255,255,0.08)' }}>
-                <button
-                  type="button"
-                  onClick={() => setShowDemoPersonas(!showDemoPersonas)}
-                  style={{ background: 'transparent', border: 'none', color: '#94A3B8', fontSize: '12px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', margin: '0 auto' }}
-                >
-                  🧪 {showDemoPersonas ? 'Hide Sandbox Test Personas' : 'Development Sandbox: Switch Test Personas ▾'}
-                </button>
-
-                {showDemoPersonas && (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '14px', background: 'rgba(0,0,0,0.3)', padding: '12px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.06)' }}>
-                    <span style={{ fontSize: '11px', color: '#F59E0B', fontWeight: '700', textTransform: 'uppercase' }}>⚠️ Demo / Sandbox Persona Accounts</span>
-                    {users.map((u) => (
-                      <div
-                        key={u.id}
-                        onClick={() => { handleLoginUser(u.email); setViewMode('app'); }}
-                        style={{
-                          padding: '10px 12px',
-                          borderRadius: '6px',
-                          cursor: 'pointer',
-                          display: 'flex',
-                          justifyContent: 'space-between',
-                          alignItems: 'center',
-                          background: currentUser?.email === u.email ? 'rgba(16,185,129,0.1)' : 'rgba(255,255,255,0.02)',
-                          border: currentUser?.email === u.email ? '1px solid #10B981' : '1px solid rgba(255,255,255,0.06)',
-                        }}
-                      >
-                        <div>
-                          <div style={{ fontWeight: '600', fontSize: '13px' }}>{u.fullName}</div>
-                          <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{u.email} ({u.department})</div>
-                        </div>
-                        <span className={styles.currentBadge} style={{ fontSize: '10px' }}>{u.role}</span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
             </div>
             <div className={styles.modalFooter}>
               <button type="button" className={`${styles.btn} ${styles.btnSecondary}`} onClick={() => setShowLoginModal(false)}>
