@@ -78,14 +78,28 @@ export async function POST(req: NextRequest) {
       const buffer = Buffer.from(contentBase64, 'base64');
       hash = crypto.createHash('sha256').update(buffer).digest('hex');
       
-      const uploadDir = path.join(process.cwd(), 'public', 'uploads');
-      if (!fs.existsSync(uploadDir)) {
-        fs.mkdirSync(uploadDir, { recursive: true });
-      }
-      
       const fileName = `${Date.now()}-${title.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.pdf`;
       filePath = `uploads/${fileName}`;
-      fs.writeFileSync(path.join(process.cwd(), 'public', filePath), buffer);
+
+      try {
+        const uploadDir = path.join(process.cwd(), 'public', 'uploads');
+        if (!fs.existsSync(uploadDir)) {
+          fs.mkdirSync(uploadDir, { recursive: true });
+        }
+        fs.writeFileSync(path.join(process.cwd(), 'public', filePath), buffer);
+      } catch (fsErr) {
+        // Fallback for Vercel serverless environment (read-only filesystem)
+        try {
+          const tmpDir = path.join('/tmp', 'uploads');
+          if (!fs.existsSync(tmpDir)) {
+            fs.mkdirSync(tmpDir, { recursive: true });
+          }
+          fs.writeFileSync(path.join('/tmp', fileName), buffer);
+          filePath = `/tmp/uploads/${fileName}`;
+        } catch (tmpErr) {
+          console.warn('Serverless read-only filesystem detected, storing metadata and SHA-256 hash in database');
+        }
+      }
     } else {
       filePath = 'drafts/placeholder.pdf';
     }
