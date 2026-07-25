@@ -1356,7 +1356,7 @@ export default function Home() {
         { id: 'suppliers', label: 'Suppliers (AVL)', route: 'suppliers', icon: <SupplierIcon /> },
         { id: 'audits-management', label: 'GxP Audits', route: 'audits-management', icon: <HistoryIcon /> },
         ...(currentUser?.role && (currentUser.role === 'ADMIN' || currentUser.role === 'OWNER') ? [
-          { id: 'users-management', label: 'User Roles & RBAC', route: 'users-management', icon: <SchoolIcon /> }
+          { id: 'users-management', label: 'User Access & ABAC/RBAC', route: 'users-management', icon: <SchoolIcon /> }
         ] : []),
         ...(currentUser?.role && (currentUser.role === 'ADMIN' || currentUser.role === 'AUDITOR' || currentUser.role === 'OWNER') ? [
           { id: 'audit', label: 'Compliance Audit Logs', route: 'audit', icon: <HistoryIcon /> }
@@ -1404,7 +1404,7 @@ export default function Home() {
       case 'equipment': return 'Equipment Calibration & Maintenance';
       case 'suppliers': return 'Supplier Quality & Approved Vendor List';
       case 'audits-management': return 'Internal & Supplier Audit Planning';
-      case 'users-management': return 'Organization User & Role RBAC Management';
+      case 'users-management': return 'User Access Policy & ABAC/RBAC Roster';
       case 'audit': return 'GxP 21 CFR Part 11 Audit Trail Logs';
       default: return 'Veritas eQMS';
     }
