@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import prisma from '@/lib/db';
+import prisma, { TxClient } from '@/lib/db';
 import { getContext, logAuditEvent } from '@/lib/auth';
-import { Prisma } from '@prisma/client';
 
 // GET /api/change-requests - List all Change Requests (tenant-scoped)
 export async function GET(req: NextRequest) {
@@ -84,7 +83,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Database transaction to create CR + link documents
-    const result = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+    const result = await prisma.$transaction(async (tx: TxClient) => {
       const cr = await tx.changeRequest.create({
         data: {
           title,

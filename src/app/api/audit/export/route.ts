@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 import { getContext, logAuditEvent } from '@/lib/auth';
-import { Prisma } from '@prisma/client';
 
 // GET /api/audit/export - Export the audit trail to CSV format (auditor/admin-only)
 export async function GET(req: NextRequest) {
@@ -20,7 +19,7 @@ export async function GET(req: NextRequest) {
     const startDate = searchParams.get('startDate');
     const endDate = searchParams.get('endDate');
 
-    const where: Prisma.AuditLogWhereInput = {
+    const where: Record<string, any> = {
       tenantId: user.tenantId,
     };
 
