@@ -2,6 +2,18 @@ import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 import { getContext, logAuditEvent } from '@/lib/auth';
 
+interface QuizQuestion {
+  id: string;
+  text: string;
+  options: string[];
+  correctAnswerIndex: number;
+}
+
+interface QuizAnswer {
+  questionId: string;
+  answerIndex: string | number;
+}
+
 // GET /api/trainings - Get training assignments (either user-specific or complete tenant matrix)
 export async function GET(req: NextRequest) {
   try {
@@ -128,8 +140,8 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: { code: 'ValidationFailed', message: 'Quiz answers are required' } }, { status: 400 });
       }
 
-      questions.forEach((q: any) => {
-        const userAnswer = answers.find((ans: any) => ans.questionId === q.id);
+      questions.forEach((q: QuizQuestion) => {
+        const userAnswer = answers.find((ans: QuizAnswer) => ans.questionId === q.id);
         if (userAnswer && parseInt(userAnswer.answerIndex) === q.correctAnswerIndex) {
           correctCount++;
         }

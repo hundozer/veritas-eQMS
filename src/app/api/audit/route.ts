@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 import { getContext, logAuditEvent } from '@/lib/auth';
+import { Prisma } from '@prisma/client';
 
 // GET /api/audit - Query the audit index (tenant-scoped, auditor/admin-only)
 export async function GET(req: NextRequest) {
@@ -35,7 +36,7 @@ export async function GET(req: NextRequest) {
     const endDate = searchParams.get('endDate');
 
     // Build Prisma query filters
-    const where: any = {
+    const where: Prisma.AuditLogWhereInput = {
       tenantId: user.tenantId,
     };
 

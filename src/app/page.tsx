@@ -172,6 +172,18 @@ interface Equipment {
   deviations: Deviation[];
 }
 
+interface QuizQuestion {
+  id: string;
+  text: string;
+  options: string[];
+  correctAnswerIndex: number;
+}
+
+interface QuizAnswer {
+  questionId: string;
+  answerIndex: number;
+}
+
 export default function Home() {
   // Navigation
   const [activeTab, setActiveTab] = useState<'dashboard' | 'documents' | 'training' | 'audit' | 'change-control' | 'quality-events' | 'equipment'>('dashboard');
@@ -288,7 +300,7 @@ export default function Home() {
           // Set default user as owner@acme.com if no cookie is set
           const match = document.cookie.match(/user-email=([^;]+)/);
           const email = match ? decodeURIComponent(match[1]) : 'owner@acme.com';
-          const defaultUser = data.users.find((u: any) => u.email === email) || data.users[0];
+          const defaultUser = data.users.find((u: User) => u.email === email) || data.users[0];
           if (defaultUser) {
             setCurrentUser(defaultUser);
             // Save to cookie to make it sticky in api requests
@@ -751,12 +763,12 @@ export default function Home() {
     const assignment = trainings.find((t) => t.id === selectedTrainingId);
     if (!assignment) return;
 
-    const answersList: any[] = [];
+    const answersList: QuizAnswer[] = [];
     if (assignment.requirement.requiresQuiz && assignment.requirement.quizQuestions) {
-      const questions = JSON.parse(assignment.requirement.quizQuestions);
+      const questions: QuizQuestion[] = JSON.parse(assignment.requirement.quizQuestions);
       let missingAnswers = false;
       
-      questions.forEach((q: any) => {
+      questions.forEach((q: QuizQuestion) => {
         const val = quizAnswers[q.id];
         if (val === undefined) {
           missingAnswers = true;
@@ -2376,7 +2388,7 @@ export default function Home() {
                   <div>
                     <h4 style={{ marginBottom: '12px' }}>Knowledge Assessment Quiz</h4>
                     
-                    {JSON.parse(selectedTraining.requirement.quizQuestions).map((q: any) => (
+                    {JSON.parse(selectedTraining.requirement.quizQuestions).map((q: QuizQuestion) => (
                       <div key={q.id} className={styles.quizCard}>
                         <div className={styles.quizQuestion}>{q.text}</div>
                         <div className={styles.quizOptionsList}>

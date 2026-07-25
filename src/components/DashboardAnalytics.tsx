@@ -65,7 +65,19 @@ const PIE_COLORS = [COLORS.indigo, COLORS.emerald, COLORS.amber, COLORS.rose, CO
 /* ------------------------------------------------------------------ */
 /*  Custom Tooltip                                                    */
 /* ------------------------------------------------------------------ */
-function ChartTooltip({ active, payload, label }: any) {
+interface TooltipPayloadItem {
+  name: string;
+  value: number;
+  color: string;
+}
+
+interface TooltipProps {
+  active?: boolean;
+  payload?: TooltipPayloadItem[];
+  label?: string;
+}
+
+function ChartTooltip({ active, payload, label }: TooltipProps) {
   if (!active || !payload?.length) return null;
   return (
     <div style={{
@@ -78,7 +90,7 @@ function ChartTooltip({ active, payload, label }: any) {
       backdropFilter: 'blur(12px)',
     }}>
       {label && <div style={{ fontWeight: 600, marginBottom: '4px', color: 'rgba(255,255,255,0.6)' }}>{label}</div>}
-      {payload.map((p: any, i: number) => (
+      {payload.map((p: TooltipPayloadItem, i: number) => (
         <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '2px' }}>
           <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: p.color, display: 'inline-block' }} />
           <span>{p.name}: <strong>{p.value}</strong></span>
