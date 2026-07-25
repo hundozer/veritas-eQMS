@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import prisma, { TxClient } from '@/lib/db';
+import prisma from '@/lib/db';
 import { getContext, logAuditEvent } from '@/lib/auth';
+
 
 // POST /api/change-requests/[id]/approve - Approves or Closes a Change Request (E-Sign required)
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -58,7 +59,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     // Process transition
     const nextStatus = actionType === 'APPROVE' ? 'APPROVED' : 'CLOSED';
 
-    const result = await prisma.$transaction(async (tx: TxClient) => {
+    const result = await prisma.$transaction(async (tx: any) => {
       const updatedCr = await tx.changeRequest.update({
         where: { id },
         data: { status: nextStatus }

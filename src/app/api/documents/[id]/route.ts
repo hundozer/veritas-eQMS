@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import prisma, { TxClient } from '@/lib/db';
+import prisma from '@/lib/db';
 import { getContext, logAuditEvent, checkAbac } from '@/lib/auth';
 import * as fs from 'fs';
 
@@ -144,7 +144,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     }
 
     // 2. Transactionally save everything (metadata update, new version entry, update training)
-    const updatedDoc = await prisma.$transaction(async (tx: TxClient) => {
+    const updatedDoc = await prisma.$transaction(async (tx: any) => {
       // Update basic fields
       const doc = await tx.document.update({
         where: { id },

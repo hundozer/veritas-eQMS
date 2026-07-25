@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import prisma, { TxClient } from '@/lib/db';
+import prisma from '@/lib/db';
 import { getContext, logAuditEvent, checkAbac } from '@/lib/auth';
 import * as fs from 'fs';
 
@@ -94,7 +94,7 @@ export async function POST(req: NextRequest) {
     }
 
     // 2. Database transaction (Outbox-equivalent in prisma: save doc + version + training config in one txn)
-    const result = await prisma.$transaction(async (tx: TxClient) => {
+    const result = await prisma.$transaction(async (tx: any) => {
       // Create Document
       const document = await tx.document.create({
         data: {

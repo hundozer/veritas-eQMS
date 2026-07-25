@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import prisma, { TxClient } from '@/lib/db';
+import prisma from '@/lib/db';
 import { getContext, logAuditEvent } from '@/lib/auth';
+
 
 
 // POST /api/documents/[id]/approve - Approves and signs a document, triggering training assignments on release
@@ -50,7 +51,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     }
 
     // Execute approval workflow transaction
-    const result = await prisma.$transaction(async (tx: TxClient) => {
+    const result = await prisma.$transaction(async (tx: any) => {
       // 1. Update Document Status to EFFECTIVE (making it active in the system)
       const updatedDoc = await tx.document.update({
         where: { id },
