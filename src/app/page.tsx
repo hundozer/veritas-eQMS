@@ -1087,9 +1087,9 @@ export default function Home() {
   };
 
   // Onboard New Company / Organization
-  const handleRegisterCompany = async (e: React.FormEvent) => {
+  const handleRegisterCompany = async (e: React.FormEvent): Promise<boolean> => {
     e.preventDefault();
-    if (!regCompanyName.trim() || !regFullName.trim() || !regEmail.trim()) return;
+    if (!regCompanyName.trim() || !regFullName.trim() || !regEmail.trim()) return false;
 
     try {
       const res = await fetch('/api/auth/register', {
@@ -1114,18 +1114,21 @@ export default function Home() {
         setRegFullName('');
         setRegEmail('');
         fetchData();
+        return true;
       } else {
         setErrorMessage(data.error?.message || 'Registration failed');
+        return false;
       }
-      setTimeout(() => { setSuccessMessage(null); setErrorMessage(null); }, 5000);
     } catch (err: any) {
       setErrorMessage(err.message);
-      setTimeout(() => setErrorMessage(null), 5000);
+      return false;
+    } finally {
+      setTimeout(() => { setSuccessMessage(null); setErrorMessage(null); }, 5000);
     }
   };
 
   // Login / Switch User Session
-  const handleLoginUser = async (targetEmail: string) => {
+  const handleLoginUser = async (targetEmail: string): Promise<boolean> => {
     try {
       const res = await fetch('/api/auth/login', {
         method: 'POST',
@@ -1139,13 +1142,16 @@ export default function Home() {
         setShowLoginModal(false);
         setSuccessMessage(`Switched active session to ${data.user.fullName} (${data.user.role})`);
         fetchData();
+        return true;
       } else {
         setErrorMessage(data.error?.message || 'Login failed');
+        return false;
       }
-      setTimeout(() => { setSuccessMessage(null); setErrorMessage(null); }, 5000);
     } catch (err: any) {
       setErrorMessage(err.message);
-      setTimeout(() => setErrorMessage(null), 5000);
+      return false;
+    } finally {
+      setTimeout(() => { setSuccessMessage(null); setErrorMessage(null); }, 5000);
     }
   };
 
@@ -1460,19 +1466,25 @@ export default function Home() {
                 <button style={{ background: 'transparent', border: 'none', color: '#fff', fontSize: '20px', cursor: 'pointer' }} onClick={() => setShowLoginModal(false)}>×</button>
               </div>
               <div className={styles.modalBody}>
+                {errorMessage && (
+                  <div style={{ background: 'rgba(239,68,68,0.15)', border: '1px solid #EF4444', color: '#F87171', padding: '10px 14px', borderRadius: '6px', fontSize: '13px', marginBottom: '16px' }}>
+                    ⚠ {errorMessage}
+                  </div>
+                )}
                 <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '16px' }}>
                   Select a pre-seeded persona or enter your work email to switch user roles and test 21 CFR Part 11 permission policies.
                 </p>
 
+                {/* Pre-seeded Persona Quick Selection */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '24px' }}>
                   <span style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', fontWeight: '600' }}>Available Persona Accounts</span>
                   {users.map((u) => (
                     <div
                       key={u.id}
                       className="glass"
-                      onClick={() => {
-                        handleLoginUser(u.email);
-                        setViewMode('app');
+                      onClick={async () => {
+                        const ok = await handleLoginUser(u.email);
+                        if (ok) setViewMode('app');
                       }}
                       style={{
                         padding: '12px 16px',
@@ -1504,7 +1516,8 @@ export default function Home() {
                   ))}
                 </div>
 
-                <form onSubmit={(e) => { e.preventDefault(); if (loginEmail) { handleLoginUser(loginEmail); setViewMode('app'); } }}>
+                {/* Custom Email Login Form */}
+                <form onSubmit={async (e) => { e.preventDefault(); if (loginEmail) { const ok = await handleLoginUser(loginEmail); if (ok) setViewMode('app'); } }}>
                   <div className={styles.formGroup}>
                     <label className={styles.formLabel}>Or Sign in with Email</label>
                     <div style={{ display: 'flex', gap: '8px' }}>
@@ -1516,7 +1529,7 @@ export default function Home() {
                         onChange={(e) => setLoginEmail(e.target.value)}
                       />
                       <button type="submit" className={`${styles.btn} ${styles.btnPrimary}`} style={{ whiteSpace: 'nowrap' }}>
-                        Sign In & Launch
+                        Sign In
                       </button>
                     </div>
                   </div>
@@ -1531,6 +1544,7 @@ export default function Home() {
           </div>
         )}
 
+        {/* MODAL 15: ORGANIZATION REGISTRATION & ONBOARDING */}
         {showRegisterModal && (
           <div className={styles.modalOverlay}>
             <div className={styles.modalContent} style={{ maxWidth: '650px' }}>
@@ -1538,8 +1552,14 @@ export default function Home() {
                 <h3>Onboard New Organization & Quality Owner</h3>
                 <button style={{ background: 'transparent', border: 'none', color: '#fff', fontSize: '20px', cursor: 'pointer' }} onClick={() => setShowRegisterModal(false)}>×</button>
               </div>
-              <form onSubmit={(e) => { handleRegisterCompany(e); setViewMode('app'); }}>
+              <form onSubmit={async (e) => { const ok = await handleRegisterCompany(e); if (ok) setViewMode('app'); }}>
                 <div className={styles.modalBody}>
+                  {errorMessage && (
+                    <div style={{ background: 'rgba(239,68,68,0.15)', border: '1px solid #EF4444', color: '#F87171', padding: '10px 14px', borderRadius: '6px', fontSize: '13px', marginBottom: '16px' }}>
+                      ⚠ {errorMessage}
+                    </div>
+                  )}
+
                   <div style={{ padding: '12px 16px', background: 'rgba(16,185,129,0.08)', borderRadius: '8px', border: '1px solid rgba(16,185,129,0.2)', marginBottom: '20px' }}>
                     <div style={{ fontWeight: '600', color: '#10B981', fontSize: '14px' }}>✨ Instant GxP Workspace Provisioning</div>
                     <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px' }}>
