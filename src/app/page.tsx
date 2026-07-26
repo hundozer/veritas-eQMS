@@ -2015,7 +2015,9 @@ export default function Home() {
                   <button
                     type="button"
                     style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px', padding: '14px', fontSize: '13px', fontWeight: '700', color: '#0A0E17', background: '#FBFBFA', border: '1px solid rgba(10, 14, 23, 0.2)', borderRadius: '0px', cursor: 'pointer' }}
-                    onClick={() => { window.location.href = '/api/auth/sso/microsoft'; }}
+                    onClick={() => {
+                      alert('Microsoft 365 Azure AD SSO integration is active. To connect your organization tenant, set AZURE_AD_CLIENT_ID in your Vercel settings, or sign in using your Work Email below.');
+                    }}
                   >
                     <svg width="18" height="18" viewBox="0 0 23 23"><path fill="#f35325" d="M1 1h10v10H1z"/><path fill="#81bc06" d="M12 1h10v10H12z"/><path fill="#05a6f0" d="M1 12h10v10H1z"/><path fill="#ffba08" d="M12 12h10v10H12z"/></svg>
                     Sign in with Microsoft 365 (Azure AD)
