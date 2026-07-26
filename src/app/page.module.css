@@ -542,3 +542,174 @@
   border-radius: var(--radius-md);
   margin-top: 16px;
 }
+
+/* ==========================================
+   Editorial Design System (Apple / Leica / Aesop)
+   ========================================== */
+.editorialCanvas {
+  background-color: #FAF9F6;
+  color: #0F172A;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.editorialHeader {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 24px 64px;
+  background: rgba(250, 249, 246, 0.85);
+  backdrop-filter: blur(20px);
+  border-bottom: 1px solid rgba(15, 23, 42, 0.06);
+}
+
+.editorialLogo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.editorialWordmark {
+  font-size: 19px;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  color: #0F172A;
+}
+
+.editorialBadge {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #059669;
+  background: rgba(5, 150, 105, 0.08);
+  padding: 3px 8px;
+  border-radius: 4px;
+  border: 1px solid rgba(5, 150, 105, 0.2);
+}
+
+.editorialNav {
+  display: flex;
+  align-items: center;
+  gap: 36px;
+}
+
+.editorialNavLink {
+  color: #64748B;
+  text-decoration: none;
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  transition: color 0.2s ease;
+}
+.editorialNavLink:hover {
+  color: #0F172A;
+}
+
+.editorialActions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.btnEditorialPrimary {
+  background: #0F172A;
+  color: #FAF9F6;
+  border: 1px solid #0F172A;
+  padding: 12px 26px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  cursor: pointer;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.btnEditorialPrimary:hover {
+  background: #1E293B;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.12);
+}
+
+.btnEditorialSecondary {
+  background: transparent;
+  color: #0F172A;
+  border: 1px solid rgba(15, 23, 42, 0.2);
+  padding: 12px 24px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  cursor: pointer;
+  transition: all 0.25s ease;
+}
+.btnEditorialSecondary:hover {
+  background: rgba(15, 23, 42, 0.04);
+  border-color: rgba(15, 23, 42, 0.4);
+}
+
+.editorialViewport {
+  min-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  padding: 120px 48px;
+  max-width: 1200px;
+  margin: 0 auto;
+  text-align: center;
+  width: 100%;
+}
+
+.editorialEyebrow {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: #059669;
+  margin-bottom: 24px;
+}
+
+.editorialHeadline {
+  font-size: 64px;
+  font-weight: 800;
+  line-height: 1.08;
+  letter-spacing: -0.04em;
+  color: #0F172A;
+  max-width: 900px;
+  margin: 0 auto 28px;
+}
+
+.editorialSubhead {
+  font-size: 20px;
+  font-weight: 400;
+  line-height: 1.6;
+  letter-spacing: -0.01em;
+  color: #64748B;
+  max-width: 680px;
+  margin: 0 auto 44px;
+}
+
+.precisionCard {
+  background: #FFFFFF;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  border-radius: 16px;
+  padding: 40px;
+  box-shadow: 0 20px 40px -15px rgba(15, 23, 42, 0.05);
+  text-align: left;
+  width: 100%;
+  max-width: 960px;
+}
+
+.darkAuditSection {
+  background-color: #090D16;
+  color: #F8FAFC;
+  width: 100%;
+  padding: 140px 48px;
+}
+
