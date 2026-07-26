@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 import { getContext, logAuditEvent } from '@/lib/auth';
+import { autoMapDeviationAndCreateCapa } from '@/lib/regulatory-ai-mapper';
 
 // GET /api/deviations - List all deviations in the tenant
 export async function GET(req: NextRequest) {
@@ -76,6 +77,17 @@ export async function POST(req: NextRequest) {
         detectedBy: true
       }
     });
+
+    // Automatically map deviation to global regulations and generate corrective CAPA plan
+    try {
+      await autoMapDeviationAndCreateCapa(deviation.id, {
+        id: user.id,
+        email: user.email,
+        role: user.role,
+      });
+    } catch (e) {
+      console.error('Failed to auto-map deviation and create CAPA:', e);
+    }
 
     // Log creation audit log
     await logAuditEvent({
