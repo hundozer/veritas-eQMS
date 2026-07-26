@@ -378,5 +378,55 @@ model VeritasComplianceRule {
   automationCheck String   // Identifier for Veritas Intelligence rule calculation logic
 }
 
+model RegulationSource {
+  id               String                  @id @default(uuid())
+  regulationId     String                  @unique // e.g. "EU-GMP-VOL4"
+  title            String                  // e.g. "EU GMP Volume 4 - Medicinal Products for Human & Veterinary Use"
+  authority        String                  // e.g. "European Commission / EMA"
+  region           String                  @default("European Union")
+  version          String                  @default("Current Revision")
+  publicationDate  DateTime                @default(now())
+  effectiveDate    DateTime                @default(now())
+  status           String                  @default("ACTIVE") // ACTIVE, ARCHIVED, DRAFT
+  sourceDocument   String?
+  lastReviewedDate DateTime                @default(now())
+  createdAt        DateTime                @default(now())
+  updatedAt        DateTime                @updatedAt
+  requirements     RegulatoryRequirement[]
+}
+
+model RegulatoryRequirement {
+  id                 String                    @id @default(uuid())
+  requirementId       String                    @unique // e.g. "EU-GMP-CH4-001"
+  regulationSourceId String
+  regulationSource   RegulationSource          @relation(fields: [regulationSourceId], references: [id], onDelete: Cascade)
+  chapter            String                    // e.g. "Chapter 4 Documentation"
+  section            String?                   // e.g. "4.1"
+  title              String
+  category           String                    // Quality System, Documentation, Personnel, Production, Laboratory Control, Supplier Management, Validation, Data Integrity
+  riskLevel          String                    @default("MAJOR") // CRITICAL, MAJOR, MINOR, INFORMATIONAL
+  requirementText    String
+  expectedEvidence   String
+  applicableAreas    String                    // JSON array string e.g. ["Quality Assurance", "Production", "QC"]
+  affectedProcesses  String                    // JSON array string e.g. ["Document Management", "Training", "Change Control"]
+  status             String                    @default("APPROVED") // PENDING_REVIEW, APPROVED, REJECTED
+  aiExtracted        Boolean                   @default(false)
+  createdAt          DateTime                  @default(now())
+  updatedAt          DateTime                  @updatedAt
+  relationships      RequirementRelationship[]
+}
+
+model RequirementRelationship {
+  id               String                @id @default(uuid())
+  requirementId    String
+  requirement      RegulatoryRequirement @relation(fields: [requirementId], references: [id], onDelete: Cascade)
+  targetType       String                // DOCUMENT, TRAINING, CHANGE_REQUEST, DEVIATION, CAPA, AUDIT, PROCESS, RISK
+  targetId         String                // Foreign key ID of linked QMS entity
+  targetTitle      String                // Human-readable title of linked QMS entity
+  relationshipType String                @default("REQUIRES") // REQUIRES, VERIFIED_BY, LINKED_TO, MITIGATED_BY
+  createdAt        DateTime              @default(now())
+}
+
+
 
 

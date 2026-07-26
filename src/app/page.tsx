@@ -16,8 +16,10 @@ import {
   Report as ReportIcon,
   History as HistoryIcon,
   Build as BuildIcon,
-  LocalShipping as SupplierIcon
+  LocalShipping as SupplierIcon,
+  Psychology as PsychologyIcon
 } from '@mui/icons-material';
+import { RegulatoryIntelligenceModule } from '@/ui/components/RegulatoryIntelligenceModule';
 
 interface User {
   id: string;
@@ -240,7 +242,7 @@ export default function Home() {
   const [viewMode, setViewMode] = useState<'landing' | 'app'>('landing');
 
   // Navigation
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'documents' | 'training' | 'audit' | 'audits-management' | 'users-management' | 'change-control' | 'quality-events' | 'equipment' | 'suppliers'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'documents' | 'training' | 'audit' | 'audits-management' | 'users-management' | 'change-control' | 'quality-events' | 'equipment' | 'suppliers' | 'intelligence'>('dashboard');
 
   // Users / Personas
   const [users, setUsers] = useState<User[]>([]);
@@ -1371,6 +1373,9 @@ export default function Home() {
         ...(currentUser?.role && (currentUser.role === 'ADMIN' || currentUser.role === 'AUDITOR' || currentUser.role === 'OWNER') ? [
           { id: 'audit', label: 'Compliance Audit Logs', route: 'audit', icon: <HistoryIcon /> }
         ] : []),
+        ...(currentUser?.role && (currentUser.role === 'ADMIN' || currentUser.role === 'QUALITY_MANAGER' || currentUser.role === 'REGULATORY_AFFAIRS' || currentUser.role === 'AUDITOR' || currentUser.role === 'OWNER') ? [
+          { id: 'intelligence', label: 'Regulatory Intelligence', route: 'intelligence', icon: <PsychologyIcon /> }
+        ] : []),
       ]
     }
   ];
@@ -1416,6 +1421,7 @@ export default function Home() {
       case 'audits-management': return 'Internal & Supplier Audit Planning';
       case 'users-management': return 'User Access Policy & ABAC/RBAC Roster';
       case 'audit': return 'GxP 21 CFR Part 11 Audit Trail Logs';
+      case 'intelligence': return 'EU GMP Regulatory Intelligence Engine';
       default: return 'Veritas eQMS';
     }
   };
@@ -3986,6 +3992,11 @@ export default function Home() {
               )}
             </div>
           </div>
+        )}
+
+        {/* TAB 5: REGULATORY INTELLIGENCE ENGINE */}
+        {activeTab === 'intelligence' && (
+          <RegulatoryIntelligenceModule currentUser={currentUser} />
         )}
       </div>
 
