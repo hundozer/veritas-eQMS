@@ -29,24 +29,63 @@ export function isGodModeUser(email: string): boolean {
          lower === 'god@simpleafied.de';
 }
 
+import jwt from 'jsonwebtoken';
+
+const JWT_SECRET = process.env.JWT_SECRET || 'SIMPLEAFIED_IAM_SUPER_SECRET_KEY_2026!';
+
 export async function getContext(req?: NextRequest): Promise<UserContext | null> {
   let email: string | null = null;
+  let tenantIdFromToken: string | null = null;
+  let roleFromToken: string | null = null;
 
+  // 1. Try to read and verify the cryptographic Simpleafied IAM access token
+  let iamToken: string | null = null;
   if (req) {
-    // 1. Check custom header
+    const cookie = req.cookies.get('iam-access-token');
+    if (cookie) iamToken = cookie.value;
+  } else {
+    try {
+      const { cookies } = await import('next/headers');
+      const cookieStore = await cookies();
+      const cookie = cookieStore.get('iam-access-token');
+      if (cookie) iamToken = cookie.value;
+    } catch {}
+  }
+
+  if (iamToken) {
+    try {
+      const decoded = jwt.verify(iamToken, JWT_SECRET) as any;
+      if (decoded && decoded.email) {
+        email = decoded.email;
+        if (decoded.organizationId) {
+          tenantIdFromToken = decoded.organizationId;
+        }
+        if (decoded.roleName) {
+          roleFromToken = decoded.roleName;
+        }
+      }
+    } catch (err) {
+      console.warn('Failed to verify cryptographic IAM token, falling back to legacy checks:', err);
+    }
+  }
+
+  // 2. Fallback to legacy cookie and header checks if IAM token is not present
+  if (!email && req) {
+    // Check custom header
     email = req.headers.get('x-user-email');
     
-    // 2. Check cookie if header not present
+    // Check cookie if header not present
     if (!email) {
       const cookie = req.cookies.get('user-email');
       if (cookie) email = cookie.value;
     }
-  } else {
-    // Server component import (no direct request parameter)
-    const { cookies } = await import('next/headers');
-    const cookieStore = await cookies();
-    const cookie = cookieStore.get('user-email');
-    if (cookie) email = cookie.value;
+  } else if (!email) {
+    try {
+      const { cookies } = await import('next/headers');
+      const cookieStore = await cookies();
+      const cookie = cookieStore.get('user-email');
+      if (cookie) email = cookie.value;
+    } catch {}
   }
 
   if (!email) {
@@ -57,6 +96,32 @@ export async function getContext(req?: NextRequest): Promise<UserContext | null>
     where: { email },
     include: { tenant: true },
   });
+
+  // 3. Auto-provision user if they exist in IAM (token present) but not yet locally
+  if (!user && email && tenantIdFromToken) {
+    let tenant = await prisma.tenant.findUnique({ where: { id: tenantIdFromToken } });
+    if (!tenant) {
+      // Create local copy of the tenant workspace
+      tenant = await prisma.tenant.create({
+        data: {
+          id: tenantIdFromToken,
+          name: 'Corporate Tenant Workspace',
+        },
+      });
+    }
+
+    user = await prisma.user.create({
+      data: {
+        email,
+        fullName: email.split('@')[0].toUpperCase() + ' Operator',
+        role: roleFromToken || 'EMPLOYEE',
+        department: 'QA',
+        clearance: 'RESTRICTED',
+        tenantId: tenant.id,
+      },
+      include: { tenant: true },
+    });
+  }
 
   // If email is a platform admin email but not found in the DB, auto-provision them!
   if (!user && isPlatformAdminEmail(email)) {
