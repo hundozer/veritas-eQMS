@@ -1675,7 +1675,7 @@ export default function Home() {
                     ER
                   </div>
                   <div>
-                    <div style={{ fontSize: '13px', fontWeight: '800', color: '#0A0E17' }}>Dr. Elena Rostova</div>
+                    <div style={{ fontSize: '13px', fontWeight: '800', color: '#0A0E17' }}>Dr. Eleanor Vance</div>
                     <div style={{ fontSize: '11px', color: '#64748B', fontFamily: 'monospace' }}>Head of Quality Assurance • Timestamp: 2026-07-25 14:32:08 UTC</div>
                   </div>
                 </div>
@@ -1758,7 +1758,7 @@ export default function Home() {
 
               <div style={{ padding: '28px', textAlign: 'left', fontFamily: 'monospace', fontSize: '12px', color: '#94A3B8', lineHeight: '1.8' }}>
                 <div style={{ color: '#10B981', marginBottom: '10px' }}>[AUDIT-RECORD-2026-07-26T06:45:12.082Z] EVENT: ELECTRONIC_SIGNATURE_EXECUTED</div>
-                <div>AUTHENTICATED_USER: usr_9942a188 (Dr. Elena Rostova — Head of QA)</div>
+                <div>AUTHENTICATED_USER: usr_9942a188 (Dr. Eleanor Vance — Head of QA)</div>
                 <div>RESOURCE_IDENTIFIER: doc_sop_qa_042_v3 (Batch Release Protocol v3.0)</div>
                 <div>SIGNATURE_AUTHORITY: APPROVAL_AUTHORITY_FINAL</div>
                 <div>STATUTORY_COMPLIANCE: 21 CFR Part 11 / EU Annex 11 Verified</div>
