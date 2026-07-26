@@ -33,16 +33,42 @@ export async function getContext(req?: NextRequest): Promise<UserContext | null>
   }
 
   if (!email) {
-    // Default fallback to first seeded user (Bob Owner) if nothing specified
-    email = 'owner@acme.com';
+    email = 'admin@simpleafied.app';
   }
 
-  const user = await prisma.user.findUnique({
+  let user = await prisma.user.findUnique({
     where: { email },
     include: { tenant: true },
   });
 
-  if (!user) return null;
+  // Fallback to first available user in database if specified email does not exist
+  if (!user) {
+    user = await prisma.user.findFirst({
+      include: { tenant: true },
+    });
+  }
+
+  // Auto-provision default tenant and admin user if database is unseeded
+  if (!user) {
+    let defaultTenant = await prisma.tenant.findFirst();
+    if (!defaultTenant) {
+      defaultTenant = await prisma.tenant.create({
+        data: { name: 'Simpleafied Biotech' },
+      });
+    }
+
+    user = await prisma.user.create({
+      data: {
+        email: email || 'admin@simpleafied.app',
+        fullName: 'Dr. Eleanor Vance',
+        role: 'ADMIN',
+        department: 'QA',
+        clearance: 'RESTRICTED',
+        tenantId: defaultTenant.id,
+      },
+      include: { tenant: true },
+    });
+  }
 
   return {
     id: user.id,
@@ -52,7 +78,7 @@ export async function getContext(req?: NextRequest): Promise<UserContext | null>
     department: user.department,
     clearance: user.clearance,
     tenantId: user.tenantId,
-    tenantName: user.tenant.name,
+    tenantName: user.tenant?.name || 'Simpleafied Biotech',
   };
 }
 

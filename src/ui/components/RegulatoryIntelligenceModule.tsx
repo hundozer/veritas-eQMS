@@ -80,9 +80,18 @@ export function RegulatoryIntelligenceModule({ currentUser }: { currentUser: any
       if (selectedRisk !== 'ALL') params.set('riskLevel', selectedRisk);
       if (searchQuery) params.set('search', searchQuery);
 
-      const res = await fetch(`/api/intelligence/requirements?${params.toString()}`);
-      if (!res.ok) throw new Error('Failed to load regulatory data');
+      const headers: Record<string, string> = {};
+      if (currentUser?.email) {
+        headers['x-user-email'] = currentUser.email;
+      }
+
+      const res = await fetch(`/api/intelligence/requirements?${params.toString()}`, { headers });
       const json = await res.json();
+
+      if (!res.ok) {
+        throw new Error(json.error?.message || 'Failed to load regulatory data');
+      }
+
       setData(json);
       setError(null);
     } catch (err: any) {
