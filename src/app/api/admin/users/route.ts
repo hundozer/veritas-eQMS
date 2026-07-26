@@ -32,13 +32,55 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: { code: 'Forbidden', message: 'Access Denied: Simpleafied Admins only' } }, { status: 403 });
     }
 
+    const body = await req.json();
+    const { action, userId, newRole, email, fullName, role, department, tenantId } = body;
+
+    // Handle user provisioning under a specific tenant workspace
+    if (action === 'CREATE_USER') {
+      if (!email || !fullName || !role || !tenantId) {
+        return NextResponse.json({ error: { code: 'ValidationFailed', message: 'Email, Full Name, Role, and Tenant Workspace are required' } }, { status: 400 });
+      }
+
+      const existing = await prisma.user.findUnique({ where: { email } });
+      if (existing) {
+        return NextResponse.json({ error: { code: 'Conflict', message: 'A user with this email address already exists' } }, { status: 409 });
+      }
+
+      const newUser = await prisma.user.create({
+        data: {
+          email,
+          fullName,
+          firstName: fullName.split(' ')[0],
+          lastName: fullName.split(' ').slice(1).join(' '),
+          role,
+          department: department || 'QA',
+          clearance: 'INTERNAL',
+          site: 'Main Facility',
+          employmentType: 'EMPLOYEE',
+          tenantId,
+        },
+      });
+
+      await logAuditEvent({
+        tenantId,
+        userId: user.id,
+        userEmail: user.email,
+        userRole: user.role,
+        action: 'PlatformAdmin.CreateUser',
+        objectType: 'User',
+        objectId: newUser.id,
+        payload: { email, fullName, role, department, tenantId },
+        status: 'Success',
+        requestUrl: req.nextUrl.pathname,
+      });
+
+      return NextResponse.json({ success: true, user: newUser });
+    }
+
     // Only God Mode user can promote/demote other users to Admin role
     if (!isGodModeUser(user.email)) {
       return NextResponse.json({ error: { code: 'Forbidden', message: 'Access Denied: Only the Simpleafied God Mode User can designate other Admins.' } }, { status: 403 });
     }
-
-    const body = await req.json();
-    const { userId, newRole } = body; // newRole: 'ADMIN' | 'EMPLOYEE'
 
     if (!userId || !newRole) {
       return NextResponse.json({ error: { code: 'ValidationFailed', message: 'userId and newRole are required' } }, { status: 400 });

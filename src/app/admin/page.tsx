@@ -84,6 +84,16 @@ export default function AdminPage() {
   const [provisionError, setProvisionError] = useState<string | null>(null);
   const [provisionSuccess, setProvisionSuccess] = useState<string | null>(null);
 
+  // New user provisioning states
+  const [newUserFullName, setNewUserFullName] = useState('');
+  const [newUserEmail, setNewUserEmail] = useState('');
+  const [newUserRole, setNewUserRole] = useState('QUALITY_MANAGER');
+  const [newUserDept, setNewUserDept] = useState('QA');
+  const [newUserTenantId, setNewUserTenantId] = useState('');
+  const [provisioningUser, setProvisioningUser] = useState(false);
+  const [userProvisionError, setUserProvisionError] = useState<string | null>(null);
+  const [userProvisionSuccess, setUserProvisionSuccess] = useState<string | null>(null);
+
   // Global requirement form state
   const [editingRequirement, setEditingRequirement] = useState<Partial<GlobalRequirement> | null>(null);
   const [requirementFormOpen, setRequirementFormOpen] = useState(false);
@@ -135,7 +145,13 @@ export default function AdminPage() {
   const fetchTenants = async () => {
     try {
       const res = await fetch('/api/admin/tenants');
-      if (res.ok) setTenants(await res.json());
+      if (res.ok) {
+        const data = await res.json();
+        setTenants(data);
+        if (data.length > 0) {
+          setNewUserTenantId(prev => prev || data[0].id);
+        }
+      }
     } catch (e) { console.error(e); }
   };
 
@@ -239,6 +255,43 @@ export default function AdminPage() {
       setProvisionError(e.message);
     } finally {
       setProvisioning(false);
+    }
+  };
+
+  const handleProvisionUser = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setUserProvisionError(null);
+    setUserProvisionSuccess(null);
+    setProvisioningUser(true);
+
+    try {
+      const res = await fetch('/api/admin/users', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'CREATE_USER',
+          email: newUserEmail,
+          fullName: newUserFullName,
+          role: newUserRole,
+          department: newUserDept,
+          tenantId: newUserTenantId,
+        }),
+      });
+
+      if (res.ok) {
+        setUserProvisionSuccess(`Corporate user "${newUserFullName}" provisioned successfully.`);
+        setNewUserFullName('');
+        setNewUserEmail('');
+        fetchUsers();
+        fetchStats();
+      } else {
+        const json = await res.json();
+        setUserProvisionError(json.error?.message || 'User provisioning failed');
+      }
+    } catch (err: any) {
+      setUserProvisionError(err.message);
+    } finally {
+      setProvisioningUser(false);
     }
   };
 
@@ -654,71 +707,191 @@ export default function AdminPage() {
         {/* 3. USER MANAGEMENT TAB */}
         {activeTab === 'users' && (
           <div>
-            <h3 style={{ fontSize: '20px', fontWeight: '800', marginBottom: '12px', letterSpacing: '-0.01em' }}>Platform Accounts Registry</h3>
-            <p style={{ fontSize: '13px', color: '#94A3B8', marginBottom: '24px' }}>
-              Overview of all active accounts in the database. Simpleafied whitelisted domains (`.app`, `.eu`, `.de`) can be promoted to Platform Admin.
-            </p>
+            <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '40px' }}>
+              {/* Left Column: Users List */}
+              <div>
+                <h3 style={{ fontSize: '20px', fontWeight: '800', marginBottom: '12px', letterSpacing: '-0.01em' }}>Platform Accounts Registry</h3>
+                <p style={{ fontSize: '13px', color: '#94A3B8', marginBottom: '24px' }}>
+                  Overview of all active accounts in the database. Simpleafied whitelisted domains (`.app`, `.eu`, `.de`) can be promoted to Platform Admin.
+                </p>
 
-            <div style={{ background: '#0F172A', border: '1px solid rgba(255,255,255,0.06)' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
-                <thead>
-                  <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.02)' }}>
-                    {['Name', 'Email Address', 'Tenant Workspace', 'GxP Department', 'Platform Role', 'Admin Privileges', 'Operator Designation'].map(h => (
-                      <th key={h} style={{ padding: '16px 20px', textAlign: 'left', fontWeight: '700', fontFamily: 'monospace', color: '#94A3B8', fontSize: '11px' }}>{h}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {users.map(u => {
-                    const isCandidate = u.email.endsWith('@simpleafied.app') || u.email.endsWith('@simpleafied.eu') || u.email.endsWith('@simpleafied.de');
-                    const isUserAdmin = u.role === 'ADMIN';
-
-                    return (
-                      <tr key={u.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
-                        <td style={{ padding: '16px 20px', fontWeight: '700' }}>{u.fullName}</td>
-                        <td style={{ padding: '16px 20px', fontFamily: 'monospace', color: '#94A3B8' }}>{u.email}</td>
-                        <td style={{ padding: '16px 20px' }}>{u.tenant?.name || 'Global'}</td>
-                        <td style={{ padding: '16px 20px', fontFamily: 'monospace', color: '#94A3B8', fontSize: '11px' }}>{u.department}</td>
-                        <td style={{ padding: '16px 20px', fontFamily: 'monospace' }}>{u.role}</td>
-                        <td style={{ padding: '16px 20px' }}>
-                          {isUserAdmin ? (
-                            <span style={{ color: '#10B981', fontWeight: '700', fontSize: '12px' }}>✓ ACTIVE ADMIN</span>
-                          ) : isCandidate ? (
-                            <span style={{ color: '#D97706', fontWeight: '700', fontSize: '12px' }}>⚠ ELIGIBLE CANDIDATE</span>
-                          ) : (
-                            <span style={{ color: '#64748B' }}>No (Customer)</span>
-                          )}
-                        </td>
-                        <td style={{ padding: '16px 20px' }}>
-                          {isCandidate ? (
-                            isGodMode ? (
-                              isUserAdmin ? (
-                                <button
-                                  onClick={() => handlePromoteDemote(u.id, 'EMPLOYEE')}
-                                  style={{ background: '#DC2626', color: '#FFF', border: 'none', padding: '6px 12px', fontSize: '11px', fontFamily: 'monospace', fontWeight: '700', cursor: 'pointer' }}
-                                >
-                                  REVOKE ADMIN
-                                </button>
-                              ) : (
-                                <button
-                                  onClick={() => handlePromoteDemote(u.id, 'ADMIN')}
-                                  style={{ background: '#059669', color: '#FFF', border: 'none', padding: '6px 12px', fontSize: '11px', fontFamily: 'monospace', fontWeight: '700', cursor: 'pointer' }}
-                                >
-                                  DESIGNATE ADMIN
-                                </button>
-                              )
-                            ) : (
-                              <span style={{ fontSize: '11px', color: '#64748B', fontFamily: 'monospace' }}>Promotions require God Mode</span>
-                            )
-                          ) : (
-                            <span style={{ fontSize: '11px', color: '#64748B', fontFamily: 'monospace' }}>Domain restriction active</span>
-                          )}
-                        </td>
+                <div style={{ background: '#0F172A', border: '1px solid rgba(255,255,255,0.06)' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+                    <thead>
+                      <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.02)' }}>
+                        {['Name', 'Email Address', 'Tenant Workspace', 'GxP Department', 'Platform Role', 'Admin Privileges', 'Operator Designation'].map(h => (
+                          <th key={h} style={{ padding: '16px 20px', textAlign: 'left', fontWeight: '700', fontFamily: 'monospace', color: '#94A3B8', fontSize: '11px' }}>{h}</th>
+                        ))}
                       </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+                    </thead>
+                    <tbody>
+                      {users.map(u => {
+                        const isCandidate = u.email.endsWith('@simpleafied.app') || u.email.endsWith('@simpleafied.eu') || u.email.endsWith('@simpleafied.de');
+                        const isUserAdmin = u.role === 'ADMIN';
+
+                        return (
+                          <tr key={u.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+                            <td style={{ padding: '16px 20px', fontWeight: '700' }}>{u.fullName}</td>
+                            <td style={{ padding: '16px 20px', fontFamily: 'monospace', color: '#94A3B8' }}>{u.email}</td>
+                            <td style={{ padding: '16px 20px' }}>{u.tenant?.name || 'Global'}</td>
+                            <td style={{ padding: '16px 20px', fontFamily: 'monospace', color: '#94A3B8', fontSize: '11px' }}>{u.department}</td>
+                            <td style={{ padding: '16px 20px', fontFamily: 'monospace' }}>{u.role}</td>
+                            <td style={{ padding: '16px 20px' }}>
+                              {isUserAdmin ? (
+                                <span style={{ color: '#10B981', fontWeight: '700', fontSize: '12px' }}>✓ ACTIVE ADMIN</span>
+                              ) : isCandidate ? (
+                                <span style={{ color: '#D97706', fontWeight: '700', fontSize: '12px' }}>⚠ ELIGIBLE CANDIDATE</span>
+                              ) : (
+                                <span style={{ color: '#64748B' }}>No (Customer)</span>
+                              )}
+                            </td>
+                            <td style={{ padding: '16px 20px' }}>
+                              {isCandidate ? (
+                                isGodMode ? (
+                                  isUserAdmin ? (
+                                    <button
+                                      onClick={() => handlePromoteDemote(u.id, 'EMPLOYEE')}
+                                      style={{ background: '#DC2626', color: '#FFF', border: 'none', padding: '6px 12px', fontSize: '11px', fontFamily: 'monospace', fontWeight: '700', cursor: 'pointer' }}
+                                    >
+                                      REVOKE ADMIN
+                                    </button>
+                                  ) : (
+                                    <button
+                                      onClick={() => handlePromoteDemote(u.id, 'ADMIN')}
+                                      style={{ background: '#059669', color: '#FFF', border: 'none', padding: '6px 12px', fontSize: '11px', fontFamily: 'monospace', fontWeight: '700', cursor: 'pointer' }}
+                                    >
+                                      DESIGNATE ADMIN
+                                    </button>
+                                  )
+                                ) : (
+                                  <span style={{ fontSize: '11px', color: '#64748B', fontFamily: 'monospace' }}>Promotions require God Mode</span>
+                                )
+                              ) : (
+                                <span style={{ fontSize: '11px', color: '#64748B', fontFamily: 'monospace' }}>Domain restriction active</span>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* Right Column: User Provisioning Form */}
+              <div>
+                <h3 style={{ fontSize: '20px', fontWeight: '800', marginBottom: '24px', letterSpacing: '-0.01em' }}>Provision Corporate User</h3>
+                <div style={{ background: '#0F172A', border: '1px solid rgba(255,255,255,0.06)', padding: '24px' }}>
+                  {userProvisionError && (
+                    <div style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.2)', padding: '12px', fontSize: '12px', color: '#EF4444', fontFamily: 'monospace', marginBottom: '16px' }}>
+                      {userProvisionError}
+                    </div>
+                  )}
+                  {userProvisionSuccess && (
+                    <div style={{ background: 'rgba(5,150,105,0.1)', border: '1px solid rgba(5,150,105,0.2)', padding: '12px', fontSize: '12px', color: '#10B981', fontFamily: 'monospace', marginBottom: '16px' }}>
+                      {userProvisionSuccess}
+                    </div>
+                  )}
+
+                  <form onSubmit={handleProvisionUser}>
+                    <div style={{ marginBottom: '16px' }}>
+                      <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', color: '#94A3B8', fontFamily: 'monospace', marginBottom: '8px', textTransform: 'uppercase' }}>
+                        Full Name
+                      </label>
+                      <input
+                        type="text"
+                        value={newUserFullName}
+                        onChange={(e) => setNewUserFullName(e.target.value)}
+                        placeholder="e.g. John Doe"
+                        required
+                        style={{ width: '100%', background: 'rgba(10,14,23,0.5)', border: '1px solid rgba(255,255,255,0.12)', color: '#FBFBFA', padding: '10px', fontSize: '13px' }}
+                      />
+                    </div>
+
+                    <div style={{ marginBottom: '16px' }}>
+                      <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', color: '#94A3B8', fontFamily: 'monospace', marginBottom: '8px', textTransform: 'uppercase' }}>
+                        Email Address
+                      </label>
+                      <input
+                        type="email"
+                        value={newUserEmail}
+                        onChange={(e) => setNewUserEmail(e.target.value)}
+                        placeholder="e.g. j.doe@company.com"
+                        required
+                        style={{ width: '100%', background: 'rgba(10,14,23,0.5)', border: '1px solid rgba(255,255,255,0.12)', color: '#FBFBFA', padding: '10px', fontSize: '13px' }}
+                      />
+                    </div>
+
+                    <div style={{ marginBottom: '16px' }}>
+                      <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', color: '#94A3B8', fontFamily: 'monospace', marginBottom: '8px', textTransform: 'uppercase' }}>
+                        Tenant Workspace
+                      </label>
+                      <select
+                        value={newUserTenantId}
+                        onChange={(e) => setNewUserTenantId(e.target.value)}
+                        required
+                        style={{ width: '100%', background: 'rgba(10,14,23,0.5)', border: '1px solid rgba(255,255,255,0.12)', color: '#FBFBFA', padding: '10px', fontSize: '13px' }}
+                      >
+                        {tenants.map(t => (
+                          <option key={t.id} value={t.id}>{t.name}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div style={{ marginBottom: '16px' }}>
+                      <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', color: '#94A3B8', fontFamily: 'monospace', marginBottom: '8px', textTransform: 'uppercase' }}>
+                        GxP Role
+                      </label>
+                      <select
+                        value={newUserRole}
+                        onChange={(e) => setNewUserRole(e.target.value)}
+                        style={{ width: '100%', background: 'rgba(10,14,23,0.5)', border: '1px solid rgba(255,255,255,0.12)', color: '#FBFBFA', padding: '10px', fontSize: '13px' }}
+                      >
+                        <option value="QUALITY_MANAGER">Quality Manager</option>
+                        <option value="OWNER">Organization Owner</option>
+                        <option value="EMPLOYEE">Employee</option>
+                        <option value="AUDITOR">Auditor (Read-Only)</option>
+                      </select>
+                    </div>
+
+                    <div style={{ marginBottom: '24px' }}>
+                      <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', color: '#94A3B8', fontFamily: 'monospace', marginBottom: '8px', textTransform: 'uppercase' }}>
+                        Department
+                      </label>
+                      <select
+                        value={newUserDept}
+                        onChange={(e) => setNewUserDept(e.target.value)}
+                        style={{ width: '100%', background: 'rgba(10,14,23,0.5)', border: '1px solid rgba(255,255,255,0.12)', color: '#FBFBFA', padding: '10px', fontSize: '13px' }}
+                      >
+                        <option value="QA">Quality Assurance (QA)</option>
+                        <option value="QC">Quality Control (QC)</option>
+                        <option value="PRODUCTION">Production</option>
+                        <option value="REGULATORY">Regulatory</option>
+                        <option value="ENGINEERING">Engineering</option>
+                      </select>
+                    </div>
+
+                    <button
+                      type="submit"
+                      disabled={provisioningUser}
+                      style={{
+                        width: '100%',
+                        background: '#059669',
+                        color: '#FBFBFA',
+                        border: 'none',
+                        padding: '12px',
+                        fontSize: '12px',
+                        fontFamily: 'monospace',
+                        fontWeight: '700',
+                        cursor: provisioningUser ? 'not-allowed' : 'pointer',
+                      }}
+                    >
+                      {provisioningUser ? 'PROVISIONING USER…' : '⚡ PROVISION CORPORATE USER'}
+                    </button>
+                  </form>
+                </div>
+              </div>
+
             </div>
           </div>
         )}
