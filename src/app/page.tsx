@@ -1924,7 +1924,7 @@ export default function Home() {
                       <input
                         style={{ width: '100%', padding: '12px 14px', border: '1px solid rgba(10, 14, 23, 0.2)', borderRadius: '0px', background: '#FBFBFA', fontSize: '14px', color: '#0A0E17' }}
                         type="text"
-                        placeholder="Dr. Jane Smith"
+                        placeholder="Dr. Eleanor Vance"
                         value={demoName}
                         onChange={(e) => setDemoName(e.target.value)}
                         required
@@ -1938,7 +1938,7 @@ export default function Home() {
                       <input
                         style={{ width: '100%', padding: '12px 14px', border: '1px solid rgba(10, 14, 23, 0.2)', borderRadius: '0px', background: '#FBFBFA', fontSize: '14px', color: '#0A0E17' }}
                         type="email"
-                        placeholder="jane.smith@biotech.eu"
+                        placeholder="eleanor.vance@heliosbio.eu"
                         value={demoEmail}
                         onChange={(e) => setDemoEmail(e.target.value)}
                         required
@@ -1952,7 +1952,7 @@ export default function Home() {
                       <input
                         style={{ width: '100%', padding: '12px 14px', border: '1px solid rgba(10, 14, 23, 0.2)', borderRadius: '0px', background: '#FBFBFA', fontSize: '14px', color: '#0A0E17' }}
                         type="text"
-                        placeholder="Acme Therapeutics Ltd."
+                        placeholder="Helios BioPharma Inc."
                         value={demoCompany}
                         onChange={(e) => setDemoCompany(e.target.value)}
                         required
@@ -5177,7 +5177,7 @@ export default function Home() {
                   <input
                     className={styles.input}
                     type="text"
-                    placeholder="e.g. Nova Therapeutics Inc."
+                    placeholder="e.g. Helios BioPharma Inc."
                     value={regCompanyName}
                     onChange={(e) => setRegCompanyName(e.target.value)}
                     required
@@ -5190,7 +5190,7 @@ export default function Home() {
                     <input
                       className={styles.input}
                       type="text"
-                      placeholder="e.g. Dr. Sarah Jenkins"
+                      placeholder="e.g. Dr. Eleanor Vance"
                       value={regFullName}
                       onChange={(e) => setRegFullName(e.target.value)}
                       required
@@ -5202,7 +5202,7 @@ export default function Home() {
                     <input
                       className={styles.input}
                       type="email"
-                      placeholder="sarah@novatx.com"
+                      placeholder="eleanor@heliosbio.com"
                       value={regEmail}
                       onChange={(e) => setRegEmail(e.target.value)}
                       required
