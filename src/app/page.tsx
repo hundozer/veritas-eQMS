@@ -1635,23 +1635,52 @@ export default function Home() {
             Digital signatures with SHA-256 integrity verification.
           </h2>
 
-          <div className={styles.precisionFrame}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(10, 14, 23, 0.12)', paddingBottom: '16px', marginBottom: '24px' }}>
-              <div>
-                <div style={{ fontSize: '11px', fontWeight: '700', letterSpacing: '0.1em', color: '#047857', textTransform: 'uppercase', fontFamily: 'monospace' }}>CONTROLLED DOCUMENT RECORD</div>
-                <div style={{ fontSize: '18px', fontWeight: '800', color: '#0A0E17', marginTop: '4px' }}>SOP-QA-042: Cell Therapy Batch Release Protocol v3.0</div>
+          <div className={styles.precisionFrame} style={{ padding: 0, overflow: 'hidden' }}>
+            <div className={styles.gxpCardHeader}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#047857', fontWeight: '700' }}>
+                <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#047857' }} />
+                CONTROLLED RECORD ACTIVE
               </div>
-              <div style={{ fontSize: '11px', color: '#475569', fontFamily: 'monospace' }}>SHA-256: e8f9a2...9d12</div>
+              <div style={{ color: '#475569' }}>CLASSIFICATION: GxP RESTRICTED</div>
+              <div style={{ fontWeight: '700', color: '#047857' }}>STATUS: APPROVED / EFFECTIVE</div>
             </div>
-            <div style={{ background: '#FAF9F5', border: '1px solid rgba(10, 14, 23, 0.08)', padding: '20px', fontSize: '13px', color: '#1E293B', lineHeight: '1.6', marginBottom: '24px', fontFamily: 'monospace' }}>
-              "This procedure defines statutory release criteria for biological products compliant with EU Annex 16 and FDA 21 CFR Part 211."
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderTop: '1px solid rgba(10, 14, 23, 0.12)', paddingTop: '16px' }}>
-              <div>
-                <div style={{ fontSize: '12px', fontWeight: '700', color: '#0A0E17' }}>Electronic Signature Verified</div>
-                <div style={{ fontSize: '11px', color: '#64748B', fontFamily: 'monospace', marginTop: '2px' }}>Dr. Elena Rostova — Head of Quality Assurance • 2026-07-25 14:32:08 UTC</div>
+
+            <div style={{ padding: '36px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', borderBottom: '1px solid rgba(10, 14, 23, 0.12)', paddingBottom: '20px', marginBottom: '24px' }}>
+                <div>
+                  <div style={{ fontSize: '11px', fontWeight: '700', letterSpacing: '0.1em', color: '#047857', textTransform: 'uppercase', fontFamily: 'monospace', marginBottom: '4px' }}>
+                    SOP IDENTIFIER: SOP-QA-042
+                  </div>
+                  <h3 style={{ fontSize: '20px', fontWeight: '800', color: '#0A0E17', margin: 0 }}>
+                    Cell Therapy Batch Release Protocol v3.0
+                  </h3>
+                  <div style={{ fontSize: '12px', color: '#64748B', fontFamily: 'monospace', marginTop: '6px' }}>
+                    Effective Date: 2026-07-26 • Review Cycle: Annual • Owner: QA Department
+                  </div>
+                </div>
+                <div style={{ fontSize: '11px', color: '#047857', fontFamily: 'monospace', background: '#FBFBFA', padding: '6px 12px', border: '1px solid rgba(10, 14, 23, 0.15)', fontWeight: '700' }}>
+                  SHA-256: e8f9a2b4...9d12
+                </div>
               </div>
-              <span style={{ fontSize: '11px', fontWeight: '700', color: '#047857', border: '1px solid #047857', padding: '4px 10px', fontFamily: 'monospace' }}>PART 11 VERIFIED</span>
+
+              <div style={{ background: '#FBFBFA', border: '1px solid rgba(10, 14, 23, 0.1)', borderLeft: '3px solid #0A0E17', padding: '20px', fontSize: '13px', color: '#1E293B', lineHeight: '1.6', marginBottom: '28px', fontFamily: 'monospace' }}>
+                "This procedure defines statutory release criteria for biological products compliant with EU Annex 16 and FDA 21 CFR Part 211."
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderTop: '1px solid rgba(10, 14, 23, 0.12)', paddingTop: '20px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+                  <div style={{ width: '36px', height: '36px', background: '#0A0E17', color: '#FBFBFA', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '800', fontSize: '12px', fontFamily: 'monospace' }}>
+                    ER
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '13px', fontWeight: '800', color: '#0A0E17' }}>Dr. Elena Rostova</div>
+                    <div style={{ fontSize: '11px', color: '#64748B', fontFamily: 'monospace' }}>Head of Quality Assurance • Timestamp: 2026-07-25 14:32:08 UTC</div>
+                  </div>
+                </div>
+                <span style={{ fontSize: '11px', fontWeight: '700', color: '#047857', border: '1px solid #047857', padding: '6px 14px', fontFamily: 'monospace', letterSpacing: '0.05em' }}>
+                  ✓ 21 CFR PART 11 VERIFIED
+                </span>
+              </div>
             </div>
           </div>
         </section>
@@ -1665,72 +1694,145 @@ export default function Home() {
             Automated qualification tracking.
           </h2>
 
-          <div className={styles.precisionFrame} style={{ maxWidth: '880px' }}>
-            <div style={{ fontSize: '13px', fontWeight: '700', color: '#0A0E17', marginBottom: '16px', fontFamily: 'monospace' }}>ROLE-BASED PERSONNEL ROSTER</div>
-            <div style={{ display: 'grid', gridTemplateColumns: '2fr 1.5fr 1fr', gap: '12px', fontSize: '12px', borderBottom: '1px solid rgba(10, 14, 23, 0.15)', paddingBottom: '12px', color: '#475569', fontWeight: '700', fontFamily: 'monospace' }}>
-              <div>PERSONNEL</div>
-              <div>QUALIFICATION REQUIREMENT</div>
-              <div>STATUS</div>
-            </div>
-            {[
-              { name: 'Dr. Marcus Vance (Analytical Lead)', sop: 'SOP-QA-042 (v3.0)', status: 'QUALIFIED' },
-              { name: 'Sarah Jenkins (QC Specialist)', sop: 'SOP-LAB-012 (v2.1)', status: 'QUALIFIED' },
-              { name: 'David Chen (Process Engineer)', sop: 'SOP-ENG-088 (v1.0)', status: 'QUALIFIED' },
-            ].map((row, i) => (
-              <div key={i} style={{ display: 'grid', gridTemplateColumns: '2fr 1.5fr 1fr', gap: '12px', padding: '14px 0', borderBottom: '1px solid rgba(10, 14, 23, 0.06)', fontSize: '13px', alignItems: 'center' }}>
-                <div style={{ fontWeight: '700', color: '#0A0E17' }}>{row.name}</div>
-                <div style={{ color: '#475569', fontFamily: 'monospace', fontSize: '12px' }}>{row.sop}</div>
-                <div style={{ color: '#047857', fontWeight: '700', fontFamily: 'monospace', fontSize: '12px' }}>✓ {row.status}</div>
+          <div className={styles.precisionFrame} style={{ maxWidth: '960px', padding: 0, overflow: 'hidden' }}>
+            <div className={styles.gxpCardHeader}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#0A0E17', fontWeight: '700' }}>
+                <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#047857' }} />
+                ROLE-BASED PERSONNEL MATRIX
               </div>
-            ))}
+              <div style={{ color: '#047857', fontWeight: '700' }}>READINESS: 100% AUDIT READY</div>
+            </div>
+
+            <div style={{ padding: '28px 36px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '2fr 1.5fr 1fr 1fr', gap: '16px', fontSize: '11px', borderBottom: '1px solid rgba(10, 14, 23, 0.15)', paddingBottom: '12px', color: '#475569', fontWeight: '700', fontFamily: 'monospace' }}>
+                <div>PERSONNEL & ROLE</div>
+                <div>QUALIFICATION SOP</div>
+                <div>COMPLETION DATE</div>
+                <div>STATUS</div>
+              </div>
+              {[
+                { name: 'Dr. Marcus Vance', role: 'Analytical Lead', sop: 'SOP-QA-042 (v3.0)', date: '2026-07-25', status: 'QUALIFIED' },
+                { name: 'Sarah Jenkins', role: 'QC Specialist', sop: 'SOP-LAB-012 (v2.1)', date: '2026-07-24', status: 'QUALIFIED' },
+                { name: 'David Chen', role: 'Process Engineer', sop: 'SOP-ENG-088 (v1.0)', date: '2026-07-22', status: 'QUALIFIED' },
+              ].map((row, i) => (
+                <div key={i} style={{ display: 'grid', gridTemplateColumns: '2fr 1.5fr 1fr 1fr', gap: '16px', padding: '16px 0', borderBottom: '1px solid rgba(10, 14, 23, 0.06)', fontSize: '13px', alignItems: 'center' }}>
+                  <div>
+                    <div style={{ fontWeight: '800', color: '#0A0E17' }}>{row.name}</div>
+                    <div style={{ fontSize: '11px', color: '#64748B', fontFamily: 'monospace' }}>{row.role}</div>
+                  </div>
+                  <div style={{ color: '#475569', fontFamily: 'monospace', fontSize: '12px' }}>{row.sop}</div>
+                  <div style={{ color: '#64748B', fontFamily: 'monospace', fontSize: '12px' }}>{row.date}</div>
+                  <div style={{ color: '#047857', fontWeight: '700', fontFamily: 'monospace', fontSize: '12px' }}>✓ {row.status}</div>
+                </div>
+              ))}
+            </div>
           </div>
         </section>
 
         {/* VIEWPORT 5: PRODUCT MOMENT 03 — CRYPTOGRAPHIC AUDIT TRAIL (DARK NAVY) */}
         <section className={styles.darkNavySection}>
-          <div style={{ maxWidth: '1000px', margin: '0 auto', textAlign: 'center' }}>
+          <div style={{ maxWidth: '1040px', margin: '0 auto', textAlign: 'center' }}>
             <div style={{ fontSize: '11px', fontWeight: '700', letterSpacing: '0.15em', textTransform: 'uppercase', color: '#10B981', marginBottom: '24px', fontFamily: 'monospace' }}>
               04 / IMMUTABLE AUDIT LEDGER
             </div>
             <h2 style={{ fontSize: '56px', fontWeight: '800', letterSpacing: '-0.04em', color: '#FFFFFF', marginBottom: '24px', lineHeight: '1.08' }}>
               Immutable audit logs recorded in real-time.
             </h2>
+            <p style={{ fontSize: '18px', color: '#94A3B8', maxWidth: '640px', margin: '0 auto 48px', lineHeight: '1.6' }}>
+              Every signature, approval, revision, and permission change is cryptographically hashed and instantly exportable for regulatory inspections.
+            </p>
 
-            <div style={{ background: '#030A14', border: '1px solid rgba(255,255,255,0.12)', padding: '28px', textAlign: 'left', fontFamily: 'monospace', fontSize: '12px', color: '#94A3B8', marginTop: '48px' }}>
-              <div style={{ color: '#10B981', marginBottom: '10px' }}>[AUDIT-RECORD-2026-07-26T06:45:12.082Z] EVENT: ELECTRONIC_SIGNATURE_EXECUTED</div>
-              <div style={{ marginBottom: '6px' }}>AUTHENTICATED_USER: usr_9942a188 (Dr. Elena Rostova)</div>
-              <div style={{ marginBottom: '6px' }}>RESOURCE_IDENTIFIER: doc_sop_qa_042_v3</div>
-              <div style={{ marginBottom: '6px' }}>SIGNATURE_AUTHORITY: APPROVAL_AUTHORITY_FINAL</div>
-              <div style={{ color: '#64748B', marginTop: '10px' }}>CRYPTOGRAPHIC_CHECKSUM: 3f8a91c2b5d4e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1</div>
+            <div className={styles.terminalWindow}>
+              <div className={styles.terminalBar}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#10B981', fontWeight: '700' }}>
+                  <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#10B981' }} />
+                  VERITAS IMMUTABLE AUDIT LEDGER
+                </div>
+                <div>FILTER: ALL EVENTS</div>
+                <div style={{ color: '#10B981', fontWeight: '700', cursor: 'pointer' }} onClick={() => setShowDemoRequestModal(true)}>
+                  [EXPORT INSPECTION PACKAGE ZIP]
+                </div>
+              </div>
+
+              <div style={{ padding: '28px', textAlign: 'left', fontFamily: 'monospace', fontSize: '12px', color: '#94A3B8', lineHeight: '1.8' }}>
+                <div style={{ color: '#10B981', marginBottom: '10px' }}>[AUDIT-RECORD-2026-07-26T06:45:12.082Z] EVENT: ELECTRONIC_SIGNATURE_EXECUTED</div>
+                <div>AUTHENTICATED_USER: usr_9942a188 (Dr. Elena Rostova — Head of QA)</div>
+                <div>RESOURCE_IDENTIFIER: doc_sop_qa_042_v3 (Batch Release Protocol v3.0)</div>
+                <div>SIGNATURE_AUTHORITY: APPROVAL_AUTHORITY_FINAL</div>
+                <div>STATUTORY_COMPLIANCE: 21 CFR Part 11 / EU Annex 11 Verified</div>
+                <div style={{ color: '#64748B', marginTop: '8px', borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: '8px' }}>
+                  CRYPTOGRAPHIC_CHECKSUM: 3f8a91c2b5d4e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1
+                </div>
+              </div>
             </div>
           </div>
         </section>
 
-        {/* VIEWPORT 6: COMPANY CREDIBILITY */}
+        {/* VIEWPORT 6: VALUE PROPOSITIONS — WHY BIOTECH LEADERS CHOOSE VERITAS */}
         <section className={styles.luxuryViewport} style={{ borderTop: '1px solid rgba(10, 14, 23, 0.08)' }}>
           <div style={{ fontSize: '11px', fontWeight: '700', letterSpacing: '0.15em', textTransform: 'uppercase', color: '#047857', marginBottom: '20px', fontFamily: 'monospace' }}>
-            05 / SIMPLEAFIED SOLUTIONS
+            05 / ARCHITECTURE FOR GROWTH
           </div>
-          <h2 className={styles.luxuryHeadline} style={{ fontSize: '52px' }}>
-            European compliance infrastructure engineered for regulated innovation.
+          <h2 className={styles.luxuryHeadline} style={{ fontSize: '52px', marginBottom: '56px' }}>
+            Designed for biotechnology enterprise.
           </h2>
-          <p className={styles.luxurySubhead} style={{ fontSize: '18px', maxWidth: '640px' }}>
-            Simpleafied Solutions provides mission-critical software built specifically for life science innovators subject to EU Annex 11 and FDA 21 CFR Part 11 regulatory scrutiny.
-          </p>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '24px', width: '100%' }}>
+            <div className={styles.valueCard}>
+              <div style={{ fontSize: '11px', fontWeight: '700', color: '#047857', fontFamily: 'monospace', marginBottom: '12px' }}>01 / DEPLOYMENT SPEED</div>
+              <h3 style={{ fontSize: '20px', fontWeight: '800', color: '#0A0E17', marginBottom: '12px' }}>Inspection-Ready in 48 Hours</h3>
+              <p style={{ fontSize: '14px', color: '#475569', lineHeight: '1.6', margin: 0 }}>
+                Bypass 6-month legacy vendor onboarding. Pre-validated GxP templates allow emerging life science teams to achieve complete regulatory readiness in days.
+              </p>
+            </div>
+
+            <div className={styles.valueCard}>
+              <div style={{ fontSize: '11px', fontWeight: '700', color: '#047857', fontFamily: 'monospace', marginBottom: '12px' }}>02 / ZERO AUDIT ANXIETY</div>
+              <h3 style={{ fontSize: '20px', fontWeight: '800', color: '#0A0E17', marginBottom: '12px' }}>Audit-Ready Guarantee</h3>
+              <p style={{ fontSize: '14px', color: '#475569', lineHeight: '1.6', margin: 0 }}>
+                Automatic compliance evidence generation for EU Annex 11 and FDA 21 CFR Part 11 inspections, satisfying auditors, regulators, and Series A/B investors.
+              </p>
+            </div>
+
+            <div className={styles.valueCard}>
+              <div style={{ fontSize: '11px', fontWeight: '700', color: '#047857', fontFamily: 'monospace', marginBottom: '12px' }}>03 / CONNECTED INTELLIGENCE</div>
+              <h3 style={{ fontSize: '20px', fontWeight: '800', color: '#0A0E17', marginBottom: '12px' }}>Relational GxP Topology</h3>
+              <p style={{ fontSize: '14px', color: '#475569', lineHeight: '1.6', margin: 0 }}>
+                Updating one SOP automatically recalculates role qualifications, flags required retraining, and logs immutable audit evidence with zero orphan records.
+              </p>
+            </div>
+          </div>
         </section>
 
         {/* VIEWPORT 7: REQUEST DEMONSTRATION */}
         <section className={styles.luxuryViewport} style={{ borderTop: '1px solid rgba(10, 14, 23, 0.08)', paddingBottom: '32px' }}>
-          <h2 className={styles.luxuryHeadline} style={{ fontSize: '64px' }}>
-            Establish your quality foundation.
-          </h2>
-          <button
-            className={styles.btnLuxuryPrimary}
-            style={{ padding: '18px 44px', fontSize: '14px', marginTop: '16px' }}
-            onClick={() => setShowDemoRequestModal(true)}
-          >
-            Request Demonstration
-          </button>
+          <div className={styles.precisionFrame} style={{ textAlign: 'center', padding: '64px 48px', background: '#FFFFFF', maxWidth: '880px' }}>
+            <div style={{ fontSize: '11px', fontWeight: '700', letterSpacing: '0.15em', textTransform: 'uppercase', color: '#047857', marginBottom: '16px', fontFamily: 'monospace' }}>
+              RESERVED WALKTHROUGH
+            </div>
+            <h2 className={styles.luxuryHeadline} style={{ fontSize: '56px', marginBottom: '20px' }}>
+              Establish your quality foundation.
+            </h2>
+            <p className={styles.luxurySubhead} style={{ fontSize: '18px', maxWidth: '600px', margin: '0 auto 36px' }}>
+              Schedule a 15-minute 1-on-1 walkthrough with a European GxP Quality Architect. See how Veritas prepares your biotech enterprise for regulatory inspection.
+            </p>
+            <div style={{ display: 'flex', gap: '16px', justifyContent: 'center' }}>
+              <button
+                className={styles.btnLuxuryPrimary}
+                style={{ padding: '18px 44px', fontSize: '13px', letterSpacing: '0.05em' }}
+                onClick={() => setShowDemoRequestModal(true)}
+              >
+                REQUEST DEMONSTRATION →
+              </button>
+              <button
+                className={styles.btnLuxurySecondary}
+                style={{ padding: '18px 32px', fontSize: '13px', letterSpacing: '0.05em' }}
+                onClick={() => setShowLoginModal(true)}
+              >
+                MEMBER SIGN IN
+              </button>
+            </div>
+          </div>
         </section>
 
         {/* FOOTER */}
