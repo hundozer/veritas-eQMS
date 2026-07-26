@@ -21,6 +21,7 @@ export async function GET(req: NextRequest) {
           include: { inspectedBy: true },
           orderBy: { receivedAt: 'desc' },
         },
+        attachments: true,
       },
       orderBy: { createdAt: 'desc' },
     });
@@ -58,7 +59,7 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json();
-    const { name, contactEmail, contactPhone, category, riskClassification, reEvaluationIntervalDays, notes } = body;
+    const { name, contactEmail, contactPhone, category, riskClassification, reEvaluationIntervalDays, notes, attachments } = body;
 
     if (!name || !category || !riskClassification) {
       return NextResponse.json({ error: { code: 'ValidationFailed', message: 'Name, Category, and Risk Classification are required' } }, { status: 400 });
@@ -78,6 +79,16 @@ export async function POST(req: NextRequest) {
         riskClassification,
         reEvaluationDueDate,
         notes: notes || null,
+        attachments: attachments && Array.isArray(attachments) ? {
+          create: attachments.map((att: any) => ({
+            fileName: att.fileName,
+            fileType: att.fileType,
+            fileData: att.fileData,
+          })),
+        } : undefined,
+      },
+      include: {
+        attachments: true,
       },
     });
 
@@ -89,7 +100,7 @@ export async function POST(req: NextRequest) {
       action: 'Supplier.Register',
       objectType: 'Supplier',
       objectId: supplier.id,
-      payload: { supplierName: supplier.name, category: supplier.category, riskClassification: supplier.riskClassification },
+      payload: { supplierName: supplier.name, category: supplier.category, riskClassification: supplier.riskClassification, attachmentsCount: attachments?.length || 0 },
       status: 'Success',
       requestUrl: req.nextUrl.pathname,
     });

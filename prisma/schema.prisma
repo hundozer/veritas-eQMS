@@ -289,6 +289,17 @@ model Supplier {
   updatedAt               DateTime          @updatedAt
   audits                  SupplierAudit[]
   materialReceipts        MaterialReceipt[]
+  attachments             SupplierAttachment[]
+}
+
+model SupplierAttachment {
+  id         String   @id @default(uuid())
+  supplierId String
+  supplier   Supplier @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  fileName   String
+  fileType   String
+  fileData   String   // Base64 encoded file content
+  uploadedAt DateTime @default(now())
 }
 
 model SupplierAudit {
@@ -452,5 +463,125 @@ model RegulatoryUpdateLog {
   deprecatedRequirements Int            @default(0)
   changeManifest       String?          // JSON detail of every requirement change
   createdAt            DateTime         @default(now())
+}
+
+model IamUser {
+  id                 String          @id @default(uuid())
+  email              String          @unique
+  passwordHash       String
+  firstName          String
+  lastName           String
+  phone              String?
+  mfaEnabled         Boolean         @default(false)
+  mfaSecret          String?         // TOTP key or secret
+  accountStatus      String          @default("INVITED") // INVITED, ACTIVE, SUSPENDED, DEACTIVATED
+  createdAt          DateTime        @default(now())
+  updatedAt          DateTime        @updatedAt
+  lastLogin          DateTime?
+  lastPasswordChange DateTime?
+  memberships        IamMembership[]
+  sessions           IamSession[]
+  auditTrails        IamAuditTrail[]
+}
+
+model IamOrganization {
+  id               String                   @id @default(uuid())
+  legalName        String
+  companyName      String
+  country          String
+  industry         String
+  size             String
+  subscriptionPlan String                   @default("TRIAL") // TRIAL, ACTIVE, ENTERPRISE
+  status           String                   @default("TRIAL") // TRIAL, ACTIVE, SUSPENDED, ARCHIVED
+  createdAt        DateTime                 @default(now())
+  updatedAt        DateTime                 @updatedAt
+  memberships      IamMembership[]
+  subscriptions    IamProductSubscription[]
+  auditTrails      IamAuditTrail[]
+}
+
+model IamMembership {
+  id             String          @id @default(uuid())
+  userId         String
+  user           IamUser         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organizationId String
+  organization   IamOrganization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  roleId         String
+  role           IamRole         @relation(fields: [roleId], references: [id])
+  status         String          @default("PENDING") // PENDING, ACTIVE, SUSPENDED
+  createdBy      String?
+  approvedBy     String?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  @@unique([userId, organizationId])
+}
+
+model IamProductSubscription {
+  id             String          @id @default(uuid())
+  organizationId String
+  organization   IamOrganization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  productName    String          // VERITAS, NEXUS, GENESIS
+  status         String          @default("INACTIVE") // ACTIVE, INACTIVE
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  @@unique([organizationId, productName])
+}
+
+model IamRole {
+  id          String                  @id @default(uuid())
+  name        String                  @unique // e.g. "Organization Owner", "Quality Manager", "Employee"
+  description String
+  isSystem    Boolean                 @default(false)
+  memberships IamMembership[]
+  permissions IamRolePermission[]
+}
+
+model IamPermission {
+  id          String                  @id @default(uuid())
+  name        String                  @unique // e.g. "DOCUMENT_VIEW", "USER_INVITE"
+  description String
+  roles       IamRolePermission[]
+}
+
+model IamRolePermission {
+  roleId       String
+  role         IamRole       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permissionId String
+  permission   IamPermission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permissionId])
+}
+
+model IamSession {
+  id           String    @id @default(uuid())
+  userId       String
+  user         IamUser   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  refreshToken String    @unique
+  ipAddress    String?
+  userAgent    String?
+  location     String?   @default("Unknown")
+  isActive     Boolean   @default(true)
+  createdAt    DateTime  @default(now())
+  lastActiveAt DateTime  @default(now())
+}
+
+model IamAuditTrail {
+  id             String           @id @default(uuid())
+  organizationId String?
+  organization   IamOrganization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  userId         String?
+  user           IamUser?         @relation(fields: [userId], references: [id], onDelete: SetNull)
+  userEmail      String
+  userRole       String?
+  action         String           // e.g. LOGIN, USER_INVITED, ROLE_ASSIGNED
+  objectType     String           // e.g. User, Organization, Membership
+  objectId       String?
+  payload        String           // JSON string of metadata (e.g. before/after, reason)
+  status         String           @default("SUCCESS") // SUCCESS, FAILED, DENIED
+  ipAddress      String?
+  reason         String?
+  createdAt      DateTime         @default(now())
 }
 

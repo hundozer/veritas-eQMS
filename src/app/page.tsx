@@ -210,6 +210,15 @@ interface MaterialReceipt {
   createdAt: string;
 }
 
+interface SupplierAttachment {
+  id: string;
+  supplierId: string;
+  fileName: string;
+  fileType: string;
+  fileData: string;
+  uploadedAt: string;
+}
+
 interface Supplier {
   id: string;
   name: string;
@@ -224,6 +233,7 @@ interface Supplier {
   createdAt: string;
   audits: SupplierAudit[];
   materialReceipts: MaterialReceipt[];
+  attachments?: SupplierAttachment[];
 }
 
 interface QuizQuestion {
@@ -320,6 +330,7 @@ export default function Home() {
   const [newSupRisk, setNewSupRisk] = useState('CRITICAL');
   const [newSupNotes, setNewSupNotes] = useState('');
   const [newSupInterval, setNewSupInterval] = useState('365');
+  const [newSupAttachments, setNewSupAttachments] = useState<Array<{ fileName: string; fileType: string; fileData: string }>>([]);
 
   // Supplier Audit Form State
   const [auditType, setAuditType] = useState('ROUTINE_ANNUAL');
@@ -1141,6 +1152,34 @@ export default function Home() {
     }
   };
 
+  const handleSupplierFilesChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files) return;
+    const loadedAttachments: Array<{ fileName: string; fileType: string; fileData: string }> = [];
+
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      const reader = new FileReader();
+      
+      const fileData = await new Promise<string>((resolve) => {
+        reader.onload = (ev) => {
+          const result = ev.target?.result as string;
+          const base64 = result.split(',')[1];
+          resolve(base64);
+        };
+        reader.readAsDataURL(file);
+      });
+
+      loadedAttachments.push({
+        fileName: file.name,
+        fileType: file.type,
+        fileData,
+      });
+    }
+
+    setNewSupAttachments(loadedAttachments);
+  };
+
   // Register new supplier
   const handleCreateSupplier = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -1161,6 +1200,7 @@ export default function Home() {
           riskClassification: newSupRisk,
           reEvaluationIntervalDays: newSupInterval,
           notes: newSupNotes,
+          attachments: newSupAttachments,
         }),
       });
 
@@ -1172,6 +1212,7 @@ export default function Home() {
         setNewSupEmail('');
         setNewSupPhone('');
         setNewSupNotes('');
+        setNewSupAttachments([]);
         fetchData();
       } else {
         setErrorMessage(data.error?.message || 'Failed to register supplier');
@@ -3596,6 +3637,48 @@ export default function Home() {
                         </button>
                       </div>
 
+                      {/* Attached Documents */}
+                      <div>
+                        <h4 style={{ marginBottom: '8px' }}>Attached Qualification Documents</h4>
+                        {selectedSupplier.attachments && selectedSupplier.attachments.length > 0 ? (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                            {selectedSupplier.attachments.map((att: any) => (
+                              <div
+                                key={att.id}
+                                style={{
+                                  display: 'flex',
+                                  justifyContent: 'space-between',
+                                  alignItems: 'center',
+                                  background: 'rgba(255,255,255,0.03)',
+                                  border: '1px solid rgba(255,255,255,0.06)',
+                                  padding: '10px 14px',
+                                  fontSize: '13px',
+                                }}
+                              >
+                                <span style={{ fontWeight: '500' }}>📎 {att.fileName}</span>
+                                <a
+                                  href={`data:${att.fileType};base64,${att.fileData}`}
+                                  download={att.fileName}
+                                  style={{
+                                    color: '#A3E635',
+                                    textDecoration: 'none',
+                                    fontWeight: '700',
+                                    fontSize: '12px',
+                                    fontFamily: 'monospace',
+                                  }}
+                                >
+                                  [ DOWNLOAD ]
+                                </a>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="glass" style={{ padding: '16px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '13px' }}>
+                            No qualification files attached.
+                          </div>
+                        )}
+                      </div>
+
                       {/* Audit Log History */}
                       <div>
                         <h4 style={{ marginBottom: '8px' }}>Supplier Audit History</h4>
@@ -4899,6 +4982,28 @@ export default function Home() {
                     onChange={(e) => setNewSupNotes(e.target.value)}
                     style={{ resize: 'vertical' }}
                   />
+                </div>
+
+                <div className={styles.formGroup}>
+                  <label className={styles.formLabel}>Attach Qualification Documents (.pdf, .txt, .png)</label>
+                  <input
+                    className={styles.input}
+                    type="file"
+                    multiple
+                    accept=".pdf,.txt,.png,.jpg,.jpeg"
+                    onChange={handleSupplierFilesChange}
+                    style={{ background: 'rgba(10,14,23,0.5)', border: '1px solid rgba(255,255,255,0.12)', color: '#FBFBFA', padding: '8px' }}
+                  />
+                  {newSupAttachments.length > 0 && (
+                    <div style={{ marginTop: '8px', fontSize: '11px', color: '#10B981', fontFamily: 'monospace' }}>
+                      📎 {newSupAttachments.length} file(s) ready to upload:
+                      <ul style={{ margin: '4px 0 0 12px', padding: 0, listStyleType: 'disc' }}>
+                        {newSupAttachments.map((att, i) => (
+                          <li key={i}>{att.fileName}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
                 </div>
               </div>
               <div className={styles.modalFooter}>
