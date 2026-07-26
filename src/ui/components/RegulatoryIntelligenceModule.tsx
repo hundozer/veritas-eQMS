@@ -50,7 +50,7 @@ interface IntelligenceData {
 }
 
 export function RegulatoryIntelligenceModule({ currentUser }: { currentUser: any }) {
-  const [activeSubTab, setActiveSubTab] = useState<'dashboard' | 'library' | 'repository' | 'taxonomy' | 'graph' | 'import'>('dashboard');
+  const [activeSubTab, setActiveSubTab] = useState<'dashboard' | 'library' | 'repository' | 'taxonomy' | 'graph' | 'import' | 'updates'>('dashboard');
   const [data, setData] = useState<IntelligenceData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -71,6 +71,12 @@ export function RegulatoryIntelligenceModule({ currentUser }: { currentUser: any
   const [importChapter, setImportChapter] = useState('Chapter 4: Documentation');
   const [importing, setImporting] = useState(false);
   const [importResult, setImportResult] = useState<string | null>(null);
+
+  // Update check state
+  const [updateData, setUpdateData] = useState<any>(null);
+  const [checkingUpdates, setCheckingUpdates] = useState(false);
+  const [updateError, setUpdateError] = useState<string | null>(null);
+  const [applyingUpdate, setApplyingUpdate] = useState(false);
 
   const fetchRequirements = async () => {
     try {
@@ -270,6 +276,7 @@ export function RegulatoryIntelligenceModule({ currentUser }: { currentUser: any
           { id: 'taxonomy', label: '🏷️ Quality Taxonomy' },
           { id: 'graph', label: '🕸️ Knowledge Graph' },
           { id: 'import', label: '📥 Regulatory PDF Import' },
+          { id: 'updates', label: '🔄 Version & Updates' },
         ].map((tab) => (
           <button
             key={tab.id}
@@ -866,6 +873,356 @@ export function RegulatoryIntelligenceModule({ currentUser }: { currentUser: any
               </div>
             </form>
           </div>
+        </div>
+      )}
+
+      {/* ───────────────── TAB 7: VERSION & UPDATES ───────────────── */}
+      {activeSubTab === 'updates' && (
+        <div>
+          {/* Header */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '32px' }}>
+            <div>
+              <div style={{ fontSize: '11px', fontWeight: '700', letterSpacing: '0.12em', color: '#047857', fontFamily: 'monospace', textTransform: 'uppercase', marginBottom: '6px' }}>
+                REGULATORY CONTENT AUTHORITY
+              </div>
+              <h3 style={{ fontSize: '22px', fontWeight: '800', color: '#0A0E17', margin: 0, letterSpacing: '-0.02em' }}>
+                Version Control & Update Management
+              </h3>
+              <p style={{ fontSize: '13px', color: '#64748B', marginTop: '6px', maxWidth: '600px', lineHeight: '1.5' }}>
+                Track regulatory content versions, check for updates from the Simpleafied Regulatory Content Authority, review changelogs, and apply updates to your compliance environment.
+              </p>
+            </div>
+            <button
+              onClick={async () => {
+                setCheckingUpdates(true);
+                setUpdateError(null);
+                try {
+                  const res = await fetch('/api/intelligence/updates', {
+                    headers: { 'x-user-email': currentUser?.email || '' },
+                  });
+                  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                  const json = await res.json();
+                  setUpdateData(json);
+                } catch (err: any) {
+                  setUpdateError(err.message);
+                } finally {
+                  setCheckingUpdates(false);
+                }
+              }}
+              disabled={checkingUpdates}
+              style={{
+                background: checkingUpdates ? '#94A3B8' : '#0A0E17',
+                color: '#FBFBFA',
+                border: 'none',
+                padding: '14px 28px',
+                fontSize: '12px',
+                fontWeight: '700',
+                fontFamily: 'monospace',
+                letterSpacing: '0.06em',
+                cursor: checkingUpdates ? 'not-allowed' : 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+              }}
+            >
+              {checkingUpdates ? (
+                <><span style={{ animation: 'spin 1s linear infinite', display: 'inline-block' }}>⟳</span> CHECKING…</>
+              ) : (
+                <>🔍 CHECK FOR UPDATES</>
+              )}
+            </button>
+          </div>
+
+          {updateError && (
+            <div style={{ padding: '16px 20px', background: 'rgba(239, 68, 68, 0.08)', border: '1px solid rgba(239, 68, 68, 0.3)', marginBottom: '24px', fontSize: '13px', color: '#DC2626', fontFamily: 'monospace' }}>
+              ⚠ Update check failed: {updateError}
+            </div>
+          )}
+
+          {/* Current versions panel (always shown from main data) */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '32px' }}>
+            {data?.sources?.map((source: any) => (
+              <div key={source.regulationId || source.id} style={{ background: '#FBFBFA', border: '1px solid rgba(10,14,23,0.12)', padding: '24px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
+                  <div>
+                    <div style={{ fontSize: '11px', fontWeight: '700', letterSpacing: '0.1em', color: '#64748B', fontFamily: 'monospace', textTransform: 'uppercase', marginBottom: '4px' }}>
+                      {source.authority || 'Regulatory Authority'}
+                    </div>
+                    <div style={{ fontSize: '16px', fontWeight: '800', color: '#0A0E17', letterSpacing: '-0.02em' }}>
+                      {source.title}
+                    </div>
+                  </div>
+                  <div style={{
+                    padding: '4px 12px',
+                    fontSize: '11px',
+                    fontWeight: '700',
+                    fontFamily: 'monospace',
+                    letterSpacing: '0.08em',
+                    background: source.status === 'ACTIVE' ? 'rgba(4, 120, 87, 0.1)' : source.status === 'UPDATE_AVAILABLE' ? 'rgba(245, 158, 11, 0.1)' : 'rgba(100, 116, 139, 0.1)',
+                    color: source.status === 'ACTIVE' ? '#047857' : source.status === 'UPDATE_AVAILABLE' ? '#D97706' : '#64748B',
+                    border: `1px solid ${source.status === 'ACTIVE' ? 'rgba(4, 120, 87, 0.3)' : source.status === 'UPDATE_AVAILABLE' ? 'rgba(245, 158, 11, 0.3)' : 'rgba(100, 116, 139, 0.3)'}`,
+                  }}>
+                    {source.status || 'ACTIVE'}
+                  </div>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px' }}>
+                  <div style={{ padding: '12px', background: 'rgba(10,14,23,0.03)', border: '1px solid rgba(10,14,23,0.06)' }}>
+                    <div style={{ fontSize: '10px', fontWeight: '700', letterSpacing: '0.1em', color: '#94A3B8', fontFamily: 'monospace', marginBottom: '4px' }}>INSTALLED VERSION</div>
+                    <div style={{ fontSize: '18px', fontWeight: '800', color: '#0A0E17', fontFamily: 'monospace' }}>{source.version || 'N/A'}</div>
+                  </div>
+                  <div style={{ padding: '12px', background: 'rgba(10,14,23,0.03)', border: '1px solid rgba(10,14,23,0.06)' }}>
+                    <div style={{ fontSize: '10px', fontWeight: '700', letterSpacing: '0.1em', color: '#94A3B8', fontFamily: 'monospace', marginBottom: '4px' }}>REGION</div>
+                    <div style={{ fontSize: '14px', fontWeight: '700', color: '#0A0E17' }}>{source.region}</div>
+                  </div>
+                  <div style={{ padding: '12px', background: 'rgba(10,14,23,0.03)', border: '1px solid rgba(10,14,23,0.06)' }}>
+                    <div style={{ fontSize: '10px', fontWeight: '700', letterSpacing: '0.1em', color: '#94A3B8', fontFamily: 'monospace', marginBottom: '4px' }}>REQUIREMENTS</div>
+                    <div style={{ fontSize: '18px', fontWeight: '800', color: '#0A0E17', fontFamily: 'monospace' }}>{data?.metrics?.totalRequirements ?? '—'}</div>
+                  </div>
+                </div>
+              </div>
+            )) ?? (
+              <div style={{ gridColumn: '1 / -1', padding: '20px', textAlign: 'center', color: '#94A3B8', fontSize: '13px', fontFamily: 'monospace' }}>
+                No regulation sources configured. Complete onboarding with a regulatory framework to populate this section.
+              </div>
+            )}
+          </div>
+
+          {/* Update check results */}
+          {updateData && (
+            <div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', paddingBottom: '12px', borderBottom: '1px solid rgba(10,14,23,0.12)' }}>
+                <div style={{ fontSize: '14px', fontWeight: '700', color: '#0A0E17', letterSpacing: '-0.01em' }}>
+                  🔍 Update Check Results
+                </div>
+                <div style={{ fontSize: '11px', color: '#94A3B8', fontFamily: 'monospace' }}>
+                  Last checked: {new Date(updateData.checkedAt).toLocaleString()}
+                </div>
+              </div>
+
+              {updateData.sources?.map((src: any) => (
+                <div key={src.regulationId} style={{ marginBottom: '24px', border: '1px solid rgba(10,14,23,0.12)', background: '#FBFBFA' }}>
+                  {/* Source header */}
+                  <div style={{ padding: '20px 24px', borderBottom: '1px solid rgba(10,14,23,0.08)' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                        <span style={{ fontSize: '20px' }}>{src.updateAvailable ? '⚠️' : '✅'}</span>
+                        <div>
+                          <div style={{ fontSize: '15px', fontWeight: '700', color: '#0A0E17' }}>{src.title}</div>
+                          <div style={{ fontSize: '12px', color: '#64748B', fontFamily: 'monospace', marginTop: '2px' }}>
+                            {src.authority} • {src.region}
+                          </div>
+                        </div>
+                      </div>
+                      <div style={{
+                        padding: '6px 16px',
+                        fontSize: '11px',
+                        fontWeight: '800',
+                        fontFamily: 'monospace',
+                        letterSpacing: '0.08em',
+                        background: src.status === 'UP_TO_DATE' ? 'rgba(4, 120, 87, 0.1)' : 'rgba(245, 158, 11, 0.1)',
+                        color: src.status === 'UP_TO_DATE' ? '#047857' : '#D97706',
+                        border: `1px solid ${src.status === 'UP_TO_DATE' ? 'rgba(4, 120, 87, 0.3)' : 'rgba(245, 158, 11, 0.3)'}`,
+                      }}>
+                        {src.status === 'UP_TO_DATE' ? '● UP TO DATE' : '● UPDATE AVAILABLE'}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Version comparison */}
+                  <div style={{ padding: '20px 24px', display: 'grid', gridTemplateColumns: '1fr auto 1fr', gap: '20px', alignItems: 'center' }}>
+                    <div style={{ padding: '16px', background: 'rgba(10,14,23,0.03)', border: '1px solid rgba(10,14,23,0.08)', textAlign: 'center' }}>
+                      <div style={{ fontSize: '10px', fontWeight: '700', letterSpacing: '0.1em', color: '#94A3B8', fontFamily: 'monospace', marginBottom: '6px' }}>INSTALLED</div>
+                      <div style={{ fontSize: '22px', fontWeight: '800', color: '#0A0E17', fontFamily: 'monospace' }}>{src.currentVersion}</div>
+                    </div>
+                    <div style={{ fontSize: '24px', color: src.updateAvailable ? '#D97706' : '#047857' }}>
+                      {src.updateAvailable ? '→' : '='}
+                    </div>
+                    <div style={{ padding: '16px', background: src.updateAvailable ? 'rgba(245, 158, 11, 0.06)' : 'rgba(4, 120, 87, 0.06)', border: `1px solid ${src.updateAvailable ? 'rgba(245, 158, 11, 0.2)' : 'rgba(4, 120, 87, 0.2)'}`, textAlign: 'center' }}>
+                      <div style={{ fontSize: '10px', fontWeight: '700', letterSpacing: '0.1em', color: '#94A3B8', fontFamily: 'monospace', marginBottom: '6px' }}>LATEST AVAILABLE</div>
+                      <div style={{ fontSize: '22px', fontWeight: '800', color: src.updateAvailable ? '#D97706' : '#047857', fontFamily: 'monospace' }}>{src.latestAvailableVersion}</div>
+                    </div>
+                  </div>
+
+                  {/* Pending update details */}
+                  {src.pendingUpdate && (
+                    <div style={{ padding: '0 24px 24px' }}>
+                      <div style={{ background: 'rgba(245, 158, 11, 0.06)', border: '1px solid rgba(245, 158, 11, 0.2)', padding: '20px' }}>
+                        <div style={{ fontSize: '12px', fontWeight: '700', letterSpacing: '0.08em', color: '#D97706', fontFamily: 'monospace', marginBottom: '8px' }}>
+                          PENDING UPDATE — QUALITY MANAGER REVIEW REQUIRED
+                        </div>
+                        <p style={{ fontSize: '13px', color: '#0A0E17', lineHeight: '1.6', margin: '0 0 16px' }}>
+                          {src.pendingUpdate.summary}
+                        </p>
+                        <div style={{ fontSize: '12px', color: '#64748B', fontFamily: 'monospace', marginBottom: '16px' }}>
+                          Published: {new Date(src.pendingUpdate.publishedAt).toLocaleDateString()}
+                        </div>
+
+                        {src.pendingUpdate.changelog?.length > 0 && (
+                          <div style={{ marginBottom: '16px' }}>
+                            <div style={{ fontSize: '11px', fontWeight: '700', letterSpacing: '0.1em', color: '#64748B', fontFamily: 'monospace', marginBottom: '8px' }}>CHANGELOG</div>
+                            {src.pendingUpdate.changelog.map((change: any, idx: number) => (
+                              <div key={idx} style={{ display: 'flex', gap: '10px', padding: '8px 12px', background: change.type === 'ADDED' ? 'rgba(4,120,87,0.05)' : change.type === 'MODIFIED' ? 'rgba(59,130,246,0.05)' : 'rgba(239,68,68,0.05)', marginBottom: '4px', fontSize: '12px' }}>
+                                <span style={{ fontWeight: '700', fontFamily: 'monospace', color: change.type === 'ADDED' ? '#047857' : change.type === 'MODIFIED' ? '#2563EB' : '#DC2626', minWidth: '80px' }}>
+                                  {change.type === 'ADDED' ? '+ ADDED' : change.type === 'MODIFIED' ? '~ MODIFIED' : '- DEPRECATED'}
+                                </span>
+                                <span style={{ color: '#0A0E17' }}>{change.requirementId}: {change.description}</span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+
+                        <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
+                          <button
+                            onClick={async () => {
+                              try {
+                                await fetch('/api/intelligence/updates', {
+                                  method: 'POST',
+                                  headers: { 'Content-Type': 'application/json', 'x-user-email': currentUser?.email || '' },
+                                  body: JSON.stringify({ regulationId: src.regulationId, action: 'DISMISS' }),
+                                });
+                                // Re-check
+                                const res = await fetch('/api/intelligence/updates', { headers: { 'x-user-email': currentUser?.email || '' } });
+                                if (res.ok) setUpdateData(await res.json());
+                              } catch (err) { console.error(err); }
+                            }}
+                            style={{ background: '#F1F5F9', border: '1px solid rgba(10,14,23,0.2)', padding: '10px 20px', fontSize: '12px', fontFamily: 'monospace', fontWeight: '700', cursor: 'pointer' }}
+                          >
+                            DISMISS
+                          </button>
+                          <button
+                            disabled={applyingUpdate}
+                            onClick={async () => {
+                              setApplyingUpdate(true);
+                              try {
+                                const res = await fetch('/api/intelligence/updates', {
+                                  method: 'POST',
+                                  headers: { 'Content-Type': 'application/json', 'x-user-email': currentUser?.email || '' },
+                                  body: JSON.stringify({ regulationId: src.regulationId, action: 'APPLY' }),
+                                });
+                                if (res.ok) {
+                                  // Re-check to refresh the panel
+                                  const checkRes = await fetch('/api/intelligence/updates', { headers: { 'x-user-email': currentUser?.email || '' } });
+                                  if (checkRes.ok) setUpdateData(await checkRes.json());
+                                  fetchRequirements();
+                                }
+                              } catch (err) { console.error(err); } finally {
+                                setApplyingUpdate(false);
+                              }
+                            }}
+                            style={{
+                              background: applyingUpdate ? '#94A3B8' : '#047857',
+                              color: '#FBFBFA',
+                              border: 'none',
+                              padding: '10px 24px',
+                              fontSize: '12px',
+                              fontFamily: 'monospace',
+                              fontWeight: '700',
+                              letterSpacing: '0.06em',
+                              cursor: applyingUpdate ? 'not-allowed' : 'pointer',
+                            }}
+                          >
+                            {applyingUpdate ? 'APPLYING…' : '⚡ REVIEW & APPLY UPDATE'}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Update history */}
+                  {src.recentUpdateHistory?.length > 0 && (
+                    <div style={{ padding: '0 24px 24px' }}>
+                      <div style={{ fontSize: '11px', fontWeight: '700', letterSpacing: '0.1em', color: '#64748B', fontFamily: 'monospace', marginBottom: '12px' }}>
+                        UPDATE HISTORY
+                      </div>
+                      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
+                        <thead>
+                          <tr style={{ borderBottom: '2px solid rgba(10,14,23,0.12)' }}>
+                            {['Version Transition', 'Published', 'Applied', 'Status', 'Changes'].map(h => (
+                              <th key={h} style={{ padding: '8px 12px', textAlign: 'left', fontWeight: '700', fontFamily: 'monospace', letterSpacing: '0.06em', color: '#64748B', fontSize: '10px' }}>{h}</th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {src.recentUpdateHistory.map((log: any) => (
+                            <tr key={log.id} style={{ borderBottom: '1px solid rgba(10,14,23,0.06)' }}>
+                              <td style={{ padding: '10px 12px', fontFamily: 'monospace', fontWeight: '700' }}>
+                                {log.fromVersion} → {log.toVersion}
+                              </td>
+                              <td style={{ padding: '10px 12px', color: '#64748B' }}>
+                                {new Date(log.publishedAt).toLocaleDateString()}
+                              </td>
+                              <td style={{ padding: '10px 12px', color: '#64748B' }}>
+                                {log.appliedAt ? new Date(log.appliedAt).toLocaleDateString() : '—'}
+                              </td>
+                              <td style={{ padding: '10px 12px' }}>
+                                <span style={{
+                                  padding: '2px 8px',
+                                  fontSize: '10px',
+                                  fontWeight: '700',
+                                  fontFamily: 'monospace',
+                                  background: log.status === 'APPLIED' ? 'rgba(4,120,87,0.1)' : log.status === 'DISMISSED' ? 'rgba(239,68,68,0.1)' : 'rgba(245,158,11,0.1)',
+                                  color: log.status === 'APPLIED' ? '#047857' : log.status === 'DISMISSED' ? '#DC2626' : '#D97706',
+                                }}>
+                                  {log.status}
+                                </span>
+                              </td>
+                              <td style={{ padding: '10px 12px', fontFamily: 'monospace', fontSize: '11px', color: '#64748B' }}>
+                                +{log.addedRequirements} / ~{log.modifiedRequirements} / -{log.deprecatedRequirements}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+
+                  {/* Metadata footer */}
+                  <div style={{ padding: '16px 24px', background: 'rgba(10,14,23,0.02)', borderTop: '1px solid rgba(10,14,23,0.06)', display: 'flex', gap: '24px', fontSize: '11px', color: '#94A3B8', fontFamily: 'monospace' }}>
+                    <span>Requirements: <strong style={{ color: '#0A0E17' }}>{src.requirementCount}</strong></span>
+                    <span>Last reviewed: <strong style={{ color: '#0A0E17' }}>{new Date(src.lastReviewedDate).toLocaleDateString()}</strong></span>
+                    <span>Last checked: <strong style={{ color: '#0A0E17' }}>{new Date(src.lastCheckedForUpdate).toLocaleDateString()}</strong></span>
+                    {src.sourceUrl && (
+                      <a href={src.sourceUrl} target="_blank" rel="noopener noreferrer" style={{ color: '#2563EB', textDecoration: 'none' }}>
+                        Official Source ↗
+                      </a>
+                    )}
+                  </div>
+                </div>
+              ))}
+
+              {/* Architecture explanation */}
+              <div style={{ marginTop: '32px', padding: '24px', background: 'rgba(10,14,23,0.02)', border: '1px solid rgba(10,14,23,0.08)' }}>
+                <div style={{ fontSize: '11px', fontWeight: '700', letterSpacing: '0.1em', color: '#64748B', fontFamily: 'monospace', marginBottom: '12px' }}>
+                  HOW REGULATORY CONTENT UPDATES WORK
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '16px' }}>
+                  {[
+                    { step: '01', title: 'Monitor', desc: 'Simpleafied monitors EMA, EC, and national authority publications for regulatory changes.' },
+                    { step: '02', title: 'Package', desc: 'Changes are structured into versioned content packages with requirement-level diffs.' },
+                    { step: '03', title: 'Notify', desc: 'Your Veritas instance is notified when a new version is available for your regulatory scope.' },
+                    { step: '04', title: 'Review & Apply', desc: 'Your Quality Manager reviews the changelog and applies the update with full audit trail.' },
+                  ].map((s) => (
+                    <div key={s.step} style={{ padding: '16px' }}>
+                      <div style={{ fontSize: '24px', fontWeight: '800', color: '#047857', fontFamily: 'monospace', marginBottom: '8px' }}>{s.step}</div>
+                      <div style={{ fontSize: '13px', fontWeight: '700', color: '#0A0E17', marginBottom: '4px' }}>{s.title}</div>
+                      <div style={{ fontSize: '12px', color: '#64748B', lineHeight: '1.5' }}>{s.desc}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Initial state — before first check */}
+          {!updateData && !checkingUpdates && !updateError && (
+            <div style={{ textAlign: 'center', padding: '60px 20px', background: 'rgba(10,14,23,0.02)', border: '1px dashed rgba(10,14,23,0.15)' }}>
+              <div style={{ fontSize: '40px', marginBottom: '16px' }}>🔄</div>
+              <div style={{ fontSize: '15px', fontWeight: '700', color: '#0A0E17', marginBottom: '8px' }}>No update check performed yet</div>
+              <p style={{ fontSize: '13px', color: '#64748B', maxWidth: '500px', margin: '0 auto 20px', lineHeight: '1.5' }}>
+                Click <strong>&ldquo;Check for Updates&rdquo;</strong> to connect to the Simpleafied Regulatory Content Authority and verify that your regulatory knowledge base is running the latest approved version.
+              </p>
+            </div>
+          )}
         </div>
       )}
     </div>

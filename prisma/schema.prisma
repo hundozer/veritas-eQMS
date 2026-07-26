@@ -379,20 +379,25 @@ model VeritasComplianceRule {
 }
 
 model RegulationSource {
-  id               String                  @id @default(uuid())
-  regulationId     String                  @unique // e.g. "EU-GMP-VOL4"
-  title            String                  // e.g. "EU GMP Volume 4 - Medicinal Products for Human & Veterinary Use"
-  authority        String                  // e.g. "European Commission / EMA"
-  region           String                  @default("European Union")
-  version          String                  @default("Current Revision")
-  publicationDate  DateTime                @default(now())
-  effectiveDate    DateTime                @default(now())
-  status           String                  @default("ACTIVE") // ACTIVE, ARCHIVED, DRAFT
-  sourceDocument   String?
-  lastReviewedDate DateTime                @default(now())
-  createdAt        DateTime                @default(now())
-  updatedAt        DateTime                @updatedAt
-  requirements     RegulatoryRequirement[]
+  id                 String                  @id @default(uuid())
+  regulationId       String                  @unique // e.g. "EU-GMP-VOL4"
+  title              String                  // e.g. "EU GMP Volume 4 - Medicinal Products for Human & Veterinary Use"
+  authority          String                  // e.g. "European Commission / EMA"
+  region             String                  @default("European Union")
+  version            String                  @default("2024.1") // Semantic content version
+  contentHash        String?                 // SHA-256 hash of canonical requirement content — detects drift
+  publicationDate    DateTime                @default(now())
+  effectiveDate      DateTime                @default(now())
+  status             String                  @default("ACTIVE") // ACTIVE, ARCHIVED, DRAFT, UPDATE_AVAILABLE
+  sourceDocument     String?
+  sourceUrl          String?                 // Official publication URL for reference
+  lastReviewedDate   DateTime                @default(now())
+  lastCheckedForUpdate DateTime              @default(now())
+  latestAvailableVersion String?             // Set when central authority publishes a newer version
+  createdAt          DateTime                @default(now())
+  updatedAt          DateTime                @updatedAt
+  requirements       RegulatoryRequirement[]
+  updateLogs         RegulatoryUpdateLog[]
 }
 
 model RegulatoryRequirement {
@@ -409,8 +414,11 @@ model RegulatoryRequirement {
   expectedEvidence   String
   applicableAreas    String                    // JSON array string e.g. ["Quality Assurance", "Production", "QC"]
   affectedProcesses  String                    // JSON array string e.g. ["Document Management", "Training", "Change Control"]
-  status             String                    @default("APPROVED") // PENDING_REVIEW, APPROVED, REJECTED
+  status             String                    @default("APPROVED") // PENDING_REVIEW, APPROVED, REJECTED, SUPERSEDED, DEPRECATED
   aiExtracted        Boolean                   @default(false)
+  supersededBy       String?                   // requirementId of the replacement requirement (if superseded)
+  changeType         String?                   // NEW, MODIFIED, UNCHANGED, DEPRECATED — set during version updates
+  previousText       String?                   // Prior requirementText before update — for diff view
   createdAt          DateTime                  @default(now())
   updatedAt          DateTime                  @updatedAt
   relationships      RequirementRelationship[]
@@ -427,6 +435,22 @@ model RequirementRelationship {
   createdAt        DateTime              @default(now())
 }
 
-
-
+// Tracks each regulatory content version update received by this tenant
+model RegulatoryUpdateLog {
+  id                   String           @id @default(uuid())
+  regulationSourceId   String
+  regulationSource     RegulationSource @relation(fields: [regulationSourceId], references: [id], onDelete: Cascade)
+  fromVersion          String           // e.g. "2024.1"
+  toVersion            String           // e.g. "2026.1"
+  publishedAt          DateTime         // When the central authority published this update
+  appliedAt            DateTime?        // When the tenant QM accepted and applied this update
+  appliedByUserId      String?          // User who reviewed and accepted the update
+  status               String           @default("AVAILABLE") // AVAILABLE, REVIEWING, APPLIED, DISMISSED
+  summary              String           // Human-readable summary of what changed
+  addedRequirements    Int              @default(0)
+  modifiedRequirements Int              @default(0)
+  deprecatedRequirements Int            @default(0)
+  changeManifest       String?          // JSON detail of every requirement change
+  createdAt            DateTime         @default(now())
+}
 

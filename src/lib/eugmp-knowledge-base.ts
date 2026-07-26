@@ -227,9 +227,11 @@ export async function ensureEUGMPKnowledgeBaseSeeded(): Promise<string> {
           title: 'EU GMP Volume 4 — Medicinal Products for Human & Veterinary Use',
           authority: 'European Commission / European Medicines Agency (EMA)',
           region: 'European Union',
-          version: 'EudraLex Vol 4 Current Revision',
+          version: '2024.1',
+          sourceUrl: 'https://health.ec.europa.eu/medicinal-products/eudralex/eudralex-volume-4_en',
           status: 'ACTIVE',
           lastReviewedDate: new Date(),
+          lastCheckedForUpdate: new Date(),
         },
       });
     }
