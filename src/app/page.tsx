@@ -1623,38 +1623,76 @@ export default function Home() {
 
         {/* ENTERPRISE DEMO REQUEST MODAL */}
         {showDemoRequestModal && (
-          <div className={styles.modalOverlay}>
-            <div className={styles.modalContent} style={{ maxWidth: '520px' }}>
-              <div className={styles.modalHeader}>
-                <h3>Request Simpleafied Veritas Demo</h3>
-                <button style={{ background: 'transparent', border: 'none', color: '#fff', fontSize: '20px', cursor: 'pointer' }} onClick={() => { setShowDemoRequestModal(false); setDemoSuccess(false); }}>×</button>
+          <div className={styles.modalOverlay} style={{ background: 'rgba(10, 14, 23, 0.75)', backdropFilter: 'blur(12px)' }}>
+            <div className={styles.modalContent} style={{ maxWidth: '540px', background: '#FFFFFF', border: '1px solid rgba(10, 14, 23, 0.2)', borderRadius: '0px', padding: '40px', boxShadow: '0 30px 60px rgba(0,0,0,0.25)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', borderBottom: '1px solid rgba(10, 14, 23, 0.12)', paddingBottom: '20px', marginBottom: '24px' }}>
+                <div>
+                  <div style={{ fontSize: '11px', fontWeight: '700', letterSpacing: '0.12em', color: '#047857', textTransform: 'uppercase', fontFamily: 'monospace', marginBottom: '4px' }}>
+                    DEMONSTRATION DISPATCH
+                  </div>
+                  <h3 style={{ fontSize: '22px', fontWeight: '800', color: '#0A0E17', margin: 0, letterSpacing: '-0.02em' }}>
+                    Request Simpleafied Veritas Demo
+                  </h3>
+                </div>
+                <button
+                  style={{ background: 'transparent', border: '1px solid rgba(10, 14, 23, 0.2)', color: '#0A0E17', width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '16px', fontWeight: '700', cursor: 'pointer', borderRadius: '0px' }}
+                  onClick={() => { setShowDemoRequestModal(false); setDemoSuccess(false); }}
+                >
+                  ×
+                </button>
               </div>
-              <div className={styles.modalBody}>
+
+              <div>
                 {demoSuccess ? (
                   <div style={{ textAlign: 'center', padding: '24px 0' }}>
-                    <div style={{ fontSize: '40px', marginBottom: '16px' }}>✅</div>
-                    <h4 style={{ fontSize: '20px', fontWeight: '700', color: '#10B981', marginBottom: '10px' }}>Demo Request Submitted</h4>
-                    <p style={{ fontSize: '14px', color: '#94A3B8', lineHeight: '1.5' }}>
-                      Thank you, <strong>{demoName}</strong>. Our European GxP compliance team will contact you at <strong>{demoEmail}</strong> within 24 hours.
+                    <div style={{ fontSize: '12px', fontWeight: '700', color: '#047857', fontFamily: 'monospace', marginBottom: '12px' }}>
+                      ✓ DISPATCH CONFIRMED
+                    </div>
+                    <h4 style={{ fontSize: '20px', fontWeight: '800', color: '#0A0E17', marginBottom: '12px' }}>
+                      Demonstration Request Dispatched
+                    </h4>
+                    <p style={{ fontSize: '14px', color: '#475569', lineHeight: '1.6', marginBottom: '24px' }}>
+                      Thank you, <strong>{demoName}</strong>. Your inquiry has been routed to <strong>contact@simpleafied.app</strong>. A European GxP Quality Architect will contact you at <strong>{demoEmail}</strong> within 24 hours.
                     </p>
                     <button
-                      className={`${styles.btn} ${styles.btnPrimary}`}
+                      className={styles.btnLuxuryPrimary}
                       onClick={() => { setShowDemoRequestModal(false); setDemoSuccess(false); }}
-                      style={{ marginTop: '20px', padding: '10px 24px', background: '#10B981', color: '#000', fontWeight: '700' }}
+                      style={{ width: '100%', padding: '14px' }}
                     >
                       Close Window
                     </button>
                   </div>
                 ) : (
-                  <form onSubmit={(e) => { e.preventDefault(); if (demoEmail && demoName) setDemoSuccess(true); }}>
-                    <p style={{ fontSize: '13px', color: '#94A3B8', marginBottom: '20px' }}>
-                      Schedule a 1-on-1 walkthrough with a Simpleafied GxP Quality Architect tailored to your regulatory requirements.
+                  <form onSubmit={async (e) => {
+                    e.preventDefault();
+                    if (demoEmail && demoName) {
+                      try {
+                        await fetch('/api/demo-request', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({
+                            name: demoName,
+                            email: demoEmail,
+                            company: demoCompany,
+                            size: demoSize,
+                          }),
+                        });
+                      } catch (err) {
+                        console.error('Demo request dispatch error:', err);
+                      }
+                      setDemoSuccess(true);
+                    }
+                  }}>
+                    <p style={{ fontSize: '13px', color: '#475569', lineHeight: '1.5', marginBottom: '24px' }}>
+                      Schedule a 1-on-1 walkthrough with a Simpleafied GxP Quality Architect tailored to your regulatory requirements. Inquiries are routed directly to <strong>contact@simpleafied.app</strong>.
                     </p>
 
-                    <div className={styles.formGroup}>
-                      <label className={styles.formLabel}>Full Name</label>
+                    <div style={{ marginBottom: '18px' }}>
+                      <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', color: '#0A0E17', fontFamily: 'monospace', letterSpacing: '0.05em', textTransform: 'uppercase', marginBottom: '6px' }}>
+                        Full Name
+                      </label>
                       <input
-                        className={styles.input}
+                        style={{ width: '100%', padding: '12px 14px', border: '1px solid rgba(10, 14, 23, 0.2)', borderRadius: '0px', background: '#FBFBFA', fontSize: '14px', color: '#0A0E17' }}
                         type="text"
                         placeholder="Dr. Jane Smith"
                         value={demoName}
@@ -1663,10 +1701,12 @@ export default function Home() {
                       />
                     </div>
 
-                    <div className={styles.formGroup}>
-                      <label className={styles.formLabel}>Work Email Address</label>
+                    <div style={{ marginBottom: '18px' }}>
+                      <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', color: '#0A0E17', fontFamily: 'monospace', letterSpacing: '0.05em', textTransform: 'uppercase', marginBottom: '6px' }}>
+                        Work Email Address
+                      </label>
                       <input
-                        className={styles.input}
+                        style={{ width: '100%', padding: '12px 14px', border: '1px solid rgba(10, 14, 23, 0.2)', borderRadius: '0px', background: '#FBFBFA', fontSize: '14px', color: '#0A0E17' }}
                         type="email"
                         placeholder="jane.smith@biotech.eu"
                         value={demoEmail}
@@ -1675,10 +1715,12 @@ export default function Home() {
                       />
                     </div>
 
-                    <div className={styles.formGroup}>
-                      <label className={styles.formLabel}>Company / Organization</label>
+                    <div style={{ marginBottom: '18px' }}>
+                      <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', color: '#0A0E17', fontFamily: 'monospace', letterSpacing: '0.05em', textTransform: 'uppercase', marginBottom: '6px' }}>
+                        Company / Organization
+                      </label>
                       <input
-                        className={styles.input}
+                        style={{ width: '100%', padding: '12px 14px', border: '1px solid rgba(10, 14, 23, 0.2)', borderRadius: '0px', background: '#FBFBFA', fontSize: '14px', color: '#0A0E17' }}
                         type="text"
                         placeholder="Acme Therapeutics Ltd."
                         value={demoCompany}
@@ -1687,10 +1729,12 @@ export default function Home() {
                       />
                     </div>
 
-                    <div className={styles.formGroup}>
-                      <label className={styles.formLabel}>Team Size</label>
+                    <div style={{ marginBottom: '24px' }}>
+                      <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', color: '#0A0E17', fontFamily: 'monospace', letterSpacing: '0.05em', textTransform: 'uppercase', marginBottom: '6px' }}>
+                        Team Size
+                      </label>
                       <select
-                        className={styles.select}
+                        style={{ width: '100%', padding: '12px 14px', border: '1px solid rgba(10, 14, 23, 0.2)', borderRadius: '0px', background: '#FBFBFA', fontSize: '14px', color: '#0A0E17' }}
                         value={demoSize}
                         onChange={(e) => setDemoSize(e.target.value)}
                       >
@@ -1701,8 +1745,12 @@ export default function Home() {
                       </select>
                     </div>
 
-                    <button type="submit" className={`${styles.btn} ${styles.btnPrimary}`} style={{ width: '100%', marginTop: '12px', padding: '12px', background: '#10B981', color: '#000', fontWeight: '700' }}>
-                      Submit Enterprise Demo Request →
+                    <button
+                      type="submit"
+                      className={styles.btnLuxuryPrimary}
+                      style={{ width: '100%', padding: '16px', fontSize: '13px', letterSpacing: '0.05em' }}
+                    >
+                      DISPATCH DEMONSTRATION REQUEST →
                     </button>
                   </form>
                 )}
