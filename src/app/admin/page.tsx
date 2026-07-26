@@ -61,6 +61,7 @@ export default function AdminPage() {
   const [currentUserEmail, setCurrentUserEmail] = useState<string | null>(null);
   const [isGodMode, setIsGodMode] = useState(false);
   const [loginEmail, setLoginEmail] = useState('');
+  const [loginPassword, setLoginPassword] = useState('');
   const [loginError, setLoginError] = useState<string | null>(null);
   const [authenticating, setAuthenticating] = useState(false);
 
@@ -187,7 +188,7 @@ export default function AdminPage() {
       const res = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email }),
+        body: JSON.stringify({ email, password: loginPassword }),
       });
 
       if (res.ok) {
@@ -209,6 +210,7 @@ export default function AdminPage() {
     setCurrentUserEmail(null);
     setIsGodMode(false);
     setLoginEmail('');
+    setLoginPassword('');
   };
 
   const handleProvisionTenant = async (e: React.FormEvent) => {
@@ -385,7 +387,7 @@ export default function AdminPage() {
           )}
 
           <form onSubmit={handleLogin}>
-            <div style={{ marginBottom: '24px' }}>
+            <div style={{ marginBottom: '20px' }}>
               <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', letterSpacing: '0.08em', color: '#94A3B8', fontFamily: 'monospace', marginBottom: '8px', textTransform: 'uppercase' }}>
                 Operator Email Address
               </label>
@@ -395,7 +397,21 @@ export default function AdminPage() {
                 onChange={(e) => setLoginEmail(e.target.value)}
                 placeholder="operator@simpleafied.app"
                 required
-                style={{ width: '100%', background: 'rgba(10,14,23,0.5)', border: '1px solid rgba(255,255,255,0.12)', color: '#FBFBFA', padding: '14px', fontSize: '14px', borderRadius: '0px', fontFamily: 'monospace' }}
+                style={{ width: '100%', background: 'rgba(10,14,23,0.5)', border: '1px solid rgba(255,255,255,0.12)', color: '#FBFBFA', padding: '14px', fontSize: '14px', borderRadius: '0px', fontFamily: 'monospace', outline: 'none' }}
+              />
+            </div>
+
+            <div style={{ marginBottom: '28px' }}>
+              <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', letterSpacing: '0.08em', color: '#94A3B8', fontFamily: 'monospace', marginBottom: '8px', textTransform: 'uppercase' }}>
+                Secret Security Key
+              </label>
+              <input
+                type="password"
+                value={loginPassword}
+                onChange={(e) => setLoginPassword(e.target.value)}
+                placeholder="••••••••••••••••"
+                required
+                style={{ width: '100%', background: 'rgba(10,14,23,0.5)', border: '1px solid rgba(255,255,255,0.12)', color: '#FBFBFA', padding: '14px', fontSize: '14px', borderRadius: '0px', fontFamily: 'monospace', outline: 'none' }}
               />
             </div>
 
