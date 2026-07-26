@@ -32,13 +32,14 @@ export interface ComplianceHealthResult {
 export async function calculateTenantComplianceHealth(tenantId: string): Promise<ComplianceHealthResult> {
   const now = new Date();
 
-  // 1. Fetch Tenant GxP Entities
+  // 1. Fetch Tenant GxP Entities & EU GMP Requirements
   const [
     documents,
     trainings,
     capas,
     deviations,
     equipmentList,
+    requirements,
   ] = await Promise.all([
     prisma.document.findMany({ where: { tenantId } }),
     prisma.trainingAssignment.findMany({
@@ -48,6 +49,9 @@ export async function calculateTenantComplianceHealth(tenantId: string): Promise
     prisma.cAPA.findMany({ where: { tenantId } }),
     prisma.deviation.findMany({ where: { tenantId } }),
     prisma.equipment.findMany({ where: { tenantId } }),
+    prisma.regulatoryRequirement.findMany({
+      include: { relationships: true },
+    }),
   ]);
 
   // 2. Training Compliance Score
@@ -57,22 +61,30 @@ export async function calculateTenantComplianceHealth(tenantId: string): Promise
     ? Math.round((completedTrainings / totalTrainings) * 100)
     : 100;
 
-  // 3. CAPA Risk Metrics
+  // 3. EU GMP Regulatory Coverage Score
+  const totalReqs = requirements.length;
+  const mappedReqs = requirements.filter(r => r.relationships.length > 0).length;
+  const regulatoryCoveragePct = totalReqs > 0 ? Math.round((mappedReqs / totalReqs) * 100) : 100;
+
+  // 4. CAPA Risk Metrics
   const openCapas = capas.filter(c => c.status !== 'CLOSED');
   const overdueCapas = openCapas.filter(c => new Date(c.dueDate) < now);
 
-  // 4. Deviation Metrics
+  // 5. Deviation Metrics
   const openDeviations = deviations.filter(d => d.status !== 'CLOSED');
 
-  // 5. Equipment Calibration Metrics
+  // 6. Equipment Calibration Metrics
   const equipmentDue = equipmentList.filter(e => new Date(e.nextCalibrationDueDate) <= now || e.status === 'CALIBRATION_DUE');
 
-  // 6. Compute Weighted Audit Readiness Health Score
+  // 7. Compute Weighted Audit Readiness Health Score
   // Base 100, deduction penalties for GxP non-conformances
   let scoreDeductions = 0;
 
   // Penalty for incomplete training
-  scoreDeductions += (100 - trainingCompliancePct) * 0.35;
+  scoreDeductions += (100 - trainingCompliancePct) * 0.30;
+
+  // Penalty for unmapped regulatory requirements
+  scoreDeductions += (100 - regulatoryCoveragePct) * 0.20;
 
   // Penalty for overdue CAPAs (15 pts per overdue CAPA)
   scoreDeductions += overdueCapas.length * 15;
@@ -105,8 +117,18 @@ export async function calculateTenantComplianceHealth(tenantId: string): Promise
     statusLabel = 'Non-Compliance Risk — Immediate Remediation Required';
   }
 
-  // 7. Generate Intelligent GxP Recommendations
+  // 8. Generate Intelligent GxP Recommendations
   const recommendations: ComplianceHealthResult['recommendations'] = [];
+
+  if (regulatoryCoveragePct < 90) {
+    recommendations.push({
+      id: 'rec-eugmp-gap',
+      standard: 'EU GMP',
+      severity: 'HIGH',
+      title: 'EU GMP Regulatory Coverage Deficit',
+      actionRequired: `Current EU GMP Volume 4 evidence coverage is ${regulatoryCoveragePct}%. Link SOP documents and internal audits to unmapped requirements in Regulatory Intelligence.`,
+    });
+  }
 
   if (overdueCapas.length > 0) {
     recommendations.push({
