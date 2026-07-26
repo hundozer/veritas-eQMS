@@ -81,7 +81,7 @@ export async function GET(req: NextRequest) {
           <p>
             Microsoft Entra ID single sign-on requires setting <code>AZURE_AD_CLIENT_ID</code> and <code>AZURE_AD_CLIENT_SECRET</code> in Vercel environment settings.
           </p>
-          <a href="/?sso=demo" class="btn">⚡ ENTER VERITAS WORKSPACE DIRECTLY →</a>
+          <a href="/" class="btn">RETURN TO ENTERPRISE HOME →</a>
           <div class="note">
             Simpleafied Veritas • 21 CFR Part 11 / EU Annex 11 Compliance Infrastructure
           </div>

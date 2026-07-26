@@ -447,20 +447,18 @@ export default function Home() {
       .then((data) => {
         if (data.users) {
           setUsers(data.users);
-          // Check URL query parameters or active user session cookie
-          const urlParams = new URLSearchParams(window.location.search);
-          const isSSODemo = urlParams.get('sso') === 'demo' || urlParams.get('sso') === 'success' || urlParams.get('view') === 'app';
+          // Verify authenticated user session cookie
           const match = document.cookie.match(/user-email=([^;]+)/);
           
-          if (isSSODemo || match) {
-            const email = match ? decodeURIComponent(match[1]) : 'admin@simpleafied.app';
-            const activeUser = data.users.find((u: User) => u.email === email) || data.users[0];
+          if (match) {
+            const email = decodeURIComponent(match[1]);
+            const activeUser = data.users.find((u: User) => u.email === email);
             if (activeUser) {
               setCurrentUser(activeUser);
               setViewMode('app');
             } else {
-              setCurrentUser(data.users[0] || null);
-              setViewMode('app');
+              setCurrentUser(null);
+              setViewMode('landing');
             }
           } else {
             setCurrentUser(null);
@@ -2012,26 +2010,6 @@ export default function Home() {
               </div>
 
               <div>
-                {/* Direct Demo Workspace Launcher */}
-                <button
-                  type="button"
-                  className={styles.btnLuxuryPrimary}
-                  style={{ width: '100%', padding: '16px', fontSize: '13px', letterSpacing: '0.05em', marginBottom: '24px', background: '#047857', borderColor: '#047857' }}
-                  onClick={async () => {
-                    await handleLoginUser('admin@simpleafied.app');
-                    setViewMode('app');
-                    setShowLoginModal(false);
-                  }}
-                >
-                  ⚡ EXPLORE GxP WORKSPACE (INSTANT ACCESS)
-                </button>
-
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '24px', color: '#64748B', fontSize: '11px', fontFamily: 'monospace' }}>
-                  <div style={{ flex: 1, height: '1px', background: 'rgba(10,14,23,0.12)' }} />
-                  <span>OR SIGN IN WITH ENTERPRISE SSO</span>
-                  <div style={{ flex: 1, height: '1px', background: 'rgba(10,14,23,0.12)' }} />
-                </div>
-
                 {/* Enterprise SSO Buttons */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '24px' }}>
                   <button
