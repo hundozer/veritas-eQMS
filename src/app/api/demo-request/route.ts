@@ -13,13 +13,12 @@ export async function POST(req: NextRequest) {
     const recipient = 'contact@simpleafied.app';
     const timestamp = new Date().toISOString();
 
-    // 1. Log event on server stdout for auditability
-    console.log(`[DEMO-REQUEST-DISPATCH] Sending inquiry for ${name} (${email}) to ${recipient}`);
+    console.log(`[DEMO-REQUEST-DISPATCH] Processing inquiry for ${name} (${email}) -> ${recipient}`);
 
     let emailDelivered = false;
-    let deliveryMethod = 'console-log (no email provider key configured)';
+    let deliveryMethod = 'none';
 
-    // 2. Real Email Dispatch via Resend (if RESEND_API_KEY is configured in Vercel)
+    // 1. Dispatch via Resend API (if RESEND_API_KEY is configured)
     if (process.env.RESEND_API_KEY) {
       try {
         const resendRes = await fetch('https://api.resend.com/emails', {
@@ -43,7 +42,7 @@ export async function POST(req: NextRequest) {
                 <p><strong>Team Size:</strong> ${size || 'Not provided'}</p>
                 <p><strong>Timestamp:</strong> ${timestamp}</p>
                 <hr style="border: 0; border-top: 1px solid #E2E8F0;" />
-                <p style="font-size: 12px; color: #64748B;">This inquiry was submitted via the Simpleafied Veritas Enterprise Platform.</p>
+                <p style="font-size: 12px; color: #64748B;">Submitted via Simpleafied Veritas Platform.</p>
               </div>
             `,
           }),
@@ -56,23 +55,58 @@ export async function POST(req: NextRequest) {
           const errData = await resendRes.json();
           console.error('[RESEND-API-ERROR]', errData);
         }
-      } catch (emailErr) {
-        console.error('[EMAIL-DISPATCH-ERROR]', emailErr);
+      } catch (resendErr) {
+        console.error('[RESEND-DISPATCH-ERROR]', resendErr);
       }
     }
 
-    // 3. Webhook Dispatch (if DISPATCH_WEBHOOK_URL is configured in Vercel)
+    // 2. Dispatch via Webhook URL (if DISPATCH_WEBHOOK_URL is configured)
     if (!emailDelivered && process.env.DISPATCH_WEBHOOK_URL) {
       try {
-        await fetch(process.env.DISPATCH_WEBHOOK_URL, {
+        const webhookRes = await fetch(process.env.DISPATCH_WEBHOOK_URL, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ name, email, company, size, recipient, timestamp }),
         });
-        emailDelivered = true;
-        deliveryMethod = 'Webhook URL';
+        if (webhookRes.ok) {
+          emailDelivered = true;
+          deliveryMethod = 'Webhook URL';
+        }
       } catch (webhookErr) {
         console.error('[WEBHOOK-DISPATCH-ERROR]', webhookErr);
+      }
+    }
+
+    // 3. Dispatch via FormSubmit Zero-Config Mailer (Fallback requiring zero API keys)
+    if (!emailDelivered) {
+      try {
+        const formSubmitRes = await fetch(`https://formsubmit.co/ajax/${recipient}`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+          },
+          body: JSON.stringify({
+            _subject: `[Veritas Demo Request] ${name} - ${company || 'Biotech Enterprise'}`,
+            _replyto: email,
+            _template: 'table',
+            "Full Name": name,
+            "Work Email": email,
+            "Company / Organization": company || 'Not specified',
+            "Team Size": size || 'Not specified',
+            "Submitted At": timestamp,
+          }),
+        });
+
+        if (formSubmitRes.ok) {
+          emailDelivered = true;
+          deliveryMethod = 'FormSubmit Delivery Engine';
+        } else {
+          const formErr = await formSubmitRes.text();
+          console.error('[FORMSUBMIT-ERROR]', formErr);
+        }
+      } catch (fsErr) {
+        console.error('[FORMSUBMIT-DISPATCH-ERROR]', fsErr);
       }
     }
 
