@@ -20,6 +20,7 @@ import {
   Psychology as PsychologyIcon
 } from '@mui/icons-material';
 import { RegulatoryIntelligenceModule } from '@/ui/components/RegulatoryIntelligenceModule';
+import { OnboardingWizardModal } from '@/ui/components/OnboardingWizardModal';
 
 interface User {
   id: string;
@@ -283,6 +284,7 @@ export default function Home() {
   const [showEditUserModal, setShowEditUserModal] = useState(false);
   const [showDemoPersonas, setShowDemoPersonas] = useState(false);
   const [showDemoRequestModal, setShowDemoRequestModal] = useState(false);
+  const [showOnboardingWizard, setShowOnboardingWizard] = useState(false);
   const [demoName, setDemoName] = useState('');
   const [demoEmail, setDemoEmail] = useState('');
   const [demoCompany, setDemoCompany] = useState('');
@@ -1439,12 +1441,12 @@ export default function Home() {
             <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#047857' }} />
             SYSTEM ACTIVE • 21 CFR PART 11 / EU ANNEX 11 VERIFIED
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
             <button className={styles.btnLuxurySecondary} onClick={() => setShowLoginModal(true)}>
               Member Sign In
             </button>
-            <button className={styles.btnLuxuryPrimary} onClick={() => setShowDemoRequestModal(true)}>
-              Request Demonstration
+            <button className={styles.btnLuxuryPrimary} onClick={() => setShowOnboardingWizard(true)}>
+              Start Your Compliance Environment →
             </button>
           </div>
         </header>
@@ -1458,8 +1460,8 @@ export default function Home() {
             Veritas operates as the underlying compliance infrastructure layer for emerging biotechnology and pharmaceutical enterprise.
           </p>
           <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
-            <button className={styles.btnLuxuryPrimary} onClick={() => setShowDemoRequestModal(true)}>
-              Request Demonstration
+            <button className={styles.btnLuxuryPrimary} onClick={() => setShowOnboardingWizard(true)}>
+              Start Your Compliance Environment →
             </button>
             <button className={styles.btnLuxurySecondary} onClick={() => setShowLoginModal(true)}>
               Member Sign In
@@ -2207,6 +2209,17 @@ export default function Home() {
               </form>
             </div>
           </div>
+        )}
+
+        {/* ENTERPRISE ONBOARDING WIZARD (LANDING PAGE) */}
+        {showOnboardingWizard && (
+          <OnboardingWizardModal
+            onClose={() => setShowOnboardingWizard(false)}
+            onComplete={async () => {
+              setShowOnboardingWizard(false);
+              window.location.reload();
+            }}
+          />
         )}
       </div>
     );
@@ -5419,6 +5432,16 @@ export default function Home() {
               </form>
             </div>
           </div>
+        )}
+
+        {showOnboardingWizard && (
+          <OnboardingWizardModal
+            onClose={() => setShowOnboardingWizard(false)}
+            onComplete={async (email) => {
+              setShowOnboardingWizard(false);
+              window.location.reload();
+            }}
+          />
         )}
       </AppShell>
     );
