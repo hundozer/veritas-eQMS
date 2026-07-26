@@ -1468,35 +1468,161 @@ export default function Home() {
             Every regulation maps directly to operational evidence.
           </h2>
           <p className={styles.luxurySubhead} style={{ fontSize: '18px', maxWidth: '640px' }}>
-            Regulations → Processes → Documents → People → Evidence operate in real-time alignment.
+            Regulations → Processes → Documents → People → Evidence operate in autonomous real-time alignment.
           </p>
 
-          <div className={styles.precisionFrame} style={{ textAlign: 'center', padding: '48px 32px' }}>
-            <svg width="100%" height="240" viewBox="0 0 900 240" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M 100 120 L 260 120 L 450 120 L 640 120 L 800 120" stroke="#0A0E17" strokeWidth="1.5" strokeDasharray="4 4" opacity="0.25" />
-              <path d="M 100 120 Q 260 40 450 120 T 800 120" stroke="#047857" strokeWidth="1.5" />
+          <div className={styles.topologyFrame}>
+            {/* Top Telemetry Bar */}
+            <div className={styles.topologyBar}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#047857', fontWeight: '700' }}>
+                <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#047857', display: 'inline-block' }} />
+                LIVE TOPOLOGY SYNC
+              </div>
+              <div>SYSTEM: VERITAS GxP GRAPH v2.4</div>
+              <div>LATENCY: 0.2ms</div>
+              <div style={{ fontWeight: '700', color: '#0A0E17' }}>21 CFR PART 11 / EU ANNEX 11 VERIFIED</div>
+            </div>
 
-              <g transform="translate(100, 120)">
-                <rect x="-45" y="-18" width="90" height="36" fill="#0A0E17" />
-                <text y="4" textAnchor="middle" fill="#FBFBFA" fontSize="11" fontWeight="700" fontFamily="monospace">Regulations</text>
-              </g>
-              <g transform="translate(260, 120)">
-                <rect x="-45" y="-18" width="90" height="36" fill="#FFFFFF" stroke="#0A0E17" strokeWidth="1.5" />
-                <text y="4" textAnchor="middle" fill="#0A0E17" fontSize="11" fontWeight="700" fontFamily="monospace">Processes</text>
-              </g>
-              <g transform="translate(450, 120)">
-                <rect x="-45" y="-18" width="90" height="36" fill="#047857" />
-                <text y="4" textAnchor="middle" fill="#FFFFFF" fontSize="11" fontWeight="700" fontFamily="monospace">Documents</text>
-              </g>
-              <g transform="translate(640, 120)">
-                <rect x="-45" y="-18" width="90" height="36" fill="#FFFFFF" stroke="#0A0E17" strokeWidth="1.5" />
-                <text y="4" textAnchor="middle" fill="#0A0E17" fontSize="11" fontWeight="700" fontFamily="monospace">People</text>
-              </g>
-              <g transform="translate(800, 120)">
-                <rect x="-45" y="-18" width="90" height="36" fill="#0A0E17" />
-                <text y="4" textAnchor="middle" fill="#FBFBFA" fontSize="11" fontWeight="700" fontFamily="monospace">Evidence</text>
-              </g>
-            </svg>
+            {/* SVG Network Graph */}
+            <div style={{ padding: '36px 24px 28px', background: '#FFFFFF', position: 'relative' }}>
+              <svg width="100%" height="340" viewBox="0 0 960 340" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <defs>
+                  <pattern id="gridPattern" width="40" height="40" patternUnits="userSpaceOnUse">
+                    <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#0A0E17" strokeWidth="1" strokeOpacity="0.04" />
+                  </pattern>
+                  <filter id="emeraldGlow" x="-20%" y="-20%" width="140%" height="140%">
+                    <feGaussianBlur stdDeviation="4" result="blur" />
+                    <feComposite in="SourceGraphic" in2="blur" operator="over" />
+                  </filter>
+                </defs>
+
+                {/* Hairline Grid Background */}
+                <rect width="960" height="340" fill="url(#gridPattern)" />
+
+                {/* Primary Pipeline Paths */}
+                <path
+                  id="spinePath"
+                  d="M 100 170 C 180 80, 220 80, 300 80 C 380 80, 400 170, 480 170 C 560 170, 580 260, 660 260 C 740 260, 780 170, 860 170"
+                  stroke="#0A0E17"
+                  strokeWidth="1.5"
+                  strokeDasharray="4 4"
+                  opacity="0.3"
+                />
+
+                {/* Directive & Audit Arcs */}
+                <path
+                  id="regDocArc"
+                  d="M 100 170 C 240 20, 340 20, 480 170"
+                  stroke="#047857"
+                  strokeWidth="1.5"
+                  opacity="0.6"
+                />
+                <path
+                  id="docEvidArc"
+                  d="M 480 170 C 620 70, 720 70, 860 170"
+                  stroke="#047857"
+                  strokeWidth="1.5"
+                  opacity="0.6"
+                />
+                <path
+                  id="auditChainArc"
+                  d="M 100 170 C 480 330, 480 330, 860 170"
+                  stroke="#0A0E17"
+                  strokeWidth="1"
+                  strokeDasharray="2 4"
+                  opacity="0.25"
+                />
+
+                {/* Animated Particles along paths */}
+                <circle r="4" fill="#047857" filter="url(#emeraldGlow)">
+                  <animateMotion dur="5s" repeatCount="indefinite">
+                    <mpath href="#spinePath" />
+                  </animateMotion>
+                </circle>
+
+                <circle r="3.5" fill="#047857">
+                  <animateMotion dur="3.5s" repeatCount="indefinite">
+                    <mpath href="#regDocArc" />
+                  </animateMotion>
+                </circle>
+
+                <circle r="3.5" fill="#047857">
+                  <animateMotion dur="4s" repeatCount="indefinite">
+                    <mpath href="#docEvidArc" />
+                  </animateMotion>
+                </circle>
+
+                <circle r="2.5" fill="#0A0E17">
+                  <animateMotion dur="6s" repeatCount="indefinite">
+                    <mpath href="#auditChainArc" />
+                  </animateMotion>
+                </circle>
+
+                {/* NODE 01: REGULATIONS */}
+                <g transform="translate(100, 170)" className={styles.topologyNode}>
+                  <circle r="36" fill="none" stroke="#047857" strokeWidth="1" strokeDasharray="3 3" className={styles.nodePulseRing} />
+                  <rect x="-60" y="-22" width="120" height="44" fill="#0A0E17" />
+                  <text y="-3" textAnchor="middle" fill="#FBFBFA" fontSize="12" fontWeight="800" fontFamily="monospace" letterSpacing="0.05em">REGULATIONS</text>
+                  <text y="12" textAnchor="middle" fill="#94A3B8" fontSize="9" fontWeight="600" fontFamily="monospace">EU ANNEX 11 / PART 11</text>
+                  <rect x="-42" y="26" width="84" height="16" fill="#FBFBFA" stroke="#0A0E17" strokeWidth="1" />
+                  <text y="37" textAnchor="middle" fill="#0A0E17" fontSize="8" fontWeight="700" fontFamily="monospace">STATUTORY RULE</text>
+                </g>
+
+                {/* NODE 02: PROCESSES */}
+                <g transform="translate(300, 80)" className={styles.topologyNode}>
+                  <rect x="-55" y="-22" width="110" height="44" fill="#FFFFFF" stroke="#0A0E17" strokeWidth="1.5" />
+                  <text y="-3" textAnchor="middle" fill="#0A0E17" fontSize="12" fontWeight="800" fontFamily="monospace" letterSpacing="0.05em">PROCESSES</text>
+                  <text y="12" textAnchor="middle" fill="#475569" fontSize="9" fontWeight="600" fontFamily="monospace">CAPA & WORKFLOWS</text>
+                  <rect x="-36" y="26" width="72" height="16" fill="#FBFBFA" stroke="#0A0E17" strokeWidth="1" />
+                  <text y="37" textAnchor="middle" fill="#047857" fontSize="8" fontWeight="700" fontFamily="monospace">ENFORCED</text>
+                </g>
+
+                {/* NODE 03: DOCUMENTS (CENTRAL APEX) */}
+                <g transform="translate(480, 170)" className={styles.topologyNode}>
+                  <circle r="42" fill="none" stroke="#047857" strokeWidth="1.5" className={styles.nodePulseRing} />
+                  <rect x="-65" y="-24" width="130" height="48" fill="#047857" filter="url(#emeraldGlow)" />
+                  <text y="-4" textAnchor="middle" fill="#FFFFFF" fontSize="13" fontWeight="800" fontFamily="monospace" letterSpacing="0.05em">DOCUMENTS</text>
+                  <text y="13" textAnchor="middle" fill="#E2E8F0" fontSize="9" fontWeight="600" fontFamily="monospace">CONTROLLED SOPs</text>
+                  <rect x="-48" y="28" width="96" height="16" fill="#0A0E17" />
+                  <text y="39" textAnchor="middle" fill="#FBFBFA" fontSize="8" fontWeight="700" fontFamily="monospace">SHA-256 VERIFIED</text>
+                </g>
+
+                {/* NODE 04: PEOPLE */}
+                <g transform="translate(660, 260)" className={styles.topologyNode}>
+                  <rect x="-55" y="-22" width="110" height="44" fill="#FFFFFF" stroke="#0A0E17" strokeWidth="1.5" />
+                  <text y="-3" textAnchor="middle" fill="#0A0E17" fontSize="12" fontWeight="800" fontFamily="monospace" letterSpacing="0.05em">PEOPLE</text>
+                  <text y="12" textAnchor="middle" fill="#475569" fontSize="9" fontWeight="600" fontFamily="monospace">QUALIFICATIONS</text>
+                  <rect x="-36" y="26" width="72" height="16" fill="#FBFBFA" stroke="#0A0E17" strokeWidth="1" />
+                  <text y="37" textAnchor="middle" fill="#047857" fontSize="8" fontWeight="700" fontFamily="monospace">100% READY</text>
+                </g>
+
+                {/* NODE 05: EVIDENCE */}
+                <g transform="translate(860, 170)" className={styles.topologyNode}>
+                  <circle r="36" fill="none" stroke="#0A0E17" strokeWidth="1" strokeDasharray="3 3" />
+                  <rect x="-60" y="-22" width="120" height="44" fill="#0A0E17" />
+                  <text y="-3" textAnchor="middle" fill="#FBFBFA" fontSize="12" fontWeight="800" fontFamily="monospace" letterSpacing="0.05em">EVIDENCE</text>
+                  <text y="12" textAnchor="middle" fill="#94A3B8" fontSize="9" fontWeight="600" fontFamily="monospace">AUDIT LEDGER</text>
+                  <rect x="-44" y="26" width="88" height="16" fill="#FBFBFA" stroke="#0A0E17" strokeWidth="1" />
+                  <text y="37" textAnchor="middle" fill="#0A0E17" fontSize="8" fontWeight="700" fontFamily="monospace">IMMUTABLE LOG</text>
+                </g>
+              </svg>
+            </div>
+
+            {/* Bottom Status Summary Ledger */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', borderTop: '1px solid rgba(10, 14, 23, 0.08)', background: '#FBFBFA', padding: '18px 24px', fontSize: '11px', fontFamily: 'monospace' }}>
+              <div style={{ borderRight: '1px solid rgba(10, 14, 23, 0.08)', paddingRight: '16px' }}>
+                <span style={{ color: '#475569', display: 'block', marginBottom: '2px' }}>REGULATORY SCOPE</span>
+                <strong style={{ color: '#0A0E17', fontSize: '12px' }}>EU Annex 11 • FDA 21 CFR Part 11</strong>
+              </div>
+              <div style={{ borderRight: '1px solid rgba(10, 14, 23, 0.08)', paddingRight: '16px', paddingLeft: '16px' }}>
+                <span style={{ color: '#475569', display: 'block', marginBottom: '2px' }}>PROPAGATION SPEED</span>
+                <strong style={{ color: '#047857', fontSize: '12px' }}>{"Real-time (< 50ms latency)"}</strong>
+              </div>
+              <div style={{ paddingLeft: '16px' }}>
+                <span style={{ color: '#475569', display: 'block', marginBottom: '2px' }}>AUDIT VERIFICATION</span>
+                <strong style={{ color: '#0A0E17', fontSize: '12px' }}>SHA-256 Cryptographic Ledger</strong>
+              </div>
+            </div>
           </div>
         </section>
 
