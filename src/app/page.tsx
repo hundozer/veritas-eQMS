@@ -1444,13 +1444,13 @@ export default function Home() {
           </div>
         </header>
 
-        {/* SCREEN ONE: PURE STATEMENT */}
+        {/* CHAPTER ONE: THE STATEMENT */}
         <section className={styles.editorialViewport}>
-          <h1 className={styles.editorialHeadline}>
-            Quality should never slow discovery.
+          <h1 className={styles.editorialHeadline} style={{ fontSize: '72px' }}>
+            Quality. Without compromise.
           </h1>
           <p className={styles.editorialSubhead}>
-            Simpleafied Veritas gives emerging life science companies the confidence to grow with enterprise-grade quality systems.
+            Enterprise-quality systems designed for the next generation of life sciences.
           </p>
           <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
             <button className={styles.btnEditorialPrimary} style={{ padding: '16px 36px', fontSize: '15px' }} onClick={() => setShowDemoRequestModal(true)}>
@@ -1462,43 +1462,46 @@ export default function Home() {
           </div>
         </section>
 
-        {/* SCREEN TWO: THE CONNECTED NETWORK */}
+        {/* CHAPTER TWO: THE CONNECTED NETWORK */}
         <section id="network" className={styles.editorialViewport} style={{ borderTop: '1px solid rgba(15, 23, 42, 0.06)' }}>
-          <div className={styles.editorialEyebrow}>01 / Living Architecture</div>
-          <h2 className={styles.editorialHeadline} style={{ fontSize: '52px' }}>
+          <div className={styles.editorialEyebrow}>Chapter 02 / System Architecture</div>
+          <h2 className={styles.editorialHeadline} style={{ fontSize: '56px' }}>
             Everything becomes connected.
           </h2>
           <p className={styles.editorialSubhead} style={{ fontSize: '18px', maxWidth: '600px' }}>
-            Documents, people, training, changes, approvals, and evidence operate in real-time alignment.
+            People, processes, documents, training, equipment, approvals, and evidence operate in autonomous harmony.
           </p>
           
-          {/* Animated SVG Living Network */}
           <div className={styles.precisionCard} style={{ textAlign: 'center', background: '#FFFFFF', padding: '48px 32px' }}>
-            <svg width="100%" height="300" viewBox="0 0 800 300" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M 150 150 Q 300 70 400 150 T 650 150" stroke="#E2E8F0" strokeWidth="2" strokeDasharray="6 6" />
-              <path d="M 150 150 Q 300 230 400 150 T 650 150" stroke="#059669" strokeWidth="1.5" strokeOpacity="0.5" />
+            <svg width="100%" height="320" viewBox="0 0 840 320" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M 120 160 Q 260 70 380 160 T 720 160" stroke="#E2E8F0" strokeWidth="2" strokeDasharray="6 6" />
+              <path d="M 120 160 Q 260 250 380 160 T 720 160" stroke="#059669" strokeWidth="1.5" strokeOpacity="0.5" />
               
-              <g transform="translate(150, 150)">
+              <g transform="translate(120, 160)">
                 <circle r="30" fill="#0F172A" />
                 <text y="4" textAnchor="middle" fill="#FAF9F6" fontSize="11" fontWeight="600">Documents</text>
               </g>
-              <g transform="translate(300, 70)">
+              <g transform="translate(240, 70)">
                 <circle r="26" fill="#FAF9F6" stroke="#0F172A" strokeWidth="2" />
                 <text y="4" textAnchor="middle" fill="#0F172A" fontSize="11" fontWeight="600">People</text>
               </g>
-              <g transform="translate(300, 230)">
+              <g transform="translate(240, 250)">
                 <circle r="26" fill="#FAF9F6" stroke="#0F172A" strokeWidth="2" />
-                <text y="4" textAnchor="middle" fill="#0F172A" fontSize="11" fontWeight="600">Training</text>
+                <text y="4" textAnchor="middle" fill="#0F172A" fontSize="11" fontWeight="600">Processes</text>
               </g>
-              <g transform="translate(400, 150)">
+              <g transform="translate(380, 160)">
                 <circle r="34" fill="#059669" />
                 <text y="4" textAnchor="middle" fill="#FFFFFF" fontSize="12" fontWeight="700">Changes</text>
               </g>
-              <g transform="translate(520, 70)">
+              <g transform="translate(500, 70)">
+                <circle r="26" fill="#FAF9F6" stroke="#0F172A" strokeWidth="2" />
+                <text y="4" textAnchor="middle" fill="#0F172A" fontSize="11" fontWeight="600">Equipment</text>
+              </g>
+              <g transform="translate(610, 250)">
                 <circle r="26" fill="#FAF9F6" stroke="#0F172A" strokeWidth="2" />
                 <text y="4" textAnchor="middle" fill="#0F172A" fontSize="11" fontWeight="600">Approvals</text>
               </g>
-              <g transform="translate(650, 150)">
+              <g transform="translate(720, 160)">
                 <circle r="30" fill="#0F172A" />
                 <text y="4" textAnchor="middle" fill="#FAF9F6" fontSize="11" fontWeight="600">Evidence</text>
               </g>
@@ -1506,34 +1509,34 @@ export default function Home() {
           </div>
         </section>
 
-        {/* SCREEN THREE: RIPPLING EVIDENCE */}
+        {/* CHAPTER THREE: SYSTEM RESPONSE */}
         <section className={styles.editorialViewport} style={{ borderTop: '1px solid rgba(15, 23, 42, 0.06)' }}>
-          <div className={styles.editorialEyebrow}>02 / Autonomous Compliance</div>
-          <h2 className={styles.editorialHeadline} style={{ fontSize: '52px' }}>
-            Every decision becomes evidence.
+          <div className={styles.editorialEyebrow}>Chapter 03 / Relational Response</div>
+          <h2 className={styles.editorialHeadline} style={{ fontSize: '56px' }}>
+            Nothing exists alone.
           </h2>
           <p className={styles.editorialSubhead} style={{ fontSize: '18px', maxWidth: '640px' }}>
-            When an SOP changes, training requirements automatically recalculate, approval chains trigger, and Part 11 audit records generate without human friction.
+            When one document changes, training updates, approvals update, risk recalculates, and audit evidence generates in real-time.
           </p>
         </section>
 
-        {/* SCREEN FOUR: PRECISION APPROVAL INTERFACE */}
+        {/* CHAPTER FOUR: PRODUCT MOMENT — APPROVAL */}
         <section id="approval" className={styles.editorialViewport} style={{ borderTop: '1px solid rgba(15, 23, 42, 0.06)' }}>
-          <div className={styles.editorialEyebrow}>03 / Document Sign-off</div>
-          <h2 className={styles.editorialHeadline} style={{ fontSize: '52px' }}>
-            Every approval tells a story.
+          <div className={styles.editorialEyebrow}>Chapter 04 / Product Detail</div>
+          <h2 className={styles.editorialHeadline} style={{ fontSize: '56px' }}>
+            Every approval becomes evidence.
           </h2>
           
           <div className={styles.precisionCard}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #E2E8F0', paddingBottom: '16px', marginBottom: '24px' }}>
               <div>
-                <div style={{ fontSize: '11px', fontWeight: '700', letterSpacing: '0.1em', color: '#059669', textTransform: 'uppercase' }}>Controlled Document</div>
+                <div style={{ fontSize: '11px', fontWeight: '700', letterSpacing: '0.1em', color: '#059669', textTransform: 'uppercase' }}>Controlled Document Sign-off</div>
                 <div style={{ fontSize: '18px', fontWeight: '700', color: '#0F172A', marginTop: '2px' }}>SOP-QA-042: Cell Therapy Batch Release Protocol v3.0</div>
               </div>
               <div style={{ fontSize: '12px', color: '#64748B', fontFamily: 'monospace' }}>SHA-256: e8f9a2...9d12</div>
             </div>
             <div style={{ background: '#FAF9F6', borderRadius: '8px', padding: '20px', fontSize: '13px', color: '#334155', lineHeight: '1.6', marginBottom: '24px' }}>
-              "This procedure defines the statutory requirements for final biological drug release under EU Annex 16 and FDA 21 CFR Part 211."
+              "This procedure defines statutory release criteria for biological products compliant with EU Annex 16 and FDA 21 CFR Part 211."
             </div>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(5, 150, 105, 0.04)', border: '1px solid rgba(5, 150, 105, 0.2)', borderRadius: '8px', padding: '16px' }}>
               <div>
@@ -1545,10 +1548,10 @@ export default function Home() {
           </div>
         </section>
 
-        {/* SCREEN FIVE: PEOPLE & KNOWLEDGE */}
+        {/* CHAPTER FIVE: TRAINING INTEGRITY */}
         <section className={styles.editorialViewport} style={{ borderTop: '1px solid rgba(15, 23, 42, 0.06)' }}>
-          <div className={styles.editorialEyebrow}>04 / Training Integrity</div>
-          <h2 className={styles.editorialHeadline} style={{ fontSize: '52px' }}>
+          <div className={styles.editorialEyebrow}>Chapter 05 / Personnel Qualification</div>
+          <h2 className={styles.editorialHeadline} style={{ fontSize: '56px' }}>
             People change. Knowledge shouldn't.
           </h2>
           
@@ -1573,15 +1576,15 @@ export default function Home() {
           </div>
         </section>
 
-        {/* SCREEN SIX: IMMUTABLE AUDIT TRAIL (DARK CONTRAST) */}
+        {/* CHAPTER SIX: IMMUTABLE AUDIT TRAIL (DARK DEEP NAVY) */}
         <section id="audit" className={styles.darkAuditSection}>
           <div style={{ maxWidth: '1000px', margin: '0 auto', textAlign: 'center' }}>
-            <div style={{ fontSize: '11px', fontWeight: '700', letterSpacing: '0.15em', textTransform: 'uppercase', color: '#10B981', marginBottom: '24px' }}>05 / Cryptographic Ledger</div>
-            <h2 style={{ fontSize: '52px', fontWeight: '800', letterSpacing: '-0.04em', color: '#FFFFFF', marginBottom: '24px', lineHeight: '1.1' }}>
-              Every action. Every timestamp. Every signature. Forever traceable.
+            <div style={{ fontSize: '11px', fontWeight: '700', letterSpacing: '0.15em', textTransform: 'uppercase', color: '#10B981', marginBottom: '24px' }}>Chapter 06 / Operational Memory</div>
+            <h2 style={{ fontSize: '56px', fontWeight: '800', letterSpacing: '-0.04em', color: '#FFFFFF', marginBottom: '24px', lineHeight: '1.1' }}>
+              Compliance remembers everything.
             </h2>
             
-            <div style={{ background: '#0F172A', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', padding: '24px', textAlign: 'left', fontFamily: 'monospace', fontSize: '12px', color: '#94A3B8', marginTop: '48px', overflowX: 'auto' }}>
+            <div style={{ background: '#0A192F', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', padding: '24px', textAlign: 'left', fontFamily: 'monospace', fontSize: '12px', color: '#94A3B8', marginTop: '48px', overflowX: 'auto' }}>
               <div style={{ color: '#10B981', marginBottom: '8px' }}>[AUDIT-LOG-2026-07-26T06:45:12.082Z] EVENT: E_SIGNATURE_EXECUTED</div>
               <div style={{ marginBottom: '4px' }}>USER_ID: usr_9942a188 (Dr. Elena Rostova)</div>
               <div style={{ marginBottom: '4px' }}>TARGET_RESOURCE: doc_sop_qa_042_v3</div>
@@ -1591,31 +1594,31 @@ export default function Home() {
           </div>
         </section>
 
-        {/* SCREEN SEVEN: VERITAS INTELLIGENCE */}
+        {/* CHAPTER SEVEN: VERITAS INTELLIGENCE */}
         <section id="intelligence" className={styles.editorialViewport} style={{ borderTop: '1px solid rgba(15, 23, 42, 0.06)' }}>
-          <div className={styles.editorialEyebrow}>06 / Veritas Intelligence</div>
-          <h2 className={styles.editorialHeadline} style={{ fontSize: '52px' }}>
-            Compliance should understand itself.
+          <div className={styles.editorialEyebrow}>Chapter 07 / Veritas Intelligence</div>
+          <h2 className={styles.editorialHeadline} style={{ fontSize: '56px' }}>
+            Intelligence is knowing what every change affects.
           </h2>
           <p className={styles.editorialSubhead} style={{ fontSize: '18px', maxWidth: '640px' }}>
-            The compliance graph maps relationships between regulations, SOPs, training matrices, change controls, and audit evidence automatically.
+            One regulation connects automatically to documents, training, change control, CAPA, audits, and evidence.
           </p>
         </section>
 
-        {/* SCREEN EIGHT: CAPABILITIES STORY */}
+        {/* CHAPTER EIGHT: CAPABILITIES */}
         <section className={styles.editorialViewport} style={{ borderTop: '1px solid rgba(15, 23, 42, 0.06)' }}>
-          <div className={styles.editorialEyebrow}>07 / System Capabilities</div>
-          <h2 className={styles.editorialHeadline} style={{ fontSize: '48px', marginBottom: '56px' }}>
+          <div className={styles.editorialEyebrow}>Chapter 08 / System Capabilities</div>
+          <h2 className={styles.editorialHeadline} style={{ fontSize: '52px', marginBottom: '56px' }}>
             Built for regulated growth.
           </h2>
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '24px', width: '100%', textAlign: 'left' }}>
             {[
-              { step: '01', title: 'Control Knowledge', desc: 'SOPs, protocols, and work instructions maintained under strict version control.' },
-              { step: '02', title: 'Prepare People', desc: 'Automated role-based qualification matrices and revision-driven training.' },
-              { step: '03', title: 'Manage Change', desc: 'Impact analysis and structured GxP workflows before implementation.' },
-              { step: '04', title: 'Resolve Risk', desc: 'CAPA investigations with 5-Why root cause analysis and corrective tracking.' },
-              { step: '05', title: 'Prove Compliance', desc: '1-Click FDA and EMA inspection readiness exports.' },
+              { step: '01', title: 'Control knowledge', desc: 'SOPs, protocols, and work instructions under strict version control.' },
+              { step: '02', title: 'Prepare people', desc: 'Automated role qualification matrices and revision training.' },
+              { step: '03', title: 'Manage change', desc: 'Impact analysis and structured GxP workflows before implementation.' },
+              { step: '04', title: 'Resolve risk', desc: 'CAPA investigations with 5-Why root cause analysis and tracking.' },
+              { step: '05', title: 'Prove compliance', desc: 'Instant FDA and EMA inspection readiness exports.' },
             ].map((cap, i) => (
               <div key={i} className={styles.precisionCard} style={{ padding: '28px' }}>
                 <div style={{ fontSize: '12px', fontWeight: '700', color: '#059669', marginBottom: '8px' }}>{cap.step}</div>
@@ -1626,29 +1629,29 @@ export default function Home() {
           </div>
         </section>
 
-        {/* SCREEN NINE: SECURITY & ARCHITECTURE */}
+        {/* CHAPTER NINE: QUIET SECURITY */}
         <section id="security" className={styles.editorialViewport} style={{ borderTop: '1px solid rgba(15, 23, 42, 0.06)' }}>
-          <div className={styles.editorialEyebrow}>08 / Architecture Built for Trust</div>
-          <h2 className={styles.editorialHeadline} style={{ fontSize: '52px' }}>
+          <div className={styles.editorialEyebrow}>Chapter 09 / Architecture Built for Trust</div>
+          <h2 className={styles.editorialHeadline} style={{ fontSize: '56px' }}>
             Quiet, absolute security.
           </h2>
           <p className={styles.editorialSubhead} style={{ fontSize: '18px', maxWidth: '640px' }}>
-            Role-based attribute permissions, immutable audit logs, electronic signatures, and enterprise-grade encryption.
+            Role-based permissions, immutable audit trail, electronic signatures, and enterprise-grade encryption.
           </p>
         </section>
 
-        {/* SCREEN TEN: THE COMPANY */}
+        {/* CHAPTER TEN: HERITAGE */}
         <section className={styles.editorialViewport} style={{ borderTop: '1px solid rgba(15, 23, 42, 0.06)' }}>
-          <div className={styles.editorialEyebrow}>09 / Simpleafied Solutions</div>
-          <h2 className={styles.editorialHeadline} style={{ fontSize: '52px' }}>
-            European. Focused. Regulated.
+          <div className={styles.editorialEyebrow}>Chapter 10 / Simpleafied Solutions</div>
+          <h2 className={styles.editorialHeadline} style={{ fontSize: '56px' }}>
+            Built in Europe. Designed for regulated innovation.
           </h2>
           <p className={styles.editorialSubhead} style={{ fontSize: '18px', maxWidth: '640px' }}>
-            Built by experts who understand the exact burden of EU Annex 11 and FDA 21 CFR Part 11 compliance.
+            Engineered by team members with deep expertise in EU Annex 11 and FDA 21 CFR Part 11 requirements.
           </p>
         </section>
 
-        {/* FINAL SCREEN: CALL TO ACTION */}
+        {/* FINAL CHAPTER: CALL TO ACTION */}
         <section className={styles.editorialViewport} style={{ borderTop: '1px solid rgba(15, 23, 42, 0.06)', paddingBottom: '16px' }}>
           <h2 className={styles.editorialHeadline} style={{ fontSize: '64px' }}>
             Build your quality foundation.
@@ -1658,7 +1661,7 @@ export default function Home() {
             style={{ padding: '18px 44px', fontSize: '16px', marginTop: '16px' }}
             onClick={() => setShowDemoRequestModal(true)}
           >
-            Talk to Veritas
+            Request a demonstration
           </button>
         </section>
 
