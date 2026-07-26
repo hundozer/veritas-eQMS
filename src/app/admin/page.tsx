@@ -102,7 +102,7 @@ export default function AdminPage() {
 
   // Document importer states
   const [importSourceId, setImportSourceId] = useState('');
-  const [rawDocText, setRawDocText] = useState('');
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [importingDoc, setImportingDoc] = useState(false);
   const [importSuccess, setImportSuccess] = useState<string | null>(null);
   const [importError, setImportError] = useState<string | null>(null);
@@ -389,22 +389,28 @@ export default function AdminPage() {
     e.preventDefault();
     setImportError(null);
     setImportSuccess(null);
+
+    if (!selectedFile) {
+      setImportError('Please select a PDF or Text file to upload.');
+      return;
+    }
+
     setImportingDoc(true);
 
     try {
+      const formData = new FormData();
+      formData.append('regulationSourceId', importSourceId);
+      formData.append('file', selectedFile);
+
       const res = await fetch('/api/admin/regulations/import', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          regulationSourceId: importSourceId,
-          rawText: rawDocText,
-        }),
+        body: formData,
       });
 
       if (res.ok) {
         const json = await res.json();
         setImportSuccess(json.message);
-        setRawDocText('');
+        setSelectedFile(null);
         fetchRegulations();
         fetchStats();
       } else {
@@ -1098,15 +1104,14 @@ export default function AdminPage() {
 
                     <div style={{ marginBottom: '24px' }}>
                       <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', color: '#94A3B8', fontFamily: 'monospace', marginBottom: '8px', textTransform: 'uppercase' }}>
-                        Source Document Text / Clauses
+                        Source Document File (.pdf, .txt)
                       </label>
-                      <textarea
-                        value={rawDocText}
-                        onChange={(e) => setRawDocText(e.target.value)}
-                        placeholder="Paste GxP regulation sections here (e.g. 'Chapter 4: Documentation... 4.1 Documentation should be written clearly...')"
+                      <input
+                        type="file"
+                        accept=".pdf,.txt"
+                        onChange={(e) => setSelectedFile(e.target.files?.[0] || null)}
                         required
-                        rows={10}
-                        style={{ width: '100%', background: 'rgba(10,14,23,0.5)', border: '1px solid rgba(255,255,255,0.12)', color: '#FBFBFA', padding: '10px', fontSize: '13px', fontFamily: 'monospace', resize: 'vertical' }}
+                        style={{ width: '100%', background: 'rgba(10,14,23,0.5)', border: '1px solid rgba(255,255,255,0.12)', color: '#FBFBFA', padding: '10px', fontSize: '13px' }}
                       />
                     </div>
 

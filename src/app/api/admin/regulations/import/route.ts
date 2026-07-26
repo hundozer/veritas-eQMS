@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 import { getContext, isPlatformAdminEmail, logAuditEvent } from '@/lib/auth';
+import { PDFParse } from 'pdf-parse';
 
 export async function POST(req: NextRequest) {
   try {
@@ -9,11 +10,12 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: { code: 'Forbidden', message: 'Access Denied: Simpleafied Admins only' } }, { status: 403 });
     }
 
-    const body = await req.json();
-    const { regulationSourceId, rawText, fileName } = body;
+    const formData = await req.formData();
+    const regulationSourceId = formData.get('regulationSourceId') as string;
+    const file = formData.get('file') as File | null;
 
-    if (!regulationSourceId || !rawText) {
-      return NextResponse.json({ error: { code: 'ValidationFailed', message: 'regulationSourceId and rawText are required' } }, { status: 400 });
+    if (!regulationSourceId || !file) {
+      return NextResponse.json({ error: { code: 'ValidationFailed', message: 'regulationSourceId and file are required' } }, { status: 400 });
     }
 
     const source = await prisma.regulationSource.findUnique({
@@ -24,8 +26,30 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: { code: 'NotFound', message: 'Target regulation source not found' } }, { status: 404 });
     }
 
-    // AI Parsing Engine (High-fidelity parser simulating LLM semantic breakdown of raw GxP text)
-    // It searches for common GxP headers (e.g. "Chapter", "Section", "Principle") and splits them.
+    // 1. Extract raw text from File (supporting .pdf and .txt files)
+    let rawText = '';
+    const bytes = await file.arrayBuffer();
+    const buffer = Buffer.from(bytes);
+
+    if (file.name.toLowerCase().endsWith('.pdf')) {
+      try {
+        const parser = new PDFParse({ data: buffer });
+        const textResult = await parser.getText();
+        rawText = textResult.text || '';
+        await parser.destroy();
+      } catch (err: any) {
+        console.error('PDF parsing error:', err);
+        return NextResponse.json({ error: { code: 'PdfParsingFailed', message: `Could not extract text from PDF: ${err.message}` } }, { status: 400 });
+      }
+    } else {
+      rawText = buffer.toString('utf-8');
+    }
+
+    if (!rawText.trim()) {
+      return NextResponse.json({ error: { code: 'EmptyDocument', message: 'The uploaded file contains no text' } }, { status: 400 });
+    }
+
+    // 2. AI Parsing Engine (breaks down raw text into GxP structured requirements)
     const requirementsToCreate: any[] = [];
     const lines = rawText.split('\n');
 
@@ -37,7 +61,6 @@ export async function POST(req: NextRequest) {
     const flushRequirement = () => {
       const text = currentTextLines.join(' ').trim();
       if (text.length > 20) {
-        // Classify category based on keywords
         let category = 'Quality System';
         const lowerText = text.toLowerCase();
         if (lowerText.includes('training') || lowerText.includes('personnel') || lowerText.includes('staff')) {
@@ -54,7 +77,6 @@ export async function POST(req: NextRequest) {
           category = 'Supplier Management';
         }
 
-        // Determine risk level based on words
         let riskLevel = 'MAJOR';
         if (lowerText.includes('must') || lowerText.includes('critical') || lowerText.includes('shall')) {
           riskLevel = 'CRITICAL';
@@ -64,7 +86,6 @@ export async function POST(req: NextRequest) {
           riskLevel = 'MINOR';
         }
 
-        // Generate realistic Expected Evidence based on category
         let expectedEvidence = 'Quality manual controls check';
         if (category === 'Personnel') {
           expectedEvidence = 'SOP training logs, personnel CVs, training assessment records, job description profiles.';
@@ -84,7 +105,7 @@ export async function POST(req: NextRequest) {
 
         requirementsToCreate.push({
           requirementId: generatedReqId,
-          regulationSourceId,
+          regulationSourceId: source.id,
           chapter: currentChapter,
           section: currentSection,
           title: currentTitle,
@@ -106,19 +127,15 @@ export async function POST(req: NextRequest) {
       const trimmed = line.trim();
       if (!trimmed) continue;
 
-      // Detect Chapter Header
       if (/^(chapter|annex)\s+\d+/i.test(trimmed)) {
         flushRequirement();
         currentChapter = trimmed;
-        // Try to extract title from next part
         const parts = trimmed.split(':');
         if (parts.length > 1) {
           currentChapter = parts[0].trim();
           currentTitle = parts.slice(1).join(':').trim();
         }
-      }
-      // Detect Section Header (e.g. "4.1", "Sec 2.11")
-      else if (/^(\d+\.\d+)\s+/i.test(trimmed)) {
+      } else if (/^(\d+\.\d+)\s+/i.test(trimmed)) {
         flushRequirement();
         const match = trimmed.match(/^(\d+\.\d+)\s+(.*)/);
         if (match) {
@@ -129,14 +146,12 @@ export async function POST(req: NextRequest) {
         currentTextLines.push(trimmed);
       }
     }
-    // Flush last requirement
     flushRequirement();
 
-    // Fallback if text didn't match standard headings
     if (requirementsToCreate.length === 0 && rawText.length > 30) {
       requirementsToCreate.push({
         requirementId: `${source.regulationId}-AI-${Math.floor(100 + Math.random() * 900)}`,
-        regulationSourceId,
+        regulationSourceId: source.id,
         chapter: 'Chapter 1: General Requirements',
         section: '1.1',
         title: 'Uploaded Guideline Clause',
@@ -152,7 +167,6 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    // Save newly extracted requirements in the database
     let createdCount = 0;
     for (const reqData of requirementsToCreate) {
       await prisma.regulatoryRequirement.upsert({
@@ -173,7 +187,7 @@ export async function POST(req: NextRequest) {
       objectId: source.id,
       payload: {
         regulationId: source.regulationId,
-        fileName: fileName || 'raw_text_input',
+        fileName: file.name,
         requirementsParsed: createdCount,
       },
       status: 'Success',
@@ -182,7 +196,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      message: `AI parsing complete. Successfully extracted and seeded ${createdCount} requirements from the uploaded document.`,
+      message: `AI parsing complete. Successfully extracted and seeded ${createdCount} requirements from the PDF: "${file.name}".`,
       requirementsCount: createdCount,
     });
   } catch (error: any) {
