@@ -713,3 +713,130 @@
   padding: 140px 48px;
 }
 
+/* ==========================================
+   Luxury Enterprise Brand System (Mission-Critical Infrastructure)
+   ========================================== */
+.luxuryCanvas {
+  background-color: #FBFBFA;
+  color: #0A0E17;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.luxuryHeader {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 24px 64px;
+  background: rgba(251, 251, 250, 0.95);
+  backdrop-filter: blur(20px);
+  border-bottom: 1px solid rgba(10, 14, 23, 0.08);
+}
+
+.luxuryWordmark {
+  font-size: 18px;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  color: #0A0E17;
+}
+
+.luxuryBadge {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #047857;
+  background: transparent;
+  padding: 2px 0;
+  border-bottom: 1px solid #047857;
+}
+
+.btnLuxuryPrimary {
+  background: #0A0E17;
+  color: #FBFBFA;
+  border: 1px solid #0A0E17;
+  padding: 14px 32px;
+  border-radius: 0px;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.btnLuxuryPrimary:hover {
+  background: #1E293B;
+  border-color: #1E293B;
+}
+
+.btnLuxurySecondary {
+  background: transparent;
+  color: #0A0E17;
+  border: 1px solid rgba(10, 14, 23, 0.25);
+  padding: 14px 28px;
+  border-radius: 0px;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.btnLuxurySecondary:hover {
+  background: rgba(10, 14, 23, 0.04);
+  border-color: #0A0E17;
+}
+
+.luxuryViewport {
+  min-height: 85vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  padding: 140px 48px;
+  max-width: 1200px;
+  margin: 0 auto;
+  text-align: center;
+  width: 100%;
+}
+
+.luxuryHeadline {
+  font-size: 72px;
+  font-weight: 800;
+  line-height: 1.05;
+  letter-spacing: -0.04em;
+  color: #0A0E17;
+  max-width: 960px;
+  margin: 0 auto 28px;
+}
+
+.luxurySubhead {
+  font-size: 20px;
+  font-weight: 400;
+  line-height: 1.6;
+  letter-spacing: -0.01em;
+  color: #475569;
+  max-width: 720px;
+  margin: 0 auto 48px;
+}
+
+.precisionFrame {
+  background: #FFFFFF;
+  border: 1px solid rgba(10, 14, 23, 0.12);
+  border-radius: 0px;
+  padding: 48px;
+  text-align: left;
+  width: 100%;
+  max-width: 1000px;
+}
+
+.darkNavySection {
+  background-color: #061325;
+  color: #F8FAFC;
+  width: 100%;
+  padding: 160px 48px;
+}
+
+

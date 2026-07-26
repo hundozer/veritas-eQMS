@@ -1420,261 +1420,203 @@ export default function Home() {
 
   if (viewMode === 'landing') {
     return (
-      <div className={styles.editorialCanvas} style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
+      <div className={styles.luxuryCanvas} style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
         {/* HEADER */}
-        <header className={styles.editorialHeader}>
-          <div className={styles.editorialLogo} onClick={() => setViewMode('landing')}>
-            <span className={styles.editorialWordmark}>Simpleafied Veritas</span>
-            <span className={styles.editorialBadge}>eQMS</span>
+        <header className={styles.luxuryHeader}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '16px', cursor: 'pointer' }} onClick={() => setViewMode('landing')}>
+            <span className={styles.luxuryWordmark}>Simpleafied Veritas</span>
+            <span className={styles.luxuryBadge}>Infrastructure</span>
           </div>
-          <nav className={styles.editorialNav}>
-            <a href="#network" className={styles.editorialNavLink}>Network</a>
-            <a href="#approval" className={styles.editorialNavLink}>Precision</a>
-            <a href="#audit" className={styles.editorialNavLink}>Audit Trail</a>
-            <a href="#intelligence" className={styles.editorialNavLink}>Intelligence</a>
-            <a href="#security" className={styles.editorialNavLink}>Security</a>
-          </nav>
-          <div className={styles.editorialActions}>
-            <button className={styles.btnEditorialSecondary} onClick={() => setShowLoginModal(true)}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '11px', fontWeight: '600', color: '#047857', fontFamily: 'monospace' }}>
+            <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#047857' }} />
+            SYSTEM ACTIVE • 21 CFR PART 11 / EU ANNEX 11 VERIFIED
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+            <button className={styles.btnLuxurySecondary} onClick={() => setShowLoginModal(true)}>
               Member Sign In
             </button>
-            <button className={styles.btnEditorialPrimary} onClick={() => setShowDemoRequestModal(true)}>
-              Request Demo
+            <button className={styles.btnLuxuryPrimary} onClick={() => setShowDemoRequestModal(true)}>
+              Request Demonstration
             </button>
           </div>
         </header>
 
-        {/* CHAPTER ONE: THE STATEMENT */}
-        <section className={styles.editorialViewport}>
-          <h1 className={styles.editorialHeadline} style={{ fontSize: '72px' }}>
-            Quality. Without compromise.
+        {/* VIEWPORT 1: BRAND STATEMENT */}
+        <section className={styles.luxuryViewport}>
+          <h1 className={styles.luxuryHeadline}>
+            Compliance intelligence for life sciences.
           </h1>
-          <p className={styles.editorialSubhead}>
-            Enterprise-quality systems designed for the next generation of life sciences.
+          <p className={styles.luxurySubhead}>
+            Veritas operates as the underlying compliance infrastructure layer for emerging biotechnology and pharmaceutical enterprise.
           </p>
           <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
-            <button className={styles.btnEditorialPrimary} style={{ padding: '16px 36px', fontSize: '15px' }} onClick={() => setShowDemoRequestModal(true)}>
-              Request a demonstration
+            <button className={styles.btnLuxuryPrimary} onClick={() => setShowDemoRequestModal(true)}>
+              Request Demonstration
             </button>
-            <button className={styles.btnEditorialSecondary} style={{ padding: '16px 28px', fontSize: '15px' }} onClick={() => setShowLoginModal(true)}>
+            <button className={styles.btnLuxurySecondary} onClick={() => setShowLoginModal(true)}>
               Member Sign In
             </button>
           </div>
         </section>
 
-        {/* CHAPTER TWO: THE CONNECTED NETWORK */}
-        <section id="network" className={styles.editorialViewport} style={{ borderTop: '1px solid rgba(15, 23, 42, 0.06)' }}>
-          <div className={styles.editorialEyebrow}>Chapter 02 / System Architecture</div>
-          <h2 className={styles.editorialHeadline} style={{ fontSize: '56px' }}>
-            Everything becomes connected.
+        {/* VIEWPORT 2: COMPLIANCE NETWORK VISUALIZATION */}
+        <section className={styles.luxuryViewport} style={{ borderTop: '1px solid rgba(10, 14, 23, 0.08)' }}>
+          <div style={{ fontSize: '11px', fontWeight: '700', letterSpacing: '0.15em', textTransform: 'uppercase', color: '#047857', marginBottom: '20px', fontFamily: 'monospace' }}>
+            01 / COMPLIANCE GRAPH ARCHITECTURE
+          </div>
+          <h2 className={styles.luxuryHeadline} style={{ fontSize: '56px' }}>
+            Every regulation maps directly to operational evidence.
           </h2>
-          <p className={styles.editorialSubhead} style={{ fontSize: '18px', maxWidth: '600px' }}>
-            People, processes, documents, training, equipment, approvals, and evidence operate in autonomous harmony.
+          <p className={styles.luxurySubhead} style={{ fontSize: '18px', maxWidth: '640px' }}>
+            Regulations → Processes → Documents → People → Evidence operate in real-time alignment.
           </p>
-          
-          <div className={styles.precisionCard} style={{ textAlign: 'center', background: '#FFFFFF', padding: '48px 32px' }}>
-            <svg width="100%" height="320" viewBox="0 0 840 320" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M 120 160 Q 260 70 380 160 T 720 160" stroke="#E2E8F0" strokeWidth="2" strokeDasharray="6 6" />
-              <path d="M 120 160 Q 260 250 380 160 T 720 160" stroke="#059669" strokeWidth="1.5" strokeOpacity="0.5" />
-              
-              <g transform="translate(120, 160)">
-                <circle r="30" fill="#0F172A" />
-                <text y="4" textAnchor="middle" fill="#FAF9F6" fontSize="11" fontWeight="600">Documents</text>
+
+          <div className={styles.precisionFrame} style={{ textAlign: 'center', padding: '48px 32px' }}>
+            <svg width="100%" height="240" viewBox="0 0 900 240" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M 100 120 L 260 120 L 450 120 L 640 120 L 800 120" stroke="#0A0E17" strokeWidth="1.5" strokeDasharray="4 4" opacity="0.25" />
+              <path d="M 100 120 Q 260 40 450 120 T 800 120" stroke="#047857" strokeWidth="1.5" />
+
+              <g transform="translate(100, 120)">
+                <rect x="-45" y="-18" width="90" height="36" fill="#0A0E17" />
+                <text y="4" textAnchor="middle" fill="#FBFBFA" fontSize="11" fontWeight="700" fontFamily="monospace">Regulations</text>
               </g>
-              <g transform="translate(240, 70)">
-                <circle r="26" fill="#FAF9F6" stroke="#0F172A" strokeWidth="2" />
-                <text y="4" textAnchor="middle" fill="#0F172A" fontSize="11" fontWeight="600">People</text>
+              <g transform="translate(260, 120)">
+                <rect x="-45" y="-18" width="90" height="36" fill="#FFFFFF" stroke="#0A0E17" strokeWidth="1.5" />
+                <text y="4" textAnchor="middle" fill="#0A0E17" fontSize="11" fontWeight="700" fontFamily="monospace">Processes</text>
               </g>
-              <g transform="translate(240, 250)">
-                <circle r="26" fill="#FAF9F6" stroke="#0F172A" strokeWidth="2" />
-                <text y="4" textAnchor="middle" fill="#0F172A" fontSize="11" fontWeight="600">Processes</text>
+              <g transform="translate(450, 120)">
+                <rect x="-45" y="-18" width="90" height="36" fill="#047857" />
+                <text y="4" textAnchor="middle" fill="#FFFFFF" fontSize="11" fontWeight="700" fontFamily="monospace">Documents</text>
               </g>
-              <g transform="translate(380, 160)">
-                <circle r="34" fill="#059669" />
-                <text y="4" textAnchor="middle" fill="#FFFFFF" fontSize="12" fontWeight="700">Changes</text>
+              <g transform="translate(640, 120)">
+                <rect x="-45" y="-18" width="90" height="36" fill="#FFFFFF" stroke="#0A0E17" strokeWidth="1.5" />
+                <text y="4" textAnchor="middle" fill="#0A0E17" fontSize="11" fontWeight="700" fontFamily="monospace">People</text>
               </g>
-              <g transform="translate(500, 70)">
-                <circle r="26" fill="#FAF9F6" stroke="#0F172A" strokeWidth="2" />
-                <text y="4" textAnchor="middle" fill="#0F172A" fontSize="11" fontWeight="600">Equipment</text>
-              </g>
-              <g transform="translate(610, 250)">
-                <circle r="26" fill="#FAF9F6" stroke="#0F172A" strokeWidth="2" />
-                <text y="4" textAnchor="middle" fill="#0F172A" fontSize="11" fontWeight="600">Approvals</text>
-              </g>
-              <g transform="translate(720, 160)">
-                <circle r="30" fill="#0F172A" />
-                <text y="4" textAnchor="middle" fill="#FAF9F6" fontSize="11" fontWeight="600">Evidence</text>
+              <g transform="translate(800, 120)">
+                <rect x="-45" y="-18" width="90" height="36" fill="#0A0E17" />
+                <text y="4" textAnchor="middle" fill="#FBFBFA" fontSize="11" fontWeight="700" fontFamily="monospace">Evidence</text>
               </g>
             </svg>
           </div>
         </section>
 
-        {/* CHAPTER THREE: SYSTEM RESPONSE */}
-        <section className={styles.editorialViewport} style={{ borderTop: '1px solid rgba(15, 23, 42, 0.06)' }}>
-          <div className={styles.editorialEyebrow}>Chapter 03 / Relational Response</div>
-          <h2 className={styles.editorialHeadline} style={{ fontSize: '56px' }}>
-            Nothing exists alone.
+        {/* VIEWPORT 3: PRODUCT MOMENT 01 — DOCUMENT APPROVAL */}
+        <section className={styles.luxuryViewport} style={{ borderTop: '1px solid rgba(10, 14, 23, 0.08)' }}>
+          <div style={{ fontSize: '11px', fontWeight: '700', letterSpacing: '0.15em', textTransform: 'uppercase', color: '#047857', marginBottom: '20px', fontFamily: 'monospace' }}>
+            02 / PRECISION WORKFLOW
+          </div>
+          <h2 className={styles.luxuryHeadline} style={{ fontSize: '56px' }}>
+            Digital signatures with SHA-256 integrity verification.
           </h2>
-          <p className={styles.editorialSubhead} style={{ fontSize: '18px', maxWidth: '640px' }}>
-            When one document changes, training updates, approvals update, risk recalculates, and audit evidence generates in real-time.
-          </p>
-        </section>
 
-        {/* CHAPTER FOUR: PRODUCT MOMENT — APPROVAL */}
-        <section id="approval" className={styles.editorialViewport} style={{ borderTop: '1px solid rgba(15, 23, 42, 0.06)' }}>
-          <div className={styles.editorialEyebrow}>Chapter 04 / Product Detail</div>
-          <h2 className={styles.editorialHeadline} style={{ fontSize: '56px' }}>
-            Every approval becomes evidence.
-          </h2>
-          
-          <div className={styles.precisionCard}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #E2E8F0', paddingBottom: '16px', marginBottom: '24px' }}>
+          <div className={styles.precisionFrame}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(10, 14, 23, 0.12)', paddingBottom: '16px', marginBottom: '24px' }}>
               <div>
-                <div style={{ fontSize: '11px', fontWeight: '700', letterSpacing: '0.1em', color: '#059669', textTransform: 'uppercase' }}>Controlled Document Sign-off</div>
-                <div style={{ fontSize: '18px', fontWeight: '700', color: '#0F172A', marginTop: '2px' }}>SOP-QA-042: Cell Therapy Batch Release Protocol v3.0</div>
+                <div style={{ fontSize: '11px', fontWeight: '700', letterSpacing: '0.1em', color: '#047857', textTransform: 'uppercase', fontFamily: 'monospace' }}>CONTROLLED DOCUMENT RECORD</div>
+                <div style={{ fontSize: '18px', fontWeight: '800', color: '#0A0E17', marginTop: '4px' }}>SOP-QA-042: Cell Therapy Batch Release Protocol v3.0</div>
               </div>
-              <div style={{ fontSize: '12px', color: '#64748B', fontFamily: 'monospace' }}>SHA-256: e8f9a2...9d12</div>
+              <div style={{ fontSize: '11px', color: '#475569', fontFamily: 'monospace' }}>SHA-256: e8f9a2...9d12</div>
             </div>
-            <div style={{ background: '#FAF9F6', borderRadius: '8px', padding: '20px', fontSize: '13px', color: '#334155', lineHeight: '1.6', marginBottom: '24px' }}>
+            <div style={{ background: '#FAF9F5', border: '1px solid rgba(10, 14, 23, 0.08)', padding: '20px', fontSize: '13px', color: '#1E293B', lineHeight: '1.6', marginBottom: '24px', fontFamily: 'monospace' }}>
               "This procedure defines statutory release criteria for biological products compliant with EU Annex 16 and FDA 21 CFR Part 211."
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(5, 150, 105, 0.04)', border: '1px solid rgba(5, 150, 105, 0.2)', borderRadius: '8px', padding: '16px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderTop: '1px solid rgba(10, 14, 23, 0.12)', paddingTop: '16px' }}>
               <div>
-                <div style={{ fontSize: '12px', fontWeight: '700', color: '#0F172A' }}>Electronic Signature Verified</div>
-                <div style={{ fontSize: '11px', color: '#64748B' }}>Dr. Elena Rostova — Head of Quality Assurance • 2026-07-25 14:32:08 UTC</div>
+                <div style={{ fontSize: '12px', fontWeight: '700', color: '#0A0E17' }}>Electronic Signature Verified</div>
+                <div style={{ fontSize: '11px', color: '#64748B', fontFamily: 'monospace', marginTop: '2px' }}>Dr. Elena Rostova — Head of Quality Assurance • 2026-07-25 14:32:08 UTC</div>
               </div>
-              <span style={{ fontSize: '11px', fontWeight: '700', color: '#059669', background: '#FFFFFF', padding: '4px 10px', borderRadius: '4px', border: '1px solid rgba(5, 150, 105, 0.3)' }}>Part 11 Compliant</span>
+              <span style={{ fontSize: '11px', fontWeight: '700', color: '#047857', border: '1px solid #047857', padding: '4px 10px', fontFamily: 'monospace' }}>PART 11 VERIFIED</span>
             </div>
           </div>
         </section>
 
-        {/* CHAPTER FIVE: TRAINING INTEGRITY */}
-        <section className={styles.editorialViewport} style={{ borderTop: '1px solid rgba(15, 23, 42, 0.06)' }}>
-          <div className={styles.editorialEyebrow}>Chapter 05 / Personnel Qualification</div>
-          <h2 className={styles.editorialHeadline} style={{ fontSize: '56px' }}>
-            People change. Knowledge shouldn't.
+        {/* VIEWPORT 4: PRODUCT MOMENT 02 — PERSONNEL QUALIFICATION */}
+        <section className={styles.luxuryViewport} style={{ borderTop: '1px solid rgba(10, 14, 23, 0.08)' }}>
+          <div style={{ fontSize: '11px', fontWeight: '700', letterSpacing: '0.15em', textTransform: 'uppercase', color: '#047857', marginBottom: '20px', fontFamily: 'monospace' }}>
+            03 / PERSONNEL QUALIFICATION
+          </div>
+          <h2 className={styles.luxuryHeadline} style={{ fontSize: '56px' }}>
+            Automated qualification tracking.
           </h2>
-          
-          <div className={styles.precisionCard} style={{ maxWidth: '840px' }}>
-            <div style={{ fontSize: '14px', fontWeight: '700', color: '#0F172A', marginBottom: '16px' }}>Role-Based Qualification Matrix</div>
-            <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: '12px', fontSize: '13px', borderBottom: '1px solid #E2E8F0', paddingBottom: '12px', color: '#64748B', fontWeight: '600' }}>
-              <div>Personnel</div>
-              <div>SOP Qualification</div>
-              <div>Status</div>
+
+          <div className={styles.precisionFrame} style={{ maxWidth: '880px' }}>
+            <div style={{ fontSize: '13px', fontWeight: '700', color: '#0A0E17', marginBottom: '16px', fontFamily: 'monospace' }}>ROLE-BASED PERSONNEL ROSTER</div>
+            <div style={{ display: 'grid', gridTemplateColumns: '2fr 1.5fr 1fr', gap: '12px', fontSize: '12px', borderBottom: '1px solid rgba(10, 14, 23, 0.15)', paddingBottom: '12px', color: '#475569', fontWeight: '700', fontFamily: 'monospace' }}>
+              <div>PERSONNEL</div>
+              <div>QUALIFICATION REQUIREMENT</div>
+              <div>STATUS</div>
             </div>
             {[
-              { name: 'Dr. Marcus Vance (Analytical Lead)', sop: 'SOP-QA-042 (v3.0)', status: 'Qualified (100%)' },
-              { name: 'Sarah Jenkins (QC Specialist)', sop: 'SOP-LAB-012 (v2.1)', status: 'Qualified (100%)' },
-              { name: 'David Chen (Process Engineer)', sop: 'SOP-ENG-088 (v1.0)', status: 'Qualified (100%)' },
+              { name: 'Dr. Marcus Vance (Analytical Lead)', sop: 'SOP-QA-042 (v3.0)', status: 'QUALIFIED' },
+              { name: 'Sarah Jenkins (QC Specialist)', sop: 'SOP-LAB-012 (v2.1)', status: 'QUALIFIED' },
+              { name: 'David Chen (Process Engineer)', sop: 'SOP-ENG-088 (v1.0)', status: 'QUALIFIED' },
             ].map((row, i) => (
-              <div key={i} style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: '12px', padding: '12px 0', borderBottom: '1px solid #F1F5F9', fontSize: '13px', alignItems: 'center' }}>
-                <div style={{ fontWeight: '600', color: '#0F172A' }}>{row.name}</div>
-                <div style={{ color: '#64748B' }}>{row.sop}</div>
-                <div style={{ color: '#059669', fontWeight: '700' }}>✓ {row.status}</div>
+              <div key={i} style={{ display: 'grid', gridTemplateColumns: '2fr 1.5fr 1fr', gap: '12px', padding: '14px 0', borderBottom: '1px solid rgba(10, 14, 23, 0.06)', fontSize: '13px', alignItems: 'center' }}>
+                <div style={{ fontWeight: '700', color: '#0A0E17' }}>{row.name}</div>
+                <div style={{ color: '#475569', fontFamily: 'monospace', fontSize: '12px' }}>{row.sop}</div>
+                <div style={{ color: '#047857', fontWeight: '700', fontFamily: 'monospace', fontSize: '12px' }}>✓ {row.status}</div>
               </div>
             ))}
           </div>
         </section>
 
-        {/* CHAPTER SIX: IMMUTABLE AUDIT TRAIL (DARK DEEP NAVY) */}
-        <section id="audit" className={styles.darkAuditSection}>
+        {/* VIEWPORT 5: PRODUCT MOMENT 03 — CRYPTOGRAPHIC AUDIT TRAIL (DARK NAVY) */}
+        <section className={styles.darkNavySection}>
           <div style={{ maxWidth: '1000px', margin: '0 auto', textAlign: 'center' }}>
-            <div style={{ fontSize: '11px', fontWeight: '700', letterSpacing: '0.15em', textTransform: 'uppercase', color: '#10B981', marginBottom: '24px' }}>Chapter 06 / Operational Memory</div>
-            <h2 style={{ fontSize: '56px', fontWeight: '800', letterSpacing: '-0.04em', color: '#FFFFFF', marginBottom: '24px', lineHeight: '1.1' }}>
-              Compliance remembers everything.
+            <div style={{ fontSize: '11px', fontWeight: '700', letterSpacing: '0.15em', textTransform: 'uppercase', color: '#10B981', marginBottom: '24px', fontFamily: 'monospace' }}>
+              04 / IMMUTABLE AUDIT LEDGER
+            </div>
+            <h2 style={{ fontSize: '56px', fontWeight: '800', letterSpacing: '-0.04em', color: '#FFFFFF', marginBottom: '24px', lineHeight: '1.08' }}>
+              Immutable audit logs recorded in real-time.
             </h2>
-            
-            <div style={{ background: '#0A192F', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', padding: '24px', textAlign: 'left', fontFamily: 'monospace', fontSize: '12px', color: '#94A3B8', marginTop: '48px', overflowX: 'auto' }}>
-              <div style={{ color: '#10B981', marginBottom: '8px' }}>[AUDIT-LOG-2026-07-26T06:45:12.082Z] EVENT: E_SIGNATURE_EXECUTED</div>
-              <div style={{ marginBottom: '4px' }}>USER_ID: usr_9942a188 (Dr. Elena Rostova)</div>
-              <div style={{ marginBottom: '4px' }}>TARGET_RESOURCE: doc_sop_qa_042_v3</div>
-              <div style={{ marginBottom: '4px' }}>SIGNATURE_INTENT: APPROVAL_AUTHORITY_FINAL</div>
-              <div style={{ color: '#64748B' }}>CHECKSUM: 3f8a91c2b5d4e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1</div>
+
+            <div style={{ background: '#030A14', border: '1px solid rgba(255,255,255,0.12)', padding: '28px', textAlign: 'left', fontFamily: 'monospace', fontSize: '12px', color: '#94A3B8', marginTop: '48px' }}>
+              <div style={{ color: '#10B981', marginBottom: '10px' }}>[AUDIT-RECORD-2026-07-26T06:45:12.082Z] EVENT: ELECTRONIC_SIGNATURE_EXECUTED</div>
+              <div style={{ marginBottom: '6px' }}>AUTHENTICATED_USER: usr_9942a188 (Dr. Elena Rostova)</div>
+              <div style={{ marginBottom: '6px' }}>RESOURCE_IDENTIFIER: doc_sop_qa_042_v3</div>
+              <div style={{ marginBottom: '6px' }}>SIGNATURE_AUTHORITY: APPROVAL_AUTHORITY_FINAL</div>
+              <div style={{ color: '#64748B', marginTop: '10px' }}>CRYPTOGRAPHIC_CHECKSUM: 3f8a91c2b5d4e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1</div>
             </div>
           </div>
         </section>
 
-        {/* CHAPTER SEVEN: VERITAS INTELLIGENCE */}
-        <section id="intelligence" className={styles.editorialViewport} style={{ borderTop: '1px solid rgba(15, 23, 42, 0.06)' }}>
-          <div className={styles.editorialEyebrow}>Chapter 07 / Veritas Intelligence</div>
-          <h2 className={styles.editorialHeadline} style={{ fontSize: '56px' }}>
-            Intelligence is knowing what every change affects.
-          </h2>
-          <p className={styles.editorialSubhead} style={{ fontSize: '18px', maxWidth: '640px' }}>
-            One regulation connects automatically to documents, training, change control, CAPA, audits, and evidence.
-          </p>
-        </section>
-
-        {/* CHAPTER EIGHT: CAPABILITIES */}
-        <section className={styles.editorialViewport} style={{ borderTop: '1px solid rgba(15, 23, 42, 0.06)' }}>
-          <div className={styles.editorialEyebrow}>Chapter 08 / System Capabilities</div>
-          <h2 className={styles.editorialHeadline} style={{ fontSize: '52px', marginBottom: '56px' }}>
-            Built for regulated growth.
-          </h2>
-
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '24px', width: '100%', textAlign: 'left' }}>
-            {[
-              { step: '01', title: 'Control knowledge', desc: 'SOPs, protocols, and work instructions under strict version control.' },
-              { step: '02', title: 'Prepare people', desc: 'Automated role qualification matrices and revision training.' },
-              { step: '03', title: 'Manage change', desc: 'Impact analysis and structured GxP workflows before implementation.' },
-              { step: '04', title: 'Resolve risk', desc: 'CAPA investigations with 5-Why root cause analysis and tracking.' },
-              { step: '05', title: 'Prove compliance', desc: 'Instant FDA and EMA inspection readiness exports.' },
-            ].map((cap, i) => (
-              <div key={i} className={styles.precisionCard} style={{ padding: '28px' }}>
-                <div style={{ fontSize: '12px', fontWeight: '700', color: '#059669', marginBottom: '8px' }}>{cap.step}</div>
-                <div style={{ fontSize: '18px', fontWeight: '700', color: '#0F172A', marginBottom: '8px' }}>{cap.title}</div>
-                <div style={{ fontSize: '14px', color: '#64748B', lineHeight: '1.5' }}>{cap.desc}</div>
-              </div>
-            ))}
+        {/* VIEWPORT 6: COMPANY CREDIBILITY */}
+        <section className={styles.luxuryViewport} style={{ borderTop: '1px solid rgba(10, 14, 23, 0.08)' }}>
+          <div style={{ fontSize: '11px', fontWeight: '700', letterSpacing: '0.15em', textTransform: 'uppercase', color: '#047857', marginBottom: '20px', fontFamily: 'monospace' }}>
+            05 / SIMPLEAFIED SOLUTIONS
           </div>
-        </section>
-
-        {/* CHAPTER NINE: QUIET SECURITY */}
-        <section id="security" className={styles.editorialViewport} style={{ borderTop: '1px solid rgba(15, 23, 42, 0.06)' }}>
-          <div className={styles.editorialEyebrow}>Chapter 09 / Architecture Built for Trust</div>
-          <h2 className={styles.editorialHeadline} style={{ fontSize: '56px' }}>
-            Quiet, absolute security.
+          <h2 className={styles.luxuryHeadline} style={{ fontSize: '52px' }}>
+            European compliance infrastructure engineered for regulated innovation.
           </h2>
-          <p className={styles.editorialSubhead} style={{ fontSize: '18px', maxWidth: '640px' }}>
-            Role-based permissions, immutable audit trail, electronic signatures, and enterprise-grade encryption.
+          <p className={styles.luxurySubhead} style={{ fontSize: '18px', maxWidth: '640px' }}>
+            Simpleafied Solutions provides mission-critical software built specifically for life science innovators subject to EU Annex 11 and FDA 21 CFR Part 11 regulatory scrutiny.
           </p>
         </section>
 
-        {/* CHAPTER TEN: HERITAGE */}
-        <section className={styles.editorialViewport} style={{ borderTop: '1px solid rgba(15, 23, 42, 0.06)' }}>
-          <div className={styles.editorialEyebrow}>Chapter 10 / Simpleafied Solutions</div>
-          <h2 className={styles.editorialHeadline} style={{ fontSize: '56px' }}>
-            Built in Europe. Designed for regulated innovation.
-          </h2>
-          <p className={styles.editorialSubhead} style={{ fontSize: '18px', maxWidth: '640px' }}>
-            Engineered by team members with deep expertise in EU Annex 11 and FDA 21 CFR Part 11 requirements.
-          </p>
-        </section>
-
-        {/* FINAL CHAPTER: CALL TO ACTION */}
-        <section className={styles.editorialViewport} style={{ borderTop: '1px solid rgba(15, 23, 42, 0.06)', paddingBottom: '16px' }}>
-          <h2 className={styles.editorialHeadline} style={{ fontSize: '64px' }}>
-            Build your quality foundation.
+        {/* VIEWPORT 7: REQUEST DEMONSTRATION */}
+        <section className={styles.luxuryViewport} style={{ borderTop: '1px solid rgba(10, 14, 23, 0.08)', paddingBottom: '32px' }}>
+          <h2 className={styles.luxuryHeadline} style={{ fontSize: '64px' }}>
+            Establish your quality foundation.
           </h2>
           <button
-            className={styles.btnEditorialPrimary}
-            style={{ padding: '18px 44px', fontSize: '16px', marginTop: '16px' }}
+            className={styles.btnLuxuryPrimary}
+            style={{ padding: '18px 44px', fontSize: '14px', marginTop: '16px' }}
             onClick={() => setShowDemoRequestModal(true)}
           >
-            Request a demonstration
+            Request Demonstration
           </button>
         </section>
 
         {/* FOOTER */}
-        <footer style={{ padding: '48px 64px 32px', borderTop: '1px solid rgba(15, 23, 42, 0.06)', background: '#FAF9F6', fontSize: '13px', color: '#64748B' }}>
+        <footer style={{ padding: '48px 64px 32px', borderTop: '1px solid rgba(10, 14, 23, 0.08)', background: '#FBFBFA', fontSize: '12px', color: '#64748B', fontFamily: 'monospace' }}>
           <div style={{ maxWidth: '1200px', margin: '0 auto', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <div>
-              <div style={{ fontWeight: '700', color: '#0F172A' }}>Simpleafied Veritas</div>
-              <div style={{ fontSize: '12px', color: '#94A3B8', marginTop: '4px' }}>© {new Date().getFullYear()} Simpleafied Solutions. All rights reserved.</div>
+              <div style={{ fontWeight: '800', color: '#0A0E17', fontSize: '13px' }}>Simpleafied Veritas</div>
+              <div style={{ fontSize: '11px', color: '#94A3B8', marginTop: '4px' }}>© {new Date().getFullYear()} Simpleafied Solutions. All rights reserved.</div>
             </div>
             <div style={{ display: 'flex', gap: '24px' }}>
               <span style={{ cursor: 'pointer' }} onClick={() => setShowLoginModal(true)}>Member Sign In</span>
-              <span style={{ cursor: 'pointer' }} onClick={() => setShowDemoRequestModal(true)}>Request Demo</span>
+              <span style={{ cursor: 'pointer' }} onClick={() => setShowDemoRequestModal(true)}>Request Demonstration</span>
             </div>
           </div>
         </footer>
