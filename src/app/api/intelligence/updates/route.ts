@@ -38,9 +38,24 @@ export async function GET(req: NextRequest) {
     });
 
     const updateStatus = sources.map(source => {
+      // Check database update logs first
+      const pendingLog = source.updateLogs.find(log => log.status === 'AVAILABLE');
       const registry = SIMPLEAFIED_REGULATORY_REGISTRY[source.regulationId];
-      const isUpToDate = !registry || source.version === registry.latestVersion;
-      const updateAvailable = registry && source.version !== registry.latestVersion;
+      
+      const latestVersion = pendingLog?.toVersion || registry?.latestVersion || source.latestAvailableVersion || source.version;
+      const updateAvailable = !!pendingLog || (registry && source.version !== registry.latestVersion) || (source.latestAvailableVersion && source.version !== source.latestAvailableVersion);
+      const isUpToDate = !updateAvailable;
+
+      let changelog: any[] = [];
+      try {
+        if (pendingLog?.changeManifest) {
+          changelog = JSON.parse(pendingLog.changeManifest);
+        } else if (registry?.changelog) {
+          changelog = registry.changelog;
+        }
+      } catch (e) {
+        // ignore
+      }
 
       return {
         regulationId: source.regulationId,
@@ -48,7 +63,7 @@ export async function GET(req: NextRequest) {
         authority: source.authority,
         region: source.region,
         currentVersion: source.version,
-        latestAvailableVersion: registry?.latestVersion || source.version,
+        latestAvailableVersion: latestVersion,
         sourceUrl: source.sourceUrl,
         status: isUpToDate ? 'UP_TO_DATE' : 'UPDATE_AVAILABLE',
         lastCheckedForUpdate: source.lastCheckedForUpdate,
@@ -56,13 +71,13 @@ export async function GET(req: NextRequest) {
         requirementCount: source._count.requirements,
         updateAvailable,
         pendingUpdate: updateAvailable ? {
-          fromVersion: source.version,
-          toVersion: registry!.latestVersion,
-          publishedAt: registry!.publishedAt,
-          summary: registry!.summary,
-          changelog: registry!.changelog,
+          fromVersion: pendingLog?.fromVersion || source.version,
+          toVersion: latestVersion,
+          publishedAt: pendingLog?.publishedAt || registry?.publishedAt || new Date().toISOString(),
+          summary: pendingLog?.summary || registry?.summary || 'Pending regulatory baseline content package updates.',
+          changelog,
         } : null,
-        recentUpdateHistory: source.updateLogs.map(log => ({
+        recentUpdateHistory: source.updateLogs.filter(log => log.status !== 'AVAILABLE').map(log => ({
           id: log.id,
           fromVersion: log.fromVersion,
           toVersion: log.toVersion,
@@ -135,35 +150,56 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: { code: 'NotFound', message: `Regulation ${regulationId} not found` } }, { status: 404 });
     }
 
+    const pendingLog = await prisma.regulatoryUpdateLog.findFirst({
+      where: { regulationSourceId: source.id, status: 'AVAILABLE' },
+    });
+
     const registry = SIMPLEAFIED_REGULATORY_REGISTRY[regulationId];
-    if (!registry || source.version === registry.latestVersion) {
+    
+    if (!pendingLog && (!registry || source.version === registry.latestVersion)) {
       return NextResponse.json({ message: 'Regulation is already up to date', version: source.version });
     }
 
-    // Create update log entry
-    const updateLog = await prisma.regulatoryUpdateLog.create({
-      data: {
-        regulationSourceId: source.id,
-        fromVersion: source.version,
-        toVersion: registry.latestVersion,
-        publishedAt: new Date(registry.publishedAt),
-        appliedAt: action === 'APPLY' ? new Date() : null,
-        appliedByUserId: action === 'APPLY' ? user.id : null,
-        status: action === 'APPLY' ? 'APPLIED' : 'DISMISSED',
-        summary: registry.summary,
-        addedRequirements: registry.changelog.filter(c => c.type === 'ADDED').length,
-        modifiedRequirements: registry.changelog.filter(c => c.type === 'MODIFIED').length,
-        deprecatedRequirements: registry.changelog.filter(c => c.type === 'DEPRECATED').length,
-        changeManifest: JSON.stringify(registry.changelog),
-      },
-    });
+    let updateLog;
+    let targetVersion = '';
+
+    if (pendingLog) {
+      targetVersion = pendingLog.toVersion;
+      updateLog = await prisma.regulatoryUpdateLog.update({
+        where: { id: pendingLog.id },
+        data: {
+          appliedAt: action === 'APPLY' ? new Date() : null,
+          appliedByUserId: action === 'APPLY' ? user.id : null,
+          status: action === 'APPLY' ? 'APPLIED' : 'DISMISSED',
+        },
+      });
+    } else {
+      targetVersion = registry!.latestVersion;
+      // Create new update log entry from static registry mapping
+      updateLog = await prisma.regulatoryUpdateLog.create({
+        data: {
+          regulationSourceId: source.id,
+          fromVersion: source.version,
+          toVersion: registry.latestVersion,
+          publishedAt: new Date(registry.publishedAt),
+          appliedAt: action === 'APPLY' ? new Date() : null,
+          appliedByUserId: action === 'APPLY' ? user.id : null,
+          status: action === 'APPLY' ? 'APPLIED' : 'DISMISSED',
+          summary: registry.summary,
+          addedRequirements: registry.changelog.filter(c => c.type === 'ADDED').length,
+          modifiedRequirements: registry.changelog.filter(c => c.type === 'MODIFIED').length,
+          deprecatedRequirements: registry.changelog.filter(c => c.type === 'DEPRECATED').length,
+          changeManifest: JSON.stringify(registry.changelog),
+        },
+      });
+    }
 
     if (action === 'APPLY') {
       // Update the source version
       await prisma.regulationSource.update({
         where: { regulationId },
         data: {
-          version: registry.latestVersion,
+          version: targetVersion,
           status: 'ACTIVE',
           latestAvailableVersion: null,
           lastReviewedDate: new Date(),
@@ -179,14 +215,14 @@ export async function POST(req: NextRequest) {
       action: action === 'APPLY' ? 'RegulatoryIntelligence.ApplyUpdate' : 'RegulatoryIntelligence.DismissUpdate',
       objectType: 'RegulatoryUpdateLog',
       objectId: updateLog.id,
-      payload: { regulationId, fromVersion: source.version, toVersion: registry.latestVersion },
+      payload: { regulationId, fromVersion: source.version, toVersion: targetVersion },
       status: 'Success',
       requestUrl: req.nextUrl.pathname,
     });
 
     return NextResponse.json({
       message: action === 'APPLY'
-        ? `Regulatory update applied: ${source.version} → ${registry.latestVersion}`
+        ? `Regulatory update applied: ${source.version} → ${targetVersion}`
         : `Regulatory update dismissed for ${regulationId}`,
       updateLog: { id: updateLog.id, status: updateLog.status },
     });

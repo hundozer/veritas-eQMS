@@ -12,6 +12,23 @@ export interface UserContext {
   tenantName: string;
 }
 
+// Helpers for Simpleafied Platform Admin & God Mode
+export function isPlatformAdminEmail(email: string): boolean {
+  if (!email) return false;
+  const lower = email.toLowerCase();
+  return lower.endsWith('@simpleafied.app') || 
+         lower.endsWith('@simpleafied.eu') || 
+         lower.endsWith('@simpleafied.de');
+}
+
+export function isGodModeUser(email: string): boolean {
+  if (!email) return false;
+  const lower = email.toLowerCase();
+  return lower === 'god@simpleafied.app' || 
+         lower === 'god@simpleafied.eu' || 
+         lower === 'god@simpleafied.de';
+}
+
 export async function getContext(req?: NextRequest): Promise<UserContext | null> {
   let email: string | null = null;
 
@@ -40,6 +57,29 @@ export async function getContext(req?: NextRequest): Promise<UserContext | null>
     where: { email },
     include: { tenant: true },
   });
+
+  // If email is a platform admin email but not found in the DB, auto-provision them!
+  if (!user && isPlatformAdminEmail(email)) {
+    let defaultTenant = await prisma.tenant.findFirst();
+    if (!defaultTenant) {
+      defaultTenant = await prisma.tenant.create({
+        data: { name: 'Simpleafied Biotech' },
+      });
+    }
+
+    const isGod = isGodModeUser(email);
+    user = await prisma.user.create({
+      data: {
+        email,
+        fullName: isGod ? 'God Mode Administrator' : email.split('@')[0].toUpperCase() + ' Operator',
+        role: 'ADMIN',
+        department: 'REGULATORY',
+        clearance: 'RESTRICTED',
+        tenantId: defaultTenant.id,
+      },
+      include: { tenant: true },
+    });
+  }
 
   // Fallback to first available user in database if specified email does not exist
   if (!user) {
