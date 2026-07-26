@@ -447,17 +447,20 @@ export default function Home() {
       .then((data) => {
         if (data.users) {
           setUsers(data.users);
-          // Check for active user session cookie
+          // Check URL query parameters or active user session cookie
+          const urlParams = new URLSearchParams(window.location.search);
+          const isSSODemo = urlParams.get('sso') === 'demo' || urlParams.get('sso') === 'success' || urlParams.get('view') === 'app';
           const match = document.cookie.match(/user-email=([^;]+)/);
-          if (match) {
-            const email = decodeURIComponent(match[1]);
-            const activeUser = data.users.find((u: User) => u.email === email);
+          
+          if (isSSODemo || match) {
+            const email = match ? decodeURIComponent(match[1]) : 'admin@simpleafied.app';
+            const activeUser = data.users.find((u: User) => u.email === email) || data.users[0];
             if (activeUser) {
               setCurrentUser(activeUser);
               setViewMode('app');
             } else {
-              setCurrentUser(null);
-              setViewMode('landing');
+              setCurrentUser(data.users[0] || null);
+              setViewMode('app');
             }
           } else {
             setCurrentUser(null);

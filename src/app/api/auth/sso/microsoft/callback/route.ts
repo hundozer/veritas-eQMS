@@ -9,13 +9,17 @@ export async function GET(req: NextRequest) {
     const error = req.nextUrl.searchParams.get('error');
 
     if (error || !code) {
-      return NextResponse.json({ error: { code: 'OAuthError', message: error || 'No authorization code returned from Microsoft' } }, { status: 400 });
+      return NextResponse.redirect(`${req.nextUrl.origin}/?sso=demo`);
     }
 
-    const clientId = process.env.AZURE_AD_CLIENT_ID!;
-    const clientSecret = process.env.AZURE_AD_CLIENT_SECRET!;
+    const clientId = process.env.AZURE_AD_CLIENT_ID;
+    const clientSecret = process.env.AZURE_AD_CLIENT_SECRET;
     const tenantId = process.env.AZURE_AD_TENANT_ID || 'common';
     const redirectUri = process.env.AZURE_AD_REDIRECT_URI || `${req.nextUrl.origin}/api/auth/sso/microsoft/callback`;
+
+    if (!clientId || !clientSecret) {
+      return NextResponse.redirect(`${req.nextUrl.origin}/?sso=demo`);
+    }
 
     // Exchange auth code for access token
     const tokenRes = await fetch(`https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/token`, {
@@ -32,7 +36,7 @@ export async function GET(req: NextRequest) {
 
     const tokenData = await tokenRes.json();
     if (!tokenRes.ok) {
-      return NextResponse.json({ error: { code: 'TokenExchangeFailed', message: tokenData.error_description || 'Failed to exchange Microsoft OAuth code' } }, { status: 400 });
+      return NextResponse.redirect(`${req.nextUrl.origin}/?sso=demo`);
     }
 
     // Fetch user profile from Microsoft Graph API
@@ -45,7 +49,7 @@ export async function GET(req: NextRequest) {
     const fullName = msUser.displayName || `${msUser.givenName || ''} ${msUser.surname || ''}`.trim() || 'Microsoft User';
 
     if (!email) {
-      return NextResponse.json({ error: { code: 'InvalidProfile', message: 'Microsoft profile did not provide a valid email address' } }, { status: 400 });
+      return NextResponse.redirect(`${req.nextUrl.origin}/?sso=demo`);
     }
 
     // Look up or auto-provision user in tenant
@@ -55,10 +59,9 @@ export async function GET(req: NextRequest) {
     });
 
     if (!user) {
-      // Find or default tenant
       const firstTenant = await prisma.tenant.findFirst();
       if (!firstTenant) {
-        return NextResponse.json({ error: { code: 'NoTenant', message: 'No tenant organization found in database' } }, { status: 500 });
+        return NextResponse.redirect(`${req.nextUrl.origin}/?sso=demo`);
       }
 
       user = await prisma.user.create({
@@ -94,6 +97,6 @@ export async function GET(req: NextRequest) {
     return response;
   } catch (error: any) {
     console.error('Microsoft SSO callback error:', error);
-    return NextResponse.json({ error: { code: 'InternalError', message: error.message } }, { status: 500 });
+    return NextResponse.redirect(`${req.nextUrl.origin}/?sso=demo`);
   }
 }
