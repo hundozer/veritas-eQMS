@@ -100,6 +100,13 @@ export default function AdminPage() {
   const [savingReq, setSavingReq] = useState(false);
   const [reqError, setReqError] = useState<string | null>(null);
 
+  // Document importer states
+  const [importSourceId, setImportSourceId] = useState('');
+  const [rawDocText, setRawDocText] = useState('');
+  const [importingDoc, setImportingDoc] = useState(false);
+  const [importSuccess, setImportSuccess] = useState<string | null>(null);
+  const [importError, setImportError] = useState<string | null>(null);
+
   // Release publisher state
   const [pubRegulationId, setPubRegulationId] = useState('EU-GMP-VOL4');
   const [pubVersion, setPubVersion] = useState('2026.1');
@@ -165,7 +172,13 @@ export default function AdminPage() {
   const fetchRegulations = async () => {
     try {
       const res = await fetch('/api/admin/regulations');
-      if (res.ok) setRegulations(await res.json());
+      if (res.ok) {
+        const data = await res.json();
+        setRegulations(data);
+        if (data.length > 0) {
+          setImportSourceId(prev => prev || data[0].id);
+        }
+      }
     } catch (e) { console.error(e); }
   };
 
@@ -369,6 +382,39 @@ export default function AdminPage() {
       }
     } catch (err) {
       console.error(err);
+    }
+  };
+
+  const handleImportDoc = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setImportError(null);
+    setImportSuccess(null);
+    setImportingDoc(true);
+
+    try {
+      const res = await fetch('/api/admin/regulations/import', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          regulationSourceId: importSourceId,
+          rawText: rawDocText,
+        }),
+      });
+
+      if (res.ok) {
+        const json = await res.json();
+        setImportSuccess(json.message);
+        setRawDocText('');
+        fetchRegulations();
+        fetchStats();
+      } else {
+        const json = await res.json();
+        setImportError(json.error?.message || 'Failed to parse source document');
+      }
+    } catch (err: any) {
+      setImportError(err.message);
+    } finally {
+      setImportingDoc(false);
     }
   };
 
@@ -899,9 +945,11 @@ export default function AdminPage() {
         {/* 4. REGULATORY AUTHORITY (MOAT EDITOR) */}
         {activeTab === 'regulations' && (
           <div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '40px' }}>
               <div>
-                <h3 style={{ fontSize: '20px', fontWeight: '800', margin: 0, letterSpacing: '-0.01em' }}>Global Regulations Database</h3>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+                  <div>
+                    <h3 style={{ fontSize: '20px', fontWeight: '800', margin: 0, letterSpacing: '-0.01em' }}>Global Regulations Database</h3>
                 <p style={{ fontSize: '13px', color: '#94A3B8', marginTop: '4px' }}>
                   Manage the core regulatory taxonomy and requirements seeded globally across all tenants.
                 </p>
@@ -1010,6 +1058,79 @@ export default function AdminPage() {
                 </div>
               </div>
             ))}
+              </div>
+
+              {/* Right Column: AI Source Document Importer */}
+              <div>
+                <h3 style={{ fontSize: '20px', fontWeight: '800', marginBottom: '24px', letterSpacing: '-0.01em' }}>AI Source Document Importer</h3>
+                <div style={{ background: '#0F172A', border: '1px solid rgba(255,255,255,0.06)', padding: '24px' }}>
+                  <p style={{ fontSize: '12px', color: '#94A3B8', marginBottom: '16px', lineHeight: '1.5' }}>
+                    Upload or paste GxP regulatory document clauses. The Veritas AI engine will parse headers, extract individual requirements, tag risk levels, and compile expected compliance evidence.
+                  </p>
+
+                  {importError && (
+                    <div style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.2)', padding: '12px', fontSize: '12px', color: '#EF4444', fontFamily: 'monospace', marginBottom: '16px' }}>
+                      {importError}
+                    </div>
+                  )}
+                  {importSuccess && (
+                    <div style={{ background: 'rgba(5,150,105,0.1)', border: '1px solid rgba(5,150,105,0.2)', padding: '12px', fontSize: '12px', color: '#10B981', fontFamily: 'monospace', marginBottom: '16px' }}>
+                      {importSuccess}
+                    </div>
+                  )}
+
+                  <form onSubmit={handleImportDoc}>
+                    <div style={{ marginBottom: '16px' }}>
+                      <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', color: '#94A3B8', fontFamily: 'monospace', marginBottom: '8px', textTransform: 'uppercase' }}>
+                        Target Regulation Source
+                      </label>
+                      <select
+                        value={importSourceId}
+                        onChange={(e) => setImportSourceId(e.target.value)}
+                        required
+                        style={{ width: '100%', background: 'rgba(10,14,23,0.5)', border: '1px solid rgba(255,255,255,0.12)', color: '#FBFBFA', padding: '10px', fontSize: '13px' }}
+                      >
+                        {regulations.map(reg => (
+                          <option key={reg.id} value={reg.id}>{reg.title} ({reg.authority})</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div style={{ marginBottom: '24px' }}>
+                      <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', color: '#94A3B8', fontFamily: 'monospace', marginBottom: '8px', textTransform: 'uppercase' }}>
+                        Source Document Text / Clauses
+                      </label>
+                      <textarea
+                        value={rawDocText}
+                        onChange={(e) => setRawDocText(e.target.value)}
+                        placeholder="Paste GxP regulation sections here (e.g. 'Chapter 4: Documentation... 4.1 Documentation should be written clearly...')"
+                        required
+                        rows={10}
+                        style={{ width: '100%', background: 'rgba(10,14,23,0.5)', border: '1px solid rgba(255,255,255,0.12)', color: '#FBFBFA', padding: '10px', fontSize: '13px', fontFamily: 'monospace', resize: 'vertical' }}
+                      />
+                    </div>
+
+                    <button
+                      type="submit"
+                      disabled={importingDoc}
+                      style={{
+                        width: '100%',
+                        background: '#059669',
+                        color: '#FBFBFA',
+                        border: 'none',
+                        padding: '12px',
+                        fontSize: '12px',
+                        fontFamily: 'monospace',
+                        fontWeight: '700',
+                        cursor: importingDoc ? 'not-allowed' : 'pointer',
+                      }}
+                    >
+                      {importingDoc ? 'PARSING WITH VERITAS AI…' : '⚡ PARSE SOURCE DOCUMENT'}
+                    </button>
+                  </form>
+                </div>
+              </div>
+            </div>
 
             {/* Editor Modal */}
             {requirementFormOpen && editingRequirement && (
