@@ -6,6 +6,8 @@ import { AppShell, useThemeMode } from '@/ui';
 import type { NavGroup } from '@/ui';
 import dynamic from 'next/dynamic';
 
+const IAM_URL = process.env.NEXT_PUBLIC_IAM_URL || 'http://localhost:3001';
+
 const DashboardAnalytics = dynamic(() => import('@/components/DashboardAnalytics'), { ssr: false });
 import { DEFAULT_SYSTEM_ROLES, SYSTEM_PERMISSIONS } from '@/lib/permissions';
 import {
@@ -2134,7 +2136,7 @@ export default function Home() {
                 {/* Enterprise SSO Buttons */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '24px' }}>
                   <a
-                    href="http://localhost:3001"
+                    href={IAM_URL}
                     style={{
                       display: 'flex',
                       alignItems: 'center',
@@ -5340,7 +5342,7 @@ export default function Home() {
               {/* Enterprise SSO Buttons */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '20px' }}>
                 <a
-                  href="http://localhost:3001"
+                  href={IAM_URL}
                   className={styles.btn}
                   style={{
                     display: 'flex',
