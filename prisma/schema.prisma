@@ -11,18 +11,19 @@ datasource db {
 }
 
 model Tenant {
-  id            String         @id @default(uuid())
-  name          String
-  createdAt     DateTime       @default(now())
-  users         User[]
-  documents     Document[]
-  auditLogs     AuditLog[]
-  deviations    Deviation[]
-  capas         CAPA[]
-  equipment     Equipment[]
-  suppliers     Supplier[]
-  auditPlans    AuditPlan[]
-  notifications Notification[]
+  id                  String                        @id @default(uuid())
+  name                String
+  createdAt           DateTime                      @default(now())
+  users               User[]
+  documents           Document[]
+  auditLogs           AuditLog[]
+  deviations          Deviation[]
+  capas               CAPA[]
+  equipment           Equipment[]
+  suppliers           Supplier[]
+  auditPlans          AuditPlan[]
+  notifications       Notification[]
+  regulatoryAssessments TenantRequirementAssessment[]
 }
 
 model User {
@@ -63,6 +64,7 @@ model User {
   materialInspections     MaterialReceipt[]    @relation("InspectedMaterial")
   auditsLead              AuditPlan[]          @relation("LeadAuditor")
   notifications           Notification[]
+  requirementAssessments TenantRequirementAssessment[] @relation("RequirementOwner")
 }
 
 model Document {
@@ -379,90 +381,127 @@ model Notification {
   createdAt DateTime @default(now())
 }
 
-model VeritasComplianceRule {
-  id              String   @id @default(uuid())
-  standard        String   // e.g. "EU Annex 11", "21 CFR Part 11", "ISO 13485:2016"
-  section         String   // e.g. "11.10(a)", "Annex 11 Clause 4"
-  title           String
-  description     String
-  severity        String   // e.g. "HIGH", "CRITICAL", "MEDIUM"
-  automationCheck String   // Identifier for Veritas Intelligence rule calculation logic
+// ==========================================
+// REGULATORY INTEL - GLOBAL REGULATOR LAYER (Tenant-independent)
+// ==========================================
+
+model Regulation {
+  id           String              @id @default(uuid())
+  regulationId String              @unique // e.g. "EU-GMP-VOL4"
+  name         String
+  authority    String              // e.g. "European Commission"
+  jurisdiction String              // e.g. "European Union"
+  status       String              @default("ACTIVE") // ACTIVE, ARCHIVED
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
+  versions     RegulationVersion[]
 }
 
-model RegulationSource {
-  id                 String                  @id @default(uuid())
-  regulationId       String                  @unique // e.g. "EU-GMP-VOL4"
-  title              String                  // e.g. "EU GMP Volume 4 - Medicinal Products for Human & Veterinary Use"
-  authority          String                  // e.g. "European Commission / EMA"
-  region             String                  @default("European Union")
-  version            String                  @default("2024.1") // Semantic content version
-  contentHash        String?                 // SHA-256 hash of canonical requirement content — detects drift
-  publicationDate    DateTime                @default(now())
-  effectiveDate      DateTime                @default(now())
-  status             String                  @default("ACTIVE") // ACTIVE, ARCHIVED, DRAFT, UPDATE_AVAILABLE
-  sourceDocument     String?
-  sourceUrl          String?                 // Official publication URL for reference
-  lastReviewedDate   DateTime                @default(now())
-  lastCheckedForUpdate DateTime              @default(now())
-  latestAvailableVersion String?             // Set when central authority publishes a newer version
-  createdAt          DateTime                @default(now())
-  updatedAt          DateTime                @updatedAt
-  requirements       RegulatoryRequirement[]
-  updateLogs         RegulatoryUpdateLog[]
+model RegulationVersion {
+  id                String              @id @default(uuid())
+  regulationId      String
+  regulation        Regulation          @relation(fields: [regulationId], references: [id], onDelete: Cascade)
+  versionNumber     String              // e.g. "2024.1"
+  publicationDate   DateTime
+  effectiveDate     DateTime
+  status            String              @default("ACTIVE") // ACTIVE, SUPERSEDED
+  previousVersionId String?             @unique
+  previousVersion   RegulationVersion?  @relation("VersionSequence", fields: [previousVersionId], references: [id])
+  nextVersion       RegulationVersion?  @relation("VersionSequence")
+  chapters          Chapter[]
+  sourceDocuments   SourceDocument[]
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
 }
 
-model RegulatoryRequirement {
-  id                 String                    @id @default(uuid())
-  requirementId       String                    @unique // e.g. "EU-GMP-CH4-001"
-  regulationSourceId String
-  regulationSource   RegulationSource          @relation(fields: [regulationSourceId], references: [id], onDelete: Cascade)
-  chapter            String                    // e.g. "Chapter 4 Documentation"
-  section            String?                   // e.g. "4.1"
-  title              String
-  category           String                    // Quality System, Documentation, Personnel, Production, Laboratory Control, Supplier Management, Validation, Data Integrity
-  riskLevel          String                    @default("MAJOR") // CRITICAL, MAJOR, MINOR, INFORMATIONAL
-  requirementText    String
-  expectedEvidence   String
-  applicableAreas    String                    // JSON array string e.g. ["Quality Assurance", "Production", "QC"]
-  affectedProcesses  String                    // JSON array string e.g. ["Document Management", "Training", "Change Control"]
-  status             String                    @default("APPROVED") // PENDING_REVIEW, APPROVED, REJECTED, SUPERSEDED, DEPRECATED
-  aiExtracted        Boolean                   @default(false)
-  supersededBy       String?                   // requirementId of the replacement requirement (if superseded)
-  changeType         String?                   // NEW, MODIFIED, UNCHANGED, DEPRECATED — set during version updates
-  previousText       String?                   // Prior requirementText before update — for diff view
-  createdAt          DateTime                  @default(now())
-  updatedAt          DateTime                  @updatedAt
-  relationships      RequirementRelationship[]
+model SourceDocument {
+  id                  String            @id @default(uuid())
+  regulationVersionId String
+  regulationVersion   RegulationVersion @relation(fields: [regulationVersionId], references: [id], onDelete: Cascade)
+  fileName            String
+  filePath            String
+  fileType            String
+  contentHash         String?
+  uploadedAt          DateTime          @default(now())
 }
 
-model RequirementRelationship {
-  id               String                @id @default(uuid())
-  requirementId    String
-  requirement      RegulatoryRequirement @relation(fields: [requirementId], references: [id], onDelete: Cascade)
-  targetType       String                // DOCUMENT, TRAINING, CHANGE_REQUEST, DEVIATION, CAPA, AUDIT, PROCESS, RISK
-  targetId         String                // Foreign key ID of linked QMS entity
-  targetTitle      String                // Human-readable title of linked QMS entity
-  relationshipType String                @default("REQUIRES") // REQUIRES, VERIFIED_BY, LINKED_TO, MITIGATED_BY
-  createdAt        DateTime              @default(now())
+model Chapter {
+  id                  String            @id @default(uuid())
+  regulationVersionId String
+  regulationVersion   RegulationVersion @relation(fields: [regulationVersionId], references: [id], onDelete: Cascade)
+  chapterNumber       String            // e.g. "Chapter 4", "Annex 11"
+  title               String
+  sections            Section[]
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
 }
 
-// Tracks each regulatory content version update received by this tenant
-model RegulatoryUpdateLog {
-  id                   String           @id @default(uuid())
-  regulationSourceId   String
-  regulationSource     RegulationSource @relation(fields: [regulationSourceId], references: [id], onDelete: Cascade)
-  fromVersion          String           // e.g. "2024.1"
-  toVersion            String           // e.g. "2026.1"
-  publishedAt          DateTime         // When the central authority published this update
-  appliedAt            DateTime?        // When the tenant QM accepted and applied this update
-  appliedByUserId      String?          // User who reviewed and accepted the update
-  status               String           @default("AVAILABLE") // AVAILABLE, REVIEWING, APPLIED, DISMISSED
-  summary              String           // Human-readable summary of what changed
-  addedRequirements    Int              @default(0)
-  modifiedRequirements Int              @default(0)
-  deprecatedRequirements Int            @default(0)
-  changeManifest       String?          // JSON detail of every requirement change
-  createdAt            DateTime         @default(now())
+model Section {
+  id            String        @id @default(uuid())
+  chapterId     String
+  chapter       Chapter       @relation(fields: [chapterId], references: [id], onDelete: Cascade)
+  sectionNumber String        // e.g. "4.1", "Clause 3"
+  title         String
+  requirements  Requirement[]
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+}
+
+model Requirement {
+  id                 String                        @id @default(uuid())
+  requirementId      String                        @unique // e.g. "REQ-EU-GMP-CH4-V2024.1-P4.1-1"
+  sectionId          String
+  section            Section                       @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  paragraphReference String                        // e.g. "Paragraph 4.1"
+  originalWording    String                        // Immutable regulatory text
+  pageNumber         Int?
+  riskClassification String                        // CRITICAL, MAJOR, MINOR
+  category           String
+  keywords           String                        // Comma-separated or JSON array list
+  qualityArea        String
+  importDate         DateTime                      @default(now())
+  parserVersion      String                        @default("1.0")
+  assessments        TenantRequirementAssessment[]
+  createdAt          DateTime                      @default(now())
+  updatedAt          DateTime                      @updatedAt
+}
+
+// ==========================================
+// REGULATORY INTEL - TENANT COMPLIANCE LAYER (Customer-specific)
+// ==========================================
+
+model TenantRequirementAssessment {
+  id                   String                     @id @default(uuid())
+  tenantId             String
+  tenant               Tenant                     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  requirementId        String
+  requirement          Requirement                @relation(fields: [requirementId], references: [id], onDelete: Cascade)
+  applicability        String                     @default("NOT_ASSESSED") // NOT_ASSESSED, UNDER_REVIEW, APPLICABLE, NOT_APPLICABLE
+  justification        String?                    // Mandatory if NOT_APPLICABLE
+  implementationStatus String                     @default("NOT_STARTED") // NOT_STARTED, UNDER_REVIEW, MAPPED, IMPLEMENTED, VERIFIED, MONITORING
+  interpretation       String?                    // Plain-language corporate interpretation
+  aiInterpretation     String?                    // AI-drafted interpretation proposal
+  ownerId              String?
+  owner                User?                      @relation("RequirementOwner", fields: [ownerId], references: [id])
+  reviewDate           DateTime?
+  comments             String?
+  mappings             TenantRequirementMapping[]
+  createdAt            DateTime                   @default(now())
+  updatedAt            DateTime                   @updatedAt
+
+  @@unique([tenantId, requirementId])
+}
+
+model TenantRequirementMapping {
+  id           String                      @id @default(uuid())
+  tenantId     String
+  assessmentId String
+  assessment   TenantRequirementAssessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+  targetType   String                      // DOCUMENT, TRAINING_REQUIREMENT, PROCESS, RISK, CAPA, AUDIT_PLAN, VALIDATION, EQUIPMENT, SUPPLIER
+  targetId     String                      // ID of the target QMS record
+  targetTitle  String                      // Cached display name
+  mappingType  String                      @default("SATISFIES") // SATISFIES, VERIFIES, MITIGATES, APPLIES_TO
+  createdAt    DateTime                    @default(now())
 }
 
 model IamUser {
