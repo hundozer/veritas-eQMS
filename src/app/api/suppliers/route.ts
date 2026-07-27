@@ -111,3 +111,103 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: { code: 'InternalServerError', message: error.message } }, { status: 500 });
   }
 }
+
+// PUT /api/suppliers - Add an attachment to an existing supplier
+export async function PUT(req: NextRequest) {
+  try {
+    const user = await getContext(req);
+    if (!user) {
+      return NextResponse.json({ error: { code: 'Unauthorized', message: 'User context not found' } }, { status: 401 });
+    }
+
+    const body = await req.json();
+    const { supplierId, fileName, fileType, fileData } = body;
+
+    if (!supplierId || !fileName || !fileData) {
+      return NextResponse.json({ error: { code: 'ValidationFailed', message: 'supplierId, fileName, and fileData are required' } }, { status: 400 });
+    }
+
+    const supplier = await prisma.supplier.findUnique({
+      where: { id: supplierId },
+    });
+
+    if (!supplier || supplier.tenantId !== user.tenantId) {
+      return NextResponse.json({ error: { code: 'NotFound', message: 'Supplier not found' } }, { status: 404 });
+    }
+
+    const attachment = await prisma.supplierAttachment.create({
+      data: {
+        supplierId,
+        fileName,
+        fileType,
+        fileData,
+      },
+    });
+
+    await logAuditEvent({
+      tenantId: user.tenantId,
+      userId: user.id,
+      userEmail: user.email,
+      userRole: user.role,
+      action: 'Supplier.AddAttachment',
+      objectType: 'SupplierAttachment',
+      objectId: attachment.id,
+      payload: { supplierName: supplier.name, fileName },
+      status: 'Success',
+      requestUrl: req.nextUrl.pathname,
+    });
+
+    return NextResponse.json({ attachment }, { status: 201 });
+  } catch (error: any) {
+    console.error('PUT /api/suppliers error:', error);
+    return NextResponse.json({ error: { code: 'InternalServerError', message: error.message } }, { status: 500 });
+  }
+}
+
+// DELETE /api/suppliers - Delete an attachment from a supplier
+export async function DELETE(req: NextRequest) {
+  try {
+    const user = await getContext(req);
+    if (!user) {
+      return NextResponse.json({ error: { code: 'Unauthorized', message: 'User context not found' } }, { status: 401 });
+    }
+
+    const { searchParams } = new URL(req.url);
+    const attachmentId = searchParams.get('attachmentId');
+
+    if (!attachmentId) {
+      return NextResponse.json({ error: { code: 'ValidationFailed', message: 'attachmentId is required' } }, { status: 400 });
+    }
+
+    const attachment = await prisma.supplierAttachment.findUnique({
+      where: { id: attachmentId },
+      include: { supplier: true },
+    });
+
+    if (!attachment || attachment.supplier.tenantId !== user.tenantId) {
+      return NextResponse.json({ error: { code: 'NotFound', message: 'Attachment not found' } }, { status: 404 });
+    }
+
+    await prisma.supplierAttachment.delete({
+      where: { id: attachmentId },
+    });
+
+    await logAuditEvent({
+      tenantId: user.tenantId,
+      userId: user.id,
+      userEmail: user.email,
+      userRole: user.role,
+      action: 'Supplier.DeleteAttachment',
+      objectType: 'SupplierAttachment',
+      objectId: attachmentId,
+      payload: { supplierName: attachment.supplier.name, fileName: attachment.fileName },
+      status: 'Success',
+      requestUrl: req.nextUrl.pathname,
+    });
+
+    return NextResponse.json({ success: true, message: 'Attachment deleted successfully' });
+  } catch (error: any) {
+    console.error('DELETE /api/suppliers error:', error);
+    return NextResponse.json({ error: { code: 'InternalServerError', message: error.message } }, { status: 500 });
+  }
+}

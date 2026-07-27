@@ -492,6 +492,7 @@ export default function Home() {
   // Handle Sign Out / Logout
   const handleSignOut = () => {
     document.cookie = 'user-email=; path=/; max-age=0';
+    document.cookie = 'iam-access-token=; path=/; max-age=0';
     setCurrentUser(null);
     setViewMode('landing');
     setSuccessMessage('Signed out successfully.');
@@ -1221,6 +1222,69 @@ export default function Home() {
     } catch (err: any) {
       setErrorMessage(err.message);
       setTimeout(() => setErrorMessage(null), 5000);
+    }
+  };
+
+  const handleDeleteAttachment = async (attachmentId: string) => {
+    try {
+      const res = await fetch(`/api/suppliers?attachmentId=${attachmentId}`, {
+        method: 'DELETE',
+        headers: { 'x-user-email': currentUser?.email || '' },
+      });
+
+      if (res.ok) {
+        setSuccessMessage('Attachment deleted successfully.');
+        fetchData();
+      } else {
+        const data = await res.json();
+        setErrorMessage(data.error?.message || 'Failed to delete attachment');
+      }
+      setTimeout(() => { setSuccessMessage(null); setErrorMessage(null); }, 4000);
+    } catch (err: any) {
+      setErrorMessage(err.message);
+      setTimeout(() => setErrorMessage(null), 4000);
+    }
+  };
+
+  const handleAddAttachment = async (file: File) => {
+    if (!selectedSupplierId) return;
+    const reader = new FileReader();
+
+    try {
+      const fileData = await new Promise<string>((resolve) => {
+        reader.onload = (ev) => {
+          const result = ev.target?.result as string;
+          const base64 = result.split(',')[1];
+          resolve(base64);
+        };
+        reader.readAsDataURL(file);
+      });
+
+      const res = await fetch('/api/suppliers', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-user-email': currentUser?.email || '',
+        },
+        body: JSON.stringify({
+          supplierId: selectedSupplierId,
+          fileName: file.name,
+          fileType: file.type,
+          fileData,
+        }),
+      });
+
+      if (res.ok) {
+        setSuccessMessage(`File "${file.name}" attached successfully.`);
+        fetchData();
+      } else {
+        const data = await res.json();
+        setErrorMessage(data.error?.message || 'Failed to attach document');
+      }
+      setTimeout(() => { setSuccessMessage(null); setErrorMessage(null); }, 4000);
+    } catch (err: any) {
+      setErrorMessage(err.message);
+      setTimeout(() => setErrorMessage(null), 4000);
     }
   };
 
@@ -2069,6 +2133,26 @@ export default function Home() {
 
                 {/* Enterprise SSO Buttons */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '24px' }}>
+                  <a
+                    href="http://localhost:3001"
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '12px',
+                      padding: '14px',
+                      fontSize: '13px',
+                      fontWeight: '700',
+                      color: '#FFFFFF',
+                      background: '#059669',
+                      border: 'none',
+                      borderRadius: '0px',
+                      cursor: 'pointer',
+                      textDecoration: 'none',
+                    }}
+                  >
+                    🔐 Sign in with Simpleafied Identity (IAM)
+                  </a>
                   <button
                     type="button"
                     style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px', padding: '14px', fontSize: '13px', fontWeight: '700', color: '#0A0E17', background: '#FBFBFA', border: '1px solid rgba(10, 14, 23, 0.2)', borderRadius: '0px', cursor: 'pointer' }}
@@ -3639,7 +3723,22 @@ export default function Home() {
 
                       {/* Attached Documents */}
                       <div>
-                        <h4 style={{ marginBottom: '8px' }}>Attached Qualification Documents</h4>
+                        <h4 style={{ marginBottom: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <span>Attached Qualification Documents</span>
+                          {(currentUser?.role === 'ADMIN' || currentUser?.role === 'OWNER' || currentUser?.department === 'QA') && (
+                            <label style={{ fontSize: '11px', color: '#A3E635', cursor: 'pointer', fontFamily: 'monospace', fontWeight: '700' }}>
+                              [ + ADD FILE ]
+                              <input
+                                type="file"
+                                style={{ display: 'none' }}
+                                onChange={(e) => {
+                                  const file = e.target.files?.[0];
+                                  if (file) handleAddAttachment(file);
+                                }}
+                              />
+                            </label>
+                          )}
+                        </h4>
                         {selectedSupplier.attachments && selectedSupplier.attachments.length > 0 ? (
                           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                             {selectedSupplier.attachments.map((att: any) => (
@@ -3656,19 +3755,39 @@ export default function Home() {
                                 }}
                               >
                                 <span style={{ fontWeight: '500' }}>📎 {att.fileName}</span>
-                                <a
-                                  href={`data:${att.fileType};base64,${att.fileData}`}
-                                  download={att.fileName}
-                                  style={{
-                                    color: '#A3E635',
-                                    textDecoration: 'none',
-                                    fontWeight: '700',
-                                    fontSize: '12px',
-                                    fontFamily: 'monospace',
-                                  }}
-                                >
-                                  [ DOWNLOAD ]
-                                </a>
+                                <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                                  <a
+                                    href={`data:${att.fileType};base64,${att.fileData}`}
+                                    download={att.fileName}
+                                    style={{
+                                      color: '#A3E635',
+                                      textDecoration: 'none',
+                                      fontWeight: '700',
+                                      fontSize: '11px',
+                                      fontFamily: 'monospace',
+                                    }}
+                                  >
+                                    [ DOWNLOAD ]
+                                  </a>
+                                  {(currentUser?.role === 'ADMIN' || currentUser?.role === 'OWNER' || currentUser?.department === 'QA') && (
+                                    <button
+                                      type="button"
+                                      onClick={() => handleDeleteAttachment(att.id)}
+                                      style={{
+                                        background: 'transparent',
+                                        border: 'none',
+                                        color: 'var(--danger)',
+                                        cursor: 'pointer',
+                                        fontSize: '11px',
+                                        fontWeight: '700',
+                                        fontFamily: 'monospace',
+                                        padding: 0,
+                                      }}
+                                    >
+                                      [ DELETE ]
+                                    </button>
+                                  )}
+                                </div>
                               </div>
                             ))}
                           </div>
@@ -5220,6 +5339,25 @@ export default function Home() {
             <div className={styles.modalBody}>
               {/* Enterprise SSO Buttons */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '20px' }}>
+                <a
+                  href="http://localhost:3001"
+                  className={styles.btn}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '10px',
+                    padding: '12px',
+                    fontSize: '13px',
+                    background: '#059669',
+                    color: '#fff',
+                    textDecoration: 'none',
+                    fontWeight: '700',
+                    border: 'none',
+                  }}
+                >
+                  🔐 Sign in with Simpleafied Identity (IAM)
+                </a>
                 <button
                   type="button"
                   className={`${styles.btn} ${styles.btnSecondary}`}
