@@ -31,7 +31,11 @@ export function isGodModeUser(email: string): boolean {
 
 import jwt from 'jsonwebtoken';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'SIMPLEAFIED_IAM_SUPER_SECRET_KEY_2026!';
+function getJwtSecret(): string {
+  const jwtSecret = process.env.JWT_SECRET;
+  if (!jwtSecret) throw new Error('JWT verification is unavailable');
+  return jwtSecret;
+}
 
 export async function getContext(req?: NextRequest): Promise<UserContext | null> {
   let email: string | null = null;
@@ -54,7 +58,7 @@ export async function getContext(req?: NextRequest): Promise<UserContext | null>
 
   if (iamToken) {
     try {
-      const decoded = jwt.verify(iamToken, JWT_SECRET) as any;
+      const decoded = jwt.verify(iamToken, getJwtSecret()) as any;
       if (decoded && decoded.email) {
         email = decoded.email;
         if (decoded.organizationId) {

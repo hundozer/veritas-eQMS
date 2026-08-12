@@ -16,8 +16,8 @@ export async function POST(req: NextRequest) {
 
     // If it's a Platform Admin, verify password
     if (isAdmin) {
-      const correctPassword = process.env.ADMIN_PASSWORD || 'SimpleafiedAdmin2026!';
-      if (!password || password !== correctPassword) {
+      const correctPassword = process.env.ADMIN_PASSWORD;
+      if (!correctPassword || !password || password !== correctPassword) {
         return NextResponse.json({ error: { code: 'Unauthorized', message: 'Invalid operator credentials' } }, { status: 401 });
       }
 

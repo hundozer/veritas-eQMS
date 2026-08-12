@@ -1,14 +1,10 @@
 import { PrismaClient } from '@prisma/client';
 
-const fallbackUrl =
-  'postgresql://neondb_owner:npg_4VUwKCtFq3NB@ep-damp-cell-asc7guyo-pooler.c-4.eu-central-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require';
+const connectionString = process.env.DATABASE_URL;
 
-// Ensure process.env.DATABASE_URL is always populated even if Vercel env var is unconfigured
-if (!process.env.DATABASE_URL) {
-  process.env.DATABASE_URL = fallbackUrl;
+if (!connectionString?.trim()) {
+  throw new Error('Database configuration is unavailable');
 }
-
-const connectionString = process.env.DATABASE_URL || fallbackUrl;
 
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined;

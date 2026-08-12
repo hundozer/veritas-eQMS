@@ -7,7 +7,8 @@
     "build": "prisma generate && next build",
     "postinstall": "prisma generate",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test:auth": "vitest run src/lib/auth.test.ts --reporter=verbose"
   },
   "dependencies": {
     "@emotion/react": "^11.14.0",
@@ -15,6 +16,7 @@
     "@mui/icons-material": "^9.2.0",
     "@mui/material": "^9.2.0",
     "@prisma/client": "^6.19.3",
+    "argon2": "^0.45.1",
     "jsonwebtoken": "^9.0.3",
     "next": "16.2.11",
     "pdf-parse": "^2.4.5",
@@ -30,6 +32,7 @@
     "eslint": "^9",
     "eslint-config-next": "16.2.11",
     "prisma": "^6.19.3",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^4.1.10"
   }
 }

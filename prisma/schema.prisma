@@ -520,7 +520,13 @@ model IamUser {
   lastPasswordChange DateTime?
   memberships        IamMembership[]
   sessions           IamSession[]
+  credentialActionTokens IamCredentialActionToken[]
   auditTrails        IamAuditTrail[]
+}
+
+enum IamCredentialActionPurpose {
+  PASSWORD_SETUP
+  PASSWORD_RESET
 }
 
 model IamOrganization {
@@ -552,6 +558,7 @@ model IamMembership {
   approvedBy     String?
   createdAt      DateTime        @default(now())
   updatedAt      DateTime        @updatedAt
+  sessions       IamSession[]
 
   @@unique([userId, organizationId])
 }
@@ -594,16 +601,39 @@ model IamRolePermission {
 }
 
 model IamSession {
-  id           String    @id @default(uuid())
+  id           String        @id @default(uuid())
   userId       String
-  user         IamUser   @relation(fields: [userId], references: [id], onDelete: Cascade)
-  refreshToken String    @unique
+  user         IamUser       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  membershipId String
+  membership   IamMembership @relation(fields: [membershipId], references: [id], onDelete: Cascade)
+
+  tokenHash    String        @unique // SHA-256 digest only; plaintext bearer tokens must never be persisted
+  expiresAt    DateTime
+  revokedAt    DateTime?
+
   ipAddress    String?
   userAgent    String?
-  location     String?   @default("Unknown")
-  isActive     Boolean   @default(true)
-  createdAt    DateTime  @default(now())
-  lastActiveAt DateTime  @default(now())
+  location     String?       @default("Unknown")
+
+  createdAt    DateTime      @default(now())
+  lastActiveAt DateTime      @default(now())
+}
+
+model IamCredentialActionToken {
+  id         String                     @id @default(uuid())
+  userId     String
+  user       IamUser                    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  tokenHash  String                     @unique // SHA-256 digest only; plaintext bearer tokens must never be persisted
+  purpose    IamCredentialActionPurpose
+
+  expiresAt  DateTime
+  consumedAt DateTime?
+
+  createdAt  DateTime                   @default(now())
+
+  @@index([userId, purpose])
 }
 
 model IamAuditTrail {
