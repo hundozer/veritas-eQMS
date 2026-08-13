@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/db';
-import { getContext, logAuditEvent, checkAbac } from '@/lib/auth';
+import { getContext, logAuditEvent } from '@/lib/auth';
+import { hasPermission } from '@/lib/rbac';
+import { writeMandatoryAudit } from '@/lib/audit';
 import * as fs from 'fs';
 
 import * as path from 'path';
@@ -12,6 +14,9 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     const user = await getContext(req);
     if (!user) {
       return NextResponse.json({ error: { code: 'Unauthorized', message: 'User context not found' } }, { status: 401 });
+    }
+    if (!hasPermission(user, 'documents.read')) {
+      return NextResponse.json({ error: { code: 'Forbidden', message: 'Insufficient permission' } }, { status: 403 });
     }
 
     const document = await prisma.document.findUnique({
@@ -32,23 +37,6 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
 
     if (!document || document.tenantId !== user.tenantId) {
       return NextResponse.json({ error: { code: 'NotFound', message: 'Document not found' } }, { status: 404 });
-    }
-
-    // Check ABAC view access
-    if (!checkAbac(user, { classification: document.classification, ownerId: document.ownerId }, 'view')) {
-      await logAuditEvent({
-        tenantId: user.tenantId,
-        userId: user.id,
-        userEmail: user.email,
-        userRole: user.role,
-        action: 'Document.View',
-        objectType: 'Document',
-        objectId: id,
-        payload: { title: document.title, reason: 'ABAC check failed' },
-        status: 'Denied',
-        requestUrl: req.nextUrl.pathname,
-      });
-      return NextResponse.json({ error: { code: 'Forbidden', message: 'Access denied by ABAC policy' } }, { status: 403 });
     }
 
     // Log the read action asynchronously
@@ -80,6 +68,9 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     if (!user) {
       return NextResponse.json({ error: { code: 'Unauthorized', message: 'User context not found' } }, { status: 401 });
     }
+    if (!hasPermission(user, 'documents.update_draft')) {
+      return NextResponse.json({ error: { code: 'Forbidden', message: 'Insufficient permission' } }, { status: 403 });
+    }
 
     const document = await prisma.document.findUnique({
       where: { id },
@@ -88,11 +79,6 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
 
     if (!document || document.tenantId !== user.tenantId) {
       return NextResponse.json({ error: { code: 'NotFound', message: 'Document not found' } }, { status: 404 });
-    }
-
-    // Check ABAC edit access
-    if (!checkAbac(user, { classification: document.classification, ownerId: document.ownerId }, 'edit')) {
-      return NextResponse.json({ error: { code: 'Forbidden', message: 'Access denied: you are not the document owner' } }, { status: 403 });
     }
 
     const body = await req.json();
@@ -189,27 +175,12 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
         });
       }
 
+      await writeMandatoryAudit(tx, {
+        context: user, action: 'Document.Update', objectType: 'Document', objectId: id,
+        payload: { previousStatus: document.status, status: doc.status, previousVersion: document.currentVersionNumber, version: doc.currentVersionNumber, newVersionUploaded: Boolean(contentBase64) },
+        requestUrl: req.nextUrl.pathname,
+      });
       return doc;
-    });
-
-    // 3. Log audit event
-    await logAuditEvent({
-      tenantId: user.tenantId,
-      userId: user.id,
-      userEmail: user.email,
-      userRole: user.role,
-      action: 'Document.Update',
-      objectType: 'Document',
-      objectId: id,
-      payload: {
-        title: updatedDoc.title,
-        status: updatedDoc.status,
-        version: updatedDoc.currentVersionNumber,
-        newVersionUploaded: !!contentBase64,
-        hash: contentBase64 ? hash : undefined,
-      },
-      status: 'Success',
-      requestUrl: req.nextUrl.pathname,
     });
 
     return NextResponse.json({ document: updatedDoc });
@@ -227,6 +198,9 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
     if (!user) {
       return NextResponse.json({ error: { code: 'Unauthorized', message: 'User context not found' } }, { status: 401 });
     }
+    if (!hasPermission(user, 'documents.obsolete')) {
+      return NextResponse.json({ error: { code: 'Forbidden', message: 'Insufficient permission' } }, { status: 403 });
+    }
 
     const document = await prisma.document.findUnique({
       where: { id },
@@ -236,29 +210,18 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
       return NextResponse.json({ error: { code: 'NotFound', message: 'Document not found' } }, { status: 404 });
     }
 
-    // Only Owner or Admin can delete
-    if (!checkAbac(user, { classification: document.classification, ownerId: document.ownerId }, 'delete')) {
-      return NextResponse.json({ error: { code: 'Forbidden', message: 'Access denied: only owner or admin can archive' } }, { status: 403 });
-    }
-
     // Set status to OBSOLETE (instead of hard deleting to preserve GxP audit records)
-    const archivedDoc = await prisma.document.update({
-      where: { id },
-      data: { status: 'OBSOLETE' },
-    });
-
-    // Log the transaction
-    await logAuditEvent({
-      tenantId: user.tenantId,
-      userId: user.id,
-      userEmail: user.email,
-      userRole: user.role,
+    const archivedDoc = await prisma.$transaction(async (tx) => {
+      const archived = await tx.document.update({ where: { id }, data: { status: 'OBSOLETE' } });
+      await writeMandatoryAudit(tx, {
+      context: user,
       action: 'Document.Obsolete',
       objectType: 'Document',
       objectId: id,
-      payload: { title: archivedDoc.title, previousStatus: document.status },
-      status: 'Success',
+      payload: { previousStatus: document.status, status: archived.status },
       requestUrl: req.nextUrl.pathname,
+    });
+      return archived;
     });
 
     return NextResponse.json({ success: true, document: archivedDoc });

@@ -1,0 +1,4 @@
+ALTER TABLE "AuditLog" ADD COLUMN "iamUserId" TEXT;
+ALTER TABLE "AuditLog" ADD COLUMN "membershipId" TEXT;
+ALTER TABLE "AuditLog" ADD COLUMN "roleId" TEXT;
+

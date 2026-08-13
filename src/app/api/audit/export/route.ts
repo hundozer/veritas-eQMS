@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 import { getContext, logAuditEvent } from '@/lib/auth';
+import { hasPermission } from '@/lib/rbac';
 
 // GET /api/audit/export - Export the audit trail to CSV format (auditor/admin-only)
 export async function GET(req: NextRequest) {
@@ -11,7 +12,7 @@ export async function GET(req: NextRequest) {
     }
 
     // Role verification
-    if (user.role !== 'ADMIN' && user.role !== 'AUDITOR') {
+    if (!hasPermission(user, 'audit.export')) {
       return NextResponse.json({ error: { code: 'Forbidden', message: 'Access denied: Auditor or QA Admin credentials required' } }, { status: 403 });
     }
 

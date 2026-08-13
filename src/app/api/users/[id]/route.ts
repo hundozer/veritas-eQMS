@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 import { getContext, logAuditEvent } from '@/lib/auth';
+import { hasPermission } from '@/lib/rbac';
+import { writeMandatoryAudit } from '@/lib/audit';
 
 // PUT /api/users/[id] - Update user role, department, or clearance (Admin/Owner only)
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -11,8 +13,8 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       return NextResponse.json({ error: { code: 'Unauthorized', message: 'User context not found' } }, { status: 401 });
     }
 
-    if (adminUser.role !== 'OWNER' && adminUser.role !== 'ADMIN') {
-      return NextResponse.json({ error: { code: 'Forbidden', message: 'Only Organization Owners or QA Administrators can reassign user roles' } }, { status: 403 });
+    if (!hasPermission(adminUser, 'users.update')) {
+      return NextResponse.json({ error: { code: 'Forbidden', message: 'Insufficient permission' } }, { status: 403 });
     }
 
     const targetUser = await prisma.user.findUnique({ where: { id } });
@@ -22,11 +24,15 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
 
     const body = await req.json();
     const { role, department, clearance, fullName, site, employmentType, expiresAt } = body;
+    if (role && ['PLATFORM_ADMIN', 'GOD', 'SUPER_ADMIN'].includes(String(role).toUpperCase())) {
+      return NextResponse.json({ error: { code: 'Forbidden', message: 'Platform privilege cannot be assigned here' } }, { status: 403 });
+    }
 
     const previousRole = targetUser.role;
     const previousDept = targetUser.department;
 
-    const updatedUser = await prisma.user.update({
+    const updatedUser = await prisma.$transaction(async (tx) => {
+      const updated = await tx.user.update({
       where: { id },
       data: {
         role: role || targetUser.role,
@@ -40,24 +46,22 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     });
 
     // Log GxP audit event for role modification
-    await logAuditEvent({
-      tenantId: adminUser.tenantId,
-      userId: adminUser.id,
-      userEmail: adminUser.email,
-      userRole: adminUser.role,
+      await writeMandatoryAudit(tx, {
+      context: adminUser,
       action: 'User.RoleUpdate',
       objectType: 'User',
       objectId: id,
       payload: {
-        targetUserEmail: updatedUser.email,
-        targetUserFullName: updatedUser.fullName,
+        targetUserEmail: updated.email,
+        targetUserFullName: updated.fullName,
         previousRole,
-        newRole: updatedUser.role,
+        newRole: updated.role,
         previousDepartment: previousDept,
-        newDepartment: updatedUser.department,
+        newDepartment: updated.department,
       },
-      status: 'Success',
       requestUrl: req.nextUrl.pathname,
+    });
+      return updated;
     });
 
     return NextResponse.json({ user: updatedUser });
@@ -76,8 +80,8 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
       return NextResponse.json({ error: { code: 'Unauthorized', message: 'User context not found' } }, { status: 401 });
     }
 
-    if (adminUser.role !== 'OWNER' && adminUser.role !== 'ADMIN') {
-      return NextResponse.json({ error: { code: 'Forbidden', message: 'Only Organization Owners or QA Administrators can remove team members' } }, { status: 403 });
+    if (!hasPermission(adminUser, 'users.deactivate')) {
+      return NextResponse.json({ error: { code: 'Forbidden', message: 'Insufficient permission' } }, { status: 403 });
     }
 
     if (adminUser.id === id) {
@@ -89,19 +93,16 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
       return NextResponse.json({ error: { code: 'NotFound', message: 'Target user not found' } }, { status: 404 });
     }
 
-    await prisma.user.delete({ where: { id } });
-
-    await logAuditEvent({
-      tenantId: adminUser.tenantId,
-      userId: adminUser.id,
-      userEmail: adminUser.email,
-      userRole: adminUser.role,
-      action: 'User.Remove',
+    await prisma.$transaction(async (tx) => {
+      await tx.user.update({ where: { id }, data: { accountStatus: 'INACTIVE' } });
+      await writeMandatoryAudit(tx, {
+      context: adminUser,
+      action: 'User.Deactivate',
       objectType: 'User',
       objectId: id,
       payload: { removedUserEmail: targetUser.email, removedUserRole: targetUser.role },
-      status: 'Success',
       requestUrl: req.nextUrl.pathname,
+    });
     });
 
     return NextResponse.json({ success: true });

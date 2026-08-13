@@ -195,6 +195,7 @@ describe('getContext authentication security boundary', () => {
       iamUserId: VALIDATED_SESSION.userId,
       membershipId: VALIDATED_SESSION.membershipId,
       roleId: VALIDATED_SESSION.roleId,
+      membershipRole: VALIDATED_SESSION.roleName,
       id: user.id,
       email: user.email,
       fullName: user.fullName,

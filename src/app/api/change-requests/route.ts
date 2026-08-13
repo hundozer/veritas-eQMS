@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 import { getContext, logAuditEvent } from '@/lib/auth';
+import { hasPermission } from '@/lib/rbac';
+import { writeMandatoryAudit } from '@/lib/audit';
 
 
 // GET /api/change-requests - List all Change Requests (tenant-scoped)
@@ -9,6 +11,9 @@ export async function GET(req: NextRequest) {
     const user = await getContext(req);
     if (!user) {
       return NextResponse.json({ error: { code: 'Unauthorized', message: 'User context not found' } }, { status: 401 });
+    }
+    if (!hasPermission(user, 'change.read')) {
+      return NextResponse.json({ error: { code: 'Forbidden', message: 'Insufficient permission' } }, { status: 403 });
     }
 
     const changeRequests = await prisma.changeRequest.findMany({
@@ -60,7 +65,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Only QA Admin, Owner, or Approver can initiate CRs (not Employee/Auditor)
-    if (user.role === 'EMPLOYEE' || user.role === 'AUDITOR') {
+    if (!hasPermission(user, 'change.create')) {
       return NextResponse.json({ error: { code: 'Forbidden', message: 'Permissions insufficient to initiate Change Requests' } }, { status: 403 });
     }
 
@@ -109,25 +114,14 @@ export async function POST(req: NextRequest) {
         });
       }
 
-      return cr;
-    });
+      await writeMandatoryAudit(tx, {
+        context: user,
+        action: 'ChangeControl.Create', objectType: 'ChangeRequest', objectId: cr.id,
+        payload: { title: cr.title, riskLevel: cr.riskLevel, documentCount: documentIds.length },
+        requestUrl: req.nextUrl.pathname,
+      });
 
-    // Log GxP audit log
-    await logAuditEvent({
-      tenantId: user.tenantId,
-      userId: user.id,
-      userEmail: user.email,
-      userRole: user.role,
-      action: 'ChangeControl.Create',
-      objectType: 'ChangeRequest',
-      objectId: result.id,
-      payload: {
-        title: result.title,
-        riskLevel: result.riskLevel,
-        documentCount: documentIds.length,
-      },
-      status: 'Success',
-      requestUrl: req.nextUrl.pathname,
+      return cr;
     });
 
     return NextResponse.json({ changeRequest: result }, { status: 201 });

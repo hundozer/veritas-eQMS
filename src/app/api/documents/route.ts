@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/db';
-import { getContext, logAuditEvent, checkAbac } from '@/lib/auth';
+import { getContext, logAuditEvent } from '@/lib/auth';
+import { hasPermission } from '@/lib/rbac';
+import { writeMandatoryAudit } from '@/lib/audit';
 import * as fs from 'fs';
 
 import * as path from 'path';
@@ -11,6 +13,9 @@ export async function GET(req: NextRequest) {
     const user = await getContext(req);
     if (!user) {
       return NextResponse.json({ error: { code: 'Unauthorized', message: 'User context not found' } }, { status: 401 });
+    }
+    if (!hasPermission(user, 'documents.read')) {
+      return NextResponse.json({ error: { code: 'Forbidden', message: 'Insufficient permission' } }, { status: 403 });
     }
 
     // Tenant isolation
@@ -27,11 +32,6 @@ export async function GET(req: NextRequest) {
       orderBy: { updatedAt: 'desc' },
     });
 
-    // Post-evaluate ABAC for each document (e.g., clearance checks)
-    const filteredDocs = dbDocs.filter((doc: any) => {
-      return checkAbac(user, { classification: doc.classification, ownerId: doc.ownerId }, 'view');
-    });
-
     // Log the read action asynchronously
     await logAuditEvent({
       tenantId: user.tenantId,
@@ -40,12 +40,12 @@ export async function GET(req: NextRequest) {
       userRole: user.role,
       action: 'Document.List',
       objectType: 'Document',
-      payload: { countReturned: filteredDocs.length, queryParams: Object.fromEntries(req.nextUrl.searchParams) },
+      payload: { countReturned: dbDocs.length, queryParams: Object.fromEntries(req.nextUrl.searchParams) },
       status: 'Success',
       requestUrl: req.nextUrl.pathname,
     });
 
-    return NextResponse.json({ documents: filteredDocs });
+    return NextResponse.json({ documents: dbDocs });
   } catch (error: any) {
     console.error('List documents error:', error);
     return NextResponse.json({ error: { code: 'InternalError', message: error.message } }, { status: 500 });
@@ -58,6 +58,9 @@ export async function POST(req: NextRequest) {
     const user = await getContext(req);
     if (!user) {
       return NextResponse.json({ error: { code: 'Unauthorized', message: 'User context not found' } }, { status: 401 });
+    }
+    if (!hasPermission(user, 'documents.create')) {
+      return NextResponse.json({ error: { code: 'Forbidden', message: 'Insufficient permission' } }, { status: 403 });
     }
 
     // Any authenticated tenant user can author document drafts
@@ -143,28 +146,16 @@ export async function POST(req: NextRequest) {
         });
       }
 
-      return document;
-    });
+      await writeMandatoryAudit(tx, {
+        context: user,
+        action: 'Document.Create',
+        objectType: 'Document',
+        objectId: document.id,
+        payload: { title: document.title, classification: document.classification, status: document.status, version: 1, hash, requiredRoles },
+        requestUrl: req.nextUrl.pathname,
+      });
 
-    // 3. Log GxP transactional audit event
-    await logAuditEvent({
-      tenantId: user.tenantId,
-      userId: user.id,
-      userEmail: user.email,
-      userRole: user.role,
-      action: 'Document.Create',
-      objectType: 'Document',
-      objectId: result.id,
-      payload: {
-        title: result.title,
-        classification: result.classification,
-        status: result.status,
-        version: 1,
-        hash,
-        requiredRoles,
-      },
-      status: 'Success',
-      requestUrl: req.nextUrl.pathname,
+      return document;
     });
 
     return NextResponse.json({ document: result }, { status: 201 });

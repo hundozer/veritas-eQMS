@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 import { getContext, logAuditEvent } from '@/lib/auth';
+import { hasPermission } from '@/lib/rbac';
+import { writeMandatoryAudit } from '@/lib/audit';
 
 // GET /api/deviations/[id] - Retrieve details for a single deviation
 export async function GET(
@@ -11,6 +13,9 @@ export async function GET(
     const user = await getContext(req);
     if (!user) {
       return NextResponse.json({ error: { code: 'Unauthorized', message: 'User context not found' } }, { status: 401 });
+    }
+    if (!hasPermission(user, 'nonconformance.read')) {
+      return NextResponse.json({ error: { code: 'Forbidden', message: 'Insufficient permission' } }, { status: 403 });
     }
 
     const { id } = await params;
@@ -68,6 +73,11 @@ export async function PUT(
     }
 
     const { id } = await params;
+    const body = await req.json();
+    const { investigatorId, investigationNotes, status } = body;
+    if (!hasPermission(user, status === 'CLOSED' ? 'nonconformance.close' : 'nonconformance.investigate')) {
+      return NextResponse.json({ error: { code: 'Forbidden', message: 'Insufficient permission' } }, { status: 403 });
+    }
 
     const deviation = await prisma.deviation.findFirst({
       where: {
@@ -80,15 +90,8 @@ export async function PUT(
       return NextResponse.json({ error: { code: 'NotFound', message: 'Deviation not found' } }, { status: 404 });
     }
 
-    // Only Admin, Owner, or Approver can update deviation investigation details
-    if (user.role === 'EMPLOYEE' || user.role === 'AUDITOR') {
-      return NextResponse.json({ error: { code: 'Forbidden', message: 'Insufficient role to perform investigation' } }, { status: 403 });
-    }
-
-    const body = await req.json();
-    const { investigatorId, investigationNotes, status } = body;
-
-    const updatedDeviation = await prisma.deviation.update({
+    const updatedDeviation = await prisma.$transaction(async (tx) => {
+      const updated = await tx.deviation.update({
       where: { id },
       data: {
         investigatorId: investigatorId !== undefined ? investigatorId : deviation.investigatorId,
@@ -104,24 +107,20 @@ export async function PUT(
           }
         }
       }
-    });
-
-    // Log the update event
-    await logAuditEvent({
-      tenantId: user.tenantId,
-      userId: user.id,
-      userEmail: user.email,
-      userRole: user.role,
+      });
+      await writeMandatoryAudit(tx, {
+      context: user,
       action: 'Deviation.Update',
       objectType: 'Deviation',
       objectId: deviation.id,
       payload: {
-        title: updatedDeviation.title,
-        status: updatedDeviation.status,
+        previousStatus: deviation.status,
+        status: updated.status,
         investigatorAssigned: !!investigatorId,
       },
-      status: 'Success',
       requestUrl: req.nextUrl.pathname,
+    });
+      return updated;
     });
 
     return NextResponse.json({ deviation: updatedDeviation });

@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 import { getContext, logAuditEvent } from '@/lib/auth';
+import { hasPermission } from '@/lib/rbac';
+import { writeMandatoryAudit } from '@/lib/audit';
 
 // GET /api/users - List users (tenant-scoped if authenticated, or all system demo users for persona login)
 export async function GET(req: NextRequest) {
@@ -8,6 +10,9 @@ export async function GET(req: NextRequest) {
     const user = await getContext(req);
     if (!user) {
       return NextResponse.json({ error: { code: 'Unauthorized', message: 'User context not found' } }, { status: 401 });
+    }
+    if (!hasPermission(user, 'users.read')) {
+      return NextResponse.json({ error: { code: 'Forbidden', message: 'Insufficient permission' } }, { status: 403 });
     }
 
     const users = await prisma.user.findMany({
@@ -31,12 +36,16 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: { code: 'Unauthorized', message: 'User context not found' } }, { status: 401 });
     }
 
-    if (adminUser.role !== 'OWNER' && adminUser.role !== 'ADMIN') {
-      return NextResponse.json({ error: { code: 'Forbidden', message: 'Only Organization Owners or QA Administrators can invite team members and assign roles' } }, { status: 403 });
+    if (!hasPermission(adminUser, 'users.create')) {
+      return NextResponse.json({ error: { code: 'Forbidden', message: 'Insufficient permission' } }, { status: 403 });
     }
 
     const body = await req.json();
     const { email, fullName, role, department, clearance, site, employmentType, expiresAt, firstName, lastName, phone } = body;
+
+    if (['PLATFORM_ADMIN', 'GOD', 'SUPER_ADMIN'].includes(String(role).toUpperCase())) {
+      return NextResponse.json({ error: { code: 'Forbidden', message: 'Platform privilege cannot be assigned here' } }, { status: 403 });
+    }
 
     if (!email || !fullName || !role) {
       return NextResponse.json({ error: { code: 'ValidationFailed', message: 'Email, Full Name, and Role are required' } }, { status: 400 });
@@ -48,8 +57,8 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: { code: 'Conflict', message: 'A user with this email address already exists in the system' } }, { status: 409 });
     }
 
-    const newUser = await prisma.user.create({
-      data: {
+    const result = await prisma.$transaction(async (tx) => {
+      const newUser = await tx.user.create({ data: {
         email,
         fullName,
         firstName: firstName || fullName.split(' ')[0],
@@ -62,11 +71,10 @@ export async function POST(req: NextRequest) {
         employmentType: employmentType || 'EMPLOYEE',
         expiresAt: expiresAt ? new Date(expiresAt) : null,
         tenantId: adminUser.tenantId,
-      },
-    });
+      } });
 
     // Auto-assign existing mandatory training requirements for this role/department
-    const matchingReqs = await prisma.trainingRequirement.findMany({
+    const matchingReqs = await tx.trainingRequirement.findMany({
       where: {
         document: { tenantId: adminUser.tenantId, status: 'EFFECTIVE' },
       },
@@ -76,7 +84,7 @@ export async function POST(req: NextRequest) {
     for (const reqItem of matchingReqs) {
       const roles = reqItem.requiredForRoles.split(',');
       if (roles.includes(newUser.role) || roles.includes(newUser.department)) {
-        await prisma.trainingAssignment.create({
+        await tx.trainingAssignment.create({
           data: {
             requirementId: reqItem.id,
             userId: newUser.id,
@@ -87,11 +95,8 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    await logAuditEvent({
-      tenantId: adminUser.tenantId,
-      userId: adminUser.id,
-      userEmail: adminUser.email,
-      userRole: adminUser.role,
+      await writeMandatoryAudit(tx, {
+      context: adminUser,
       action: 'User.Invite',
       objectType: 'User',
       objectId: newUser.id,
@@ -102,11 +107,13 @@ export async function POST(req: NextRequest) {
         assignedDepartment: newUser.department,
         trainingAssignmentsCreated: assignedCount,
       },
-      status: 'Success',
       requestUrl: req.nextUrl.pathname,
     });
 
-    return NextResponse.json({ user: newUser, trainingAssignmentsCreated: assignedCount }, { status: 201 });
+      return { newUser, assignedCount };
+    });
+
+    return NextResponse.json({ user: result.newUser, trainingAssignmentsCreated: result.assignedCount }, { status: 201 });
   } catch (error: any) {
     console.error('Invite user error:', error);
     return NextResponse.json({ error: { code: 'InternalError', message: error.message } }, { status: 500 });

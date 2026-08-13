@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 import { getContext, logAuditEvent } from '@/lib/auth';
+import { hasPermission } from '@/lib/rbac';
 
 // GET /api/reports/export?module=documents|training|capa|deviations|equipment
 export async function GET(req: NextRequest) {
@@ -9,12 +10,15 @@ export async function GET(req: NextRequest) {
     if (!user) {
       return NextResponse.json({ error: { code: 'Unauthorized', message: 'User context not found' } }, { status: 401 });
     }
+    if (!hasPermission(user, 'audit.export')) {
+      return NextResponse.json({ error: { code: 'Forbidden', message: 'Insufficient permission' } }, { status: 403 });
+    }
 
     const moduleType = req.nextUrl.searchParams.get('module') || 'documents';
     const format = req.nextUrl.searchParams.get('format') || 'csv';
 
     let csvContent = '';
-    let filename = `veritas-${moduleType}-report.csv`;
+    const filename = `veritas-${moduleType}-report.csv`;
 
     if (moduleType === 'documents') {
       const docs = await prisma.document.findMany({

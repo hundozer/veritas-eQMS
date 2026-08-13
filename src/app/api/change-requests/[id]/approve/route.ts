@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 import { getContext, logAuditEvent } from '@/lib/auth';
+import { hasPermission } from '@/lib/rbac';
+import { writeMandatoryAudit } from '@/lib/audit';
 
 
 // POST /api/change-requests/[id]/approve - Approves or Closes a Change Request (E-Sign required)
@@ -13,7 +15,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     }
 
     // Role check: Only QA Admin (ADMIN) or Approver (APPROVER)
-    if (user.role !== 'ADMIN' && user.role !== 'APPROVER') {
+    if (!hasPermission(user, 'change.approve')) {
       return NextResponse.json({ error: { code: 'Forbidden', message: 'Only QA Admins or authorized Approvers can execute Change Control sign-offs' } }, { status: 403 });
     }
 
@@ -65,30 +67,18 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         data: { status: nextStatus }
       });
 
+      await writeMandatoryAudit(tx, {
+        context: user,
+        action: actionType === 'APPROVE' ? 'ChangeControl.Approve' : 'ChangeControl.Close',
+        objectType: 'ChangeRequest', objectId: id,
+        payload: { previousStatus: cr.status, newStatus: updatedCr.status, comment: comment || '' },
+        requestUrl: req.nextUrl.pathname,
+      });
+
       // If closing, ensure linked documents revert back to their final statuses if they are not effective
       // Normally, linked documents are approved to EFFECTIVE during the CR lifecycle, so closing just flags the CR complete.
 
       return updatedCr;
-    });
-
-    // Log GxP audit log
-    await logAuditEvent({
-      tenantId: user.tenantId,
-      userId: user.id,
-      userEmail: user.email,
-      userRole: user.role,
-      action: actionType === 'APPROVE' ? 'ChangeControl.Approve' : 'ChangeControl.Close',
-      objectType: 'ChangeRequest',
-      objectId: id,
-      payload: {
-        title: cr.title,
-        previousStatus: cr.status,
-        newStatus: result.status,
-        signedBy: user.fullName,
-        comment: comment || '',
-      },
-      status: 'Success',
-      requestUrl: req.nextUrl.pathname,
     });
 
     return NextResponse.json({ success: true, changeRequest: result });

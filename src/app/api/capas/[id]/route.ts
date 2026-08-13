@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 import { getContext, logAuditEvent } from '@/lib/auth';
+import { hasPermission } from '@/lib/rbac';
+import { writeMandatoryAudit } from '@/lib/audit';
 
 // PUT /api/capas/[id] - Update CAPA status (e.g., execute closure with E-Sign)
 export async function PUT(
@@ -12,8 +14,12 @@ export async function PUT(
     if (!user) {
       return NextResponse.json({ error: { code: 'Unauthorized', message: 'User context not found' } }, { status: 401 });
     }
-
     const { id } = await params;
+    const body = await req.json();
+    const { status, password } = body;
+    if (!hasPermission(user, status === 'CLOSED' ? 'capa.approve_close' : 'capa.update')) {
+      return NextResponse.json({ error: { code: 'Forbidden', message: 'Insufficient permission' } }, { status: 403 });
+    }
 
     const capa = await prisma.cAPA.findFirst({
       where: {
@@ -28,9 +34,6 @@ export async function PUT(
     if (!capa) {
       return NextResponse.json({ error: { code: 'NotFound', message: 'CAPA not found' } }, { status: 404 });
     }
-
-    const body = await req.json();
-    const { status, password } = body;
 
     if (!status) {
       return NextResponse.json({ error: { code: 'ValidationFailed', message: 'Status is required' } }, { status: 400 });
@@ -61,7 +64,8 @@ export async function PUT(
       }
     }
 
-    const updatedCapa = await prisma.cAPA.update({
+    const updatedCapa = await prisma.$transaction(async (tx) => {
+      const updated = await tx.cAPA.update({
       where: { id },
       data: {
         status,
@@ -71,24 +75,20 @@ export async function PUT(
         assignedTo: true,
         deviation: true
       }
-    });
-
-    // Log closure audit event
-    await logAuditEvent({
-      tenantId: user.tenantId,
-      userId: user.id,
-      userEmail: user.email,
-      userRole: user.role,
+      });
+      await writeMandatoryAudit(tx, {
+      context: user,
       action: status === 'CLOSED' ? 'CAPA.Close' : 'CAPA.Update',
       objectType: 'CAPA',
       objectId: id,
       payload: {
-        title: updatedCapa.title,
-        status: updatedCapa.status,
+        previousStatus: capa.status,
+        status: updated.status,
         eSigned: status === 'CLOSED',
       },
-      status: 'Success',
       requestUrl: req.nextUrl.pathname,
+    });
+      return updated;
     });
 
     return NextResponse.json({ capa: updatedCapa });

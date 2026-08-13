@@ -6,6 +6,7 @@ export interface UserContext {
   iamUserId: string;
   membershipId: string;
   roleId: string;
+  membershipRole: string;
   id: string;
   email: string;
   fullName: string;
@@ -14,23 +15,6 @@ export interface UserContext {
   clearance: string;
   tenantId: string;
   tenantName: string;
-}
-
-// Helpers for Simpleafied Platform Admin & God Mode
-export function isPlatformAdminEmail(email: string): boolean {
-  if (!email) return false;
-  const lower = email.toLowerCase();
-  return lower.endsWith('@simpleafied.app') || 
-         lower.endsWith('@simpleafied.eu') || 
-         lower.endsWith('@simpleafied.de');
-}
-
-export function isGodModeUser(email: string): boolean {
-  if (!email) return false;
-  const lower = email.toLowerCase();
-  return lower === 'god@simpleafied.app' || 
-         lower === 'god@simpleafied.eu' || 
-         lower === 'god@simpleafied.de';
 }
 
 export async function getContext(req?: NextRequest): Promise<UserContext | null> {
@@ -70,6 +54,7 @@ export async function getContext(req?: NextRequest): Promise<UserContext | null>
     iamUserId: session.userId,
     membershipId: session.membershipId,
     roleId: session.roleId,
+    membershipRole: session.roleName,
     id: user.id,
     email: user.email,
     fullName: user.fullName,
@@ -114,7 +99,7 @@ export function checkAbac(
 }
 
 // Audit logger helper
-export async function logAuditEvent(params: {
+export async function logSecurityEventBestEffort(params: {
   tenantId: string;
   userId: string;
   userEmail: string;
@@ -151,3 +136,6 @@ export async function logAuditEvent(params: {
     console.error('Failed to log audit event:', err);
   }
 }
+
+/** @deprecated Use writeMandatoryAudit inside the business transaction for regulated mutations. */
+export const logAuditEvent = logSecurityEventBestEffort;

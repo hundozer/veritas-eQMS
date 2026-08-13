@@ -233,6 +233,9 @@ model AuditLog {
   eventId     String   @unique // UUID for client-side correlation and WORM checks
   timestamp   DateTime @default(now())
   userId      String?
+  iamUserId   String?
+  membershipId String?
+  roleId      String?
   userEmail   String?
   userRole    String?
   action      String   // e.g. Document.Create, Document.View, ESign.Execute

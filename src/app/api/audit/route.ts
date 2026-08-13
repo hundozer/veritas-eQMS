@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 import { getContext, logAuditEvent } from '@/lib/auth';
+import { hasPermission } from '@/lib/rbac';
 
 // GET /api/audit - Query the audit index (tenant-scoped, auditor/admin-only)
 export async function GET(req: NextRequest) {
@@ -11,7 +12,7 @@ export async function GET(req: NextRequest) {
     }
 
     // GxP access check: only ADMIN or AUDITOR can access the full audit trail
-    if (user.role !== 'ADMIN' && user.role !== 'AUDITOR') {
+    if (!hasPermission(user, 'audit.read')) {
       await logAuditEvent({
         tenantId: user.tenantId,
         userId: user.id,

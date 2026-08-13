@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 import { getContext, logAuditEvent } from '@/lib/auth';
+import { hasPermission } from '@/lib/rbac';
+import { writeMandatoryAudit } from '@/lib/audit';
 
 // GET /api/capas - List all CAPAs inside the tenant
 export async function GET(req: NextRequest) {
@@ -8,6 +10,9 @@ export async function GET(req: NextRequest) {
     const user = await getContext(req);
     if (!user) {
       return NextResponse.json({ error: { code: 'Unauthorized', message: 'User context not found' } }, { status: 401 });
+    }
+    if (!hasPermission(user, 'capa.read')) {
+      return NextResponse.json({ error: { code: 'Forbidden', message: 'Insufficient permission' } }, { status: 403 });
     }
 
     const capas = await prisma.cAPA.findMany({
@@ -48,7 +53,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Only Admin, Owner, or Approver can assign new CAPAs (not Employee/Auditor)
-    if (user.role === 'EMPLOYEE' || user.role === 'AUDITOR') {
+    if (!hasPermission(user, 'capa.create')) {
       return NextResponse.json({ error: { code: 'Forbidden', message: 'Insufficient role to create CAPAs' } }, { status: 403 });
     }
 
@@ -71,8 +76,8 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: { code: 'NotFound', message: 'Assignee user not found in this tenant' } }, { status: 404 });
     }
 
-    const capa = await prisma.cAPA.create({
-      data: {
+    const capa = await prisma.$transaction(async (tx) => {
+      const created = await tx.cAPA.create({ data: {
         tenantId: user.tenantId,
         title,
         actionPlan,
@@ -84,25 +89,12 @@ export async function POST(req: NextRequest) {
       include: {
         assignedTo: true,
         deviation: true
-      }
-    });
-
-    // Log creation audit log
-    await logAuditEvent({
-      tenantId: user.tenantId,
-      userId: user.id,
-      userEmail: user.email,
-      userRole: user.role,
-      action: 'CAPA.Create',
-      objectType: 'CAPA',
-      objectId: capa.id,
-      payload: {
-        title: capa.title,
-        assignedTo: assignee.fullName,
-        deviationId: capa.deviationId,
-      },
-      status: 'Success',
-      requestUrl: req.nextUrl.pathname,
+      } });
+      await writeMandatoryAudit(tx, {
+        context: user, action: 'CAPA.Create', objectType: 'CAPA', objectId: created.id,
+        payload: { assignedToId, deviationId: created.deviationId, status: created.status }, requestUrl: req.nextUrl.pathname,
+      });
+      return created;
     });
 
     return NextResponse.json({ capa }, { status: 201 });

@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 import { getContext, logAuditEvent } from '@/lib/auth';
+import { hasPermission } from '@/lib/rbac';
+import { writeMandatoryAudit } from '@/lib/audit';
 
 
 
@@ -14,7 +16,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     }
 
     // Check permissions - OWNER, ADMIN, or APPROVER
-    if (user.role !== 'OWNER' && user.role !== 'ADMIN' && user.role !== 'APPROVER') {
+    if (!hasPermission(user, 'documents.approve')) {
       return NextResponse.json({ error: { code: 'Forbidden', message: 'Only authorized Approvers, System Owners, or QA Admins can execute approvals' } }, { status: 403 });
     }
 
@@ -116,28 +118,12 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         }
       }
 
+      await writeMandatoryAudit(tx, {
+        context: user, action: 'Document.Approve', objectType: 'Document', objectId: id,
+        payload: { previousStatus: document.status, status: updatedDoc.status, version: latestVersion.versionNumber, assignmentsCreated },
+        sourceIp: req.headers.get('x-forwarded-for') ?? undefined, requestUrl: req.nextUrl.pathname,
+      });
       return { updatedDoc, manifest, assignmentsCreated };
-    });
-
-    // 4. Log the GxP audit event
-    await logAuditEvent({
-      tenantId: user.tenantId,
-      userId: user.id,
-      userEmail: user.email,
-      userRole: user.role,
-      action: 'Document.Approve',
-      objectType: 'Document',
-      objectId: id,
-      payload: {
-        title: result.updatedDoc.title,
-        version: latestVersion.versionNumber,
-        signedBy: user.fullName,
-        meaning: result.manifest.meaning,
-        ipAddress: result.manifest.ipAddress,
-        trainingAssignmentsCreated: result.assignmentsCreated,
-      },
-      status: 'Success',
-      requestUrl: req.nextUrl.pathname,
     });
 
     return NextResponse.json({

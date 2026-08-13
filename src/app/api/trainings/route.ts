@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 import { getContext, logAuditEvent } from '@/lib/auth';
+import { hasPermission } from '@/lib/rbac';
+import { writeMandatoryAudit } from '@/lib/audit';
 
 
 interface QuizQuestion {
@@ -23,10 +25,12 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: { code: 'Unauthorized', message: 'User context not found' } }, { status: 401 });
     }
 
-    // Determine scope based on role
-    const isComplianceRole = user.role === 'ADMIN' || user.role === 'AUDITOR' || user.role === 'OWNER';
+    const canReadAll = hasPermission(user, 'training.read_all');
+    if (!canReadAll && !hasPermission(user, 'training.read_own')) {
+      return NextResponse.json({ error: { code: 'Forbidden', message: 'Insufficient permission' } }, { status: 403 });
+    }
 
-    if (isComplianceRole) {
+    if (canReadAll) {
       // 1. Get entire training matrix for the tenant
       const assignments = await prisma.trainingAssignment.findMany({
         where: {
@@ -98,6 +102,9 @@ export async function POST(req: NextRequest) {
     const user = await getContext(req);
     if (!user) {
       return NextResponse.json({ error: { code: 'Unauthorized', message: 'User context not found' } }, { status: 401 });
+    }
+    if (!hasPermission(user, 'training.complete_own')) {
+      return NextResponse.json({ error: { code: 'Forbidden', message: 'Insufficient permission' } }, { status: 403 });
     }
 
     const body = await req.json();
@@ -212,27 +219,16 @@ export async function POST(req: NextRequest) {
         },
       });
 
-      return { updatedAssignment, quizResult };
-    });
+      await writeMandatoryAudit(tx, {
+        context: user,
+        action: 'Training.Complete',
+        objectType: 'TrainingAssignment',
+        objectId: assignmentId,
+        payload: { score, passed: true, meaning: 'Verification of Training Completion' },
+        requestUrl: req.nextUrl.pathname,
+      });
 
-    // 3. Log GxP audit trail
-    await logAuditEvent({
-      tenantId: user.tenantId,
-      userId: user.id,
-      userEmail: user.email,
-      userRole: user.role,
-      action: 'Training.Complete',
-      objectType: 'TrainingAssignment',
-      objectId: assignmentId,
-      payload: {
-        documentTitle: assignment.requirement.document.title,
-        score,
-        passed: true,
-        esignSigner: user.fullName,
-        esignMeaning: 'Verification of Training Completion',
-      },
-      status: 'Success',
-      requestUrl: req.nextUrl.pathname,
+      return { updatedAssignment, quizResult };
     });
 
     return NextResponse.json({

@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 import { getContext, logAuditEvent } from '@/lib/auth';
+import { hasPermission } from '@/lib/rbac';
+import { writeMandatoryAudit } from '@/lib/audit';
 import { autoMapDeviationAndCreateCapa } from '@/lib/regulatory-ai-mapper';
 
 // GET /api/deviations - List all deviations in the tenant
@@ -9,6 +11,9 @@ export async function GET(req: NextRequest) {
     const user = await getContext(req);
     if (!user) {
       return NextResponse.json({ error: { code: 'Unauthorized', message: 'User context not found' } }, { status: 401 });
+    }
+    if (!hasPermission(user, 'nonconformance.read')) {
+      return NextResponse.json({ error: { code: 'Forbidden', message: 'Insufficient permission' } }, { status: 403 });
     }
 
     const deviations = await prisma.deviation.findMany({
@@ -52,6 +57,9 @@ export async function POST(req: NextRequest) {
     if (!user) {
       return NextResponse.json({ error: { code: 'Unauthorized', message: 'User context not found' } }, { status: 401 });
     }
+    if (!hasPermission(user, 'nonconformance.create')) {
+      return NextResponse.json({ error: { code: 'Forbidden', message: 'Insufficient permission' } }, { status: 403 });
+    }
 
     const body = await req.json();
     const { title, description, classification } = body;
@@ -64,8 +72,8 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: { code: 'ValidationFailed', message: 'Classification must be MINOR, MAJOR, or CRITICAL' } }, { status: 400 });
     }
 
-    const deviation = await prisma.deviation.create({
-      data: {
+    const deviation = await prisma.$transaction(async (tx) => {
+      const created = await tx.deviation.create({ data: {
         tenantId: user.tenantId,
         title,
         description,
@@ -75,7 +83,12 @@ export async function POST(req: NextRequest) {
       },
       include: {
         detectedBy: true
-      }
+      } });
+      await writeMandatoryAudit(tx, {
+        context: user, action: 'Deviation.Create', objectType: 'Deviation', objectId: created.id,
+        payload: { classification: created.classification, status: created.status }, requestUrl: req.nextUrl.pathname,
+      });
+      return created;
     });
 
     // Automatically map deviation to global regulations and generate corrective CAPA plan
@@ -89,23 +102,6 @@ export async function POST(req: NextRequest) {
       console.error('Failed to auto-map deviation and create CAPA:', e);
     }
 
-    // Log creation audit log
-    await logAuditEvent({
-      tenantId: user.tenantId,
-      userId: user.id,
-      userEmail: user.email,
-      userRole: user.role,
-      action: 'Deviation.Create',
-      objectType: 'Deviation',
-      objectId: deviation.id,
-      payload: {
-        title: deviation.title,
-        classification: deviation.classification,
-        status: deviation.status,
-      },
-      status: 'Success',
-      requestUrl: req.nextUrl.pathname,
-    });
 
     return NextResponse.json({ deviation }, { status: 201 });
   } catch (error: any) {
