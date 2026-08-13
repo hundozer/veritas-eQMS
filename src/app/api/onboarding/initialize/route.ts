@@ -185,7 +185,6 @@ export async function POST(req: NextRequest) {
       readinessScore: 94,
     });
 
-    response.cookies.set('user-email', adminUser.email, { path: '/', maxAge: 86400 * 30 });
     return response;
   } catch (error: any) {
     console.error('Onboarding initialization error:', error);

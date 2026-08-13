@@ -92,8 +92,6 @@ export async function GET(req: NextRequest) {
     });
 
     const response = NextResponse.redirect(`${req.nextUrl.origin}/?sso=success`);
-    response.cookies.set('user-email', user.email, { path: '/', maxAge: 86400 * 30 });
-
     return response;
   } catch (error: any) {
     console.error('Microsoft SSO callback error:', error);

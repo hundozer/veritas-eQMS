@@ -1,75 +1,97 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/db';
-import { isPlatformAdminEmail, isGodModeUser } from '@/lib/auth';
+import { verifyPassword } from '@/lib/iam/password';
+import { createIamSession } from '@/lib/iam/session';
 
-// POST /api/auth/login - Authenticate or switch user session (supports admin passwords)
+const SESSION_COOKIE_NAME = 'iam-access-token';
+const GENERIC_AUTH_FAILURE = {
+  error: { code: 'Unauthorized', message: 'Invalid email or password' },
+};
+
+function authenticationFailed() {
+  return NextResponse.json(GENERIC_AUTH_FAILURE, { status: 401 });
+}
+
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json();
-    const { email, password } = body;
+    const body: unknown = await req.json();
+    if (!body || typeof body !== 'object') return authenticationFailed();
 
-    if (!email) {
-      return NextResponse.json({ error: { code: 'ValidationFailed', message: 'Email address is required' } }, { status: 400 });
+    const { email, password } = body as Record<string, unknown>;
+    if (
+      typeof email !== 'string' ||
+      typeof password !== 'string' ||
+      !email.trim() ||
+      !password
+    ) {
+      return authenticationFailed();
     }
 
-    const isAdmin = isPlatformAdminEmail(email);
-
-    // If it's a Platform Admin, verify password
-    if (isAdmin) {
-      const correctPassword = process.env.ADMIN_PASSWORD;
-      if (!correctPassword || !password || password !== correctPassword) {
-        return NextResponse.json({ error: { code: 'Unauthorized', message: 'Invalid operator credentials' } }, { status: 401 });
-      }
-
-      // Check if user exists, if not auto-provision in the DB
-      let user = await prisma.user.findUnique({
-        where: { email },
-        include: { tenant: true },
-      });
-
-      if (!user) {
-        let defaultTenant = await prisma.tenant.findFirst();
-        if (!defaultTenant) {
-          defaultTenant = await prisma.tenant.create({
-            data: { name: 'Simpleafied Biotech' },
-          });
-        }
-
-        const isGod = isGodModeUser(email);
-        user = await prisma.user.create({
-          data: {
-            email,
-            fullName: isGod ? 'God Mode Administrator' : email.split('@')[0].toUpperCase() + ' Operator',
-            role: 'ADMIN',
-            department: 'REGULATORY',
-            clearance: 'RESTRICTED',
-            tenantId: defaultTenant.id,
-          },
-          include: { tenant: true },
-        });
-      }
-
-      const response = NextResponse.json({ user });
-      response.cookies.set('user-email', user.email, { path: '/', maxAge: 86400 * 30 });
-      return response;
-    }
-
-    // Normal customer login path (session switcher)
-    const user = await prisma.user.findUnique({
-      where: { email },
-      include: { tenant: true },
+    const iamUser = await prisma.iamUser.findUnique({
+      where: { email: email.trim().toLowerCase() },
+      include: {
+        memberships: {
+          where: { status: 'ACTIVE', organization: { status: { in: ['ACTIVE', 'TRIAL'] } } },
+          include: { organization: true, role: true, operationalUser: { include: { tenant: true } } },
+        },
+      },
     });
 
-    if (!user) {
-      return NextResponse.json({ error: { code: 'NotFound', message: 'User account not found' } }, { status: 404 });
+    if (
+      !iamUser ||
+      iamUser.accountStatus !== 'ACTIVE' ||
+      !(await verifyPassword(password, iamUser.passwordHash))
+    ) {
+      return authenticationFailed();
     }
 
-    const response = NextResponse.json({ user });
-    response.cookies.set('user-email', user.email, { path: '/', maxAge: 86400 * 30 });
+    if (iamUser.memberships.length > 1) {
+      return NextResponse.json(
+        { error: { code: 'MembershipSelectionRequired', message: 'Organization selection is required' } },
+        { status: 409 },
+      );
+    }
 
+    const membership = iamUser.memberships[0];
+    if (
+      !membership ||
+      membership.status !== 'ACTIVE' ||
+      membership.tenantId !== membership.organization.tenantId ||
+      !['ACTIVE', 'TRIAL'].includes(membership.organization.status) ||
+      !membership.role
+    ) {
+      return authenticationFailed();
+    }
+
+    const operationalUser = membership.operationalUser;
+    if (
+      !operationalUser ||
+      operationalUser.accountStatus !== 'ACTIVE' ||
+      (operationalUser.expiresAt !== null && operationalUser.expiresAt <= new Date()) ||
+      operationalUser.tenantId !== membership.organization.tenantId
+    ) {
+      return authenticationFailed();
+    }
+
+    const session = await createIamSession({
+      userId: iamUser.id,
+      membershipId: membership.id,
+      ipAddress: req.headers.get('x-forwarded-for')?.split(',')[0]?.trim(),
+      userAgent: req.headers.get('user-agent') ?? undefined,
+    });
+
+    const response = NextResponse.json({ user: operationalUser });
+    response.cookies.set(SESSION_COOKIE_NAME, session.sessionToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      path: '/',
+      expires: session.expiresAt,
+      maxAge: Math.max(0, Math.floor((session.expiresAt.getTime() - Date.now()) / 1000)),
+    });
+    response.cookies.delete('user-email');
     return response;
-  } catch (error: any) {
-    console.error('POST /api/auth/login error:', error);
-    return NextResponse.json({ error: { code: 'InternalServerError', message: error.message } }, { status: 500 });
+  } catch {
+    return authenticationFailed();
   }
 }

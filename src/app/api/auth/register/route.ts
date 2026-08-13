@@ -116,9 +116,6 @@ export async function POST(req: NextRequest) {
       user: result.user,
     }, { status: 201 });
 
-    // Set sticky user cookie
-    response.cookies.set('user-email', result.user.email, { path: '/', maxAge: 86400 * 30 });
-
     return response;
   } catch (error: any) {
     console.error('POST /api/auth/register error:', error);

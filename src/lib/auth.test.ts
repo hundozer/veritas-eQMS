@@ -1,4 +1,3 @@
-import jwt from 'jsonwebtoken';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { NextRequest } from 'next/server';
 
@@ -18,10 +17,24 @@ const prismaMock = vi.hoisted(() => ({
     upsert: vi.fn(),
   },
 }));
+const sessionMock = vi.hoisted(() => ({ validateIamSession: vi.fn() }));
 
 vi.mock('./db', () => ({ default: prismaMock }));
+vi.mock('./iam/session', () => sessionMock);
 
-const TEST_JWT_SECRET = 'test-only-veritas-auth-secret-not-for-production';
+const VALID_SESSION_TOKEN = 'A'.repeat(43);
+const VALIDATED_SESSION = {
+  sessionId: 'session-1',
+  userId: 'iam-user-1',
+  userEmail: 'iam-login@example.com',
+  membershipId: 'membership-1',
+  operationalUserId: 'user-1',
+  organizationId: 'tenant-1',
+  tenantId: 'tenant-1',
+  roleId: 'role-1',
+  roleName: 'Employee',
+  expiresAt: new Date(Date.now() + 60_000),
+};
 
 type RequestOptions = {
   iamToken?: string;
@@ -57,6 +70,8 @@ function operationalUser(overrides: Record<string, unknown> = {}) {
     role: 'EMPLOYEE',
     department: 'QA',
     clearance: 'INTERNAL',
+    accountStatus: 'ACTIVE',
+    expiresAt: null,
     tenantId: 'tenant-1',
     tenant: { id: 'tenant-1', name: 'Test Tenant' },
     ...overrides,
@@ -64,7 +79,6 @@ function operationalUser(overrides: Record<string, unknown> = {}) {
 }
 
 async function getContext() {
-  process.env.JWT_SECRET = TEST_JWT_SECRET;
   const auth = await import('./auth');
   return auth.getContext;
 }
@@ -73,7 +87,6 @@ describe('getContext authentication security boundary', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.resetModules();
-    process.env.JWT_SECRET = TEST_JWT_SECRET;
   });
 
   it('AUTH-T001: missing credentials return null', async () => {
@@ -84,12 +97,13 @@ describe('getContext authentication security boundary', () => {
     await expect((await getContext())(request())).resolves.toBeNull();
   });
 
-  it('AUTH-T002: an invalid JWT fails closed without legacy fallback', async () => {
+  it('AUTH-T002: an invalid session fails closed without legacy fallback', async () => {
     prismaMock.user.findUnique.mockResolvedValue(operationalUser());
+    sessionMock.validateIamSession.mockResolvedValue(null);
 
     const result = await (await getContext())(
       request({
-        iamToken: 'not-a-valid-jwt',
+        iamToken: 'not-a-valid-session',
         userEmailHeader: 'existing-user@example.com',
         userEmailCookie: 'existing-user@example.com',
       }),
@@ -120,11 +134,15 @@ describe('getContext authentication security boundary', () => {
   });
 
   it('AUTH-T005: unknown identity does not select the first user', async () => {
+    sessionMock.validateIamSession.mockResolvedValue({
+      ...VALIDATED_SESSION,
+      operationalUserId: 'unknown-user',
+    });
     prismaMock.user.findUnique.mockResolvedValue(null);
     prismaMock.user.findFirst.mockResolvedValue(operationalUser());
 
     const result = await (await getContext())(
-      request({ userEmailHeader: 'unknown@example.com' }),
+      request({ iamToken: VALID_SESSION_TOKEN, userEmailHeader: 'unknown@example.com' }),
     );
 
     expect.soft(result).toBeNull();
@@ -132,15 +150,11 @@ describe('getContext authentication security boundary', () => {
   });
 
   it('AUTH-T006: authentication resolution never provisions identity records', async () => {
-    const token = jwt.sign(
-      {
-        email: 'new-user@example.com',
-        organizationId: 'organization-1',
-        roleName: 'EMPLOYEE',
-      },
-      TEST_JWT_SECRET,
-      { expiresIn: '5m' },
-    );
+    sessionMock.validateIamSession.mockResolvedValue({
+      ...VALIDATED_SESSION,
+      operationalUserId: 'new-user',
+      organizationId: 'organization-1',
+    });
 
     prismaMock.user.findUnique.mockResolvedValue(null);
     prismaMock.tenant.findUnique.mockResolvedValue(null);
@@ -159,7 +173,7 @@ describe('getContext authentication security boundary', () => {
       }),
     );
 
-    const result = await (await getContext())(request({ iamToken: token }));
+    const result = await (await getContext())(request({ iamToken: VALID_SESSION_TOKEN }));
 
     expect.soft(result).toBeNull();
     expect.soft(prismaMock.user.create).not.toHaveBeenCalled();
@@ -168,22 +182,19 @@ describe('getContext authentication security boundary', () => {
     expect.soft(prismaMock.tenant.upsert).not.toHaveBeenCalled();
   });
 
-  it('AUTH-T007: a valid JWT resolves its existing operational user', async () => {
+  it('AUTH-T007: a valid opaque session resolves its existing operational user', async () => {
     const user = operationalUser();
-    const token = jwt.sign(
-      {
-        email: user.email,
-        organizationId: user.tenantId,
-        roleName: user.role,
-      },
-      TEST_JWT_SECRET,
-      { expiresIn: '5m' },
-    );
+    sessionMock.validateIamSession.mockResolvedValue({
+      ...VALIDATED_SESSION,
+    });
     prismaMock.user.findUnique.mockResolvedValue(user);
 
-    const result = await (await getContext())(request({ iamToken: token }));
+    const result = await (await getContext())(request({ iamToken: VALID_SESSION_TOKEN }));
 
     expect(result).toEqual({
+      iamUserId: VALIDATED_SESSION.userId,
+      membershipId: VALIDATED_SESSION.membershipId,
+      roleId: VALIDATED_SESSION.roleId,
       id: user.id,
       email: user.email,
       fullName: user.fullName,
@@ -195,20 +206,14 @@ describe('getContext authentication security boundary', () => {
     });
   });
 
-  it('AUTH-T008: a valid JWT for an existing user does not mutate identity', async () => {
+  it('AUTH-T008: a valid opaque session for an existing user does not mutate identity', async () => {
     const user = operationalUser();
-    const token = jwt.sign(
-      {
-        email: user.email,
-        organizationId: 'conflicting-organization',
-        roleName: 'ADMIN',
-      },
-      TEST_JWT_SECRET,
-      { expiresIn: '5m' },
-    );
+    sessionMock.validateIamSession.mockResolvedValue({
+      ...VALIDATED_SESSION,
+    });
     prismaMock.user.findUnique.mockResolvedValue(user);
 
-    const result = await (await getContext())(request({ iamToken: token }));
+    const result = await (await getContext())(request({ iamToken: VALID_SESSION_TOKEN }));
 
     expect(result?.role).toBe('EMPLOYEE');
     expect(result?.tenantId).toBe('tenant-1');
@@ -218,5 +223,45 @@ describe('getContext authentication security boundary', () => {
     expect(prismaMock.tenant.create).not.toHaveBeenCalled();
     expect(prismaMock.tenant.update).not.toHaveBeenCalled();
     expect(prismaMock.tenant.upsert).not.toHaveBeenCalled();
+  });
+
+  it('AUTH-T009: explicit linkage remains stable when IAM and QMS emails differ', async () => {
+    const user = operationalUser({ email: 'changed-qms-email@example.com' });
+    sessionMock.validateIamSession.mockResolvedValue({
+      ...VALIDATED_SESSION,
+      userEmail: 'changed-iam-email@example.com',
+    });
+    prismaMock.user.findUnique.mockResolvedValue(user);
+
+    const result = await (await getContext())(request({ iamToken: VALID_SESSION_TOKEN }));
+
+    expect(result?.id).toBe(user.id);
+    expect(prismaMock.user.findUnique).toHaveBeenCalledWith({
+      where: { id: VALIDATED_SESSION.operationalUserId },
+      include: { tenant: true },
+    });
+  });
+
+  it('AUTH-T010: a cross-tenant explicit linkage fails closed', async () => {
+    sessionMock.validateIamSession.mockResolvedValue(VALIDATED_SESSION);
+    prismaMock.user.findUnique.mockResolvedValue(operationalUser({ tenantId: 'tenant-2' }));
+
+    await expect((await getContext())(request({ iamToken: VALID_SESSION_TOKEN }))).resolves.toBeNull();
+  });
+
+  it('AUTH-T011: a missing operational-user linkage fails closed', async () => {
+    sessionMock.validateIamSession.mockResolvedValue({
+      ...VALIDATED_SESSION,
+      operationalUserId: null,
+    });
+
+    await expect((await getContext())(request({ iamToken: VALID_SESSION_TOKEN }))).resolves.toBeNull();
+  });
+
+  it('AUTH-T012: an inactive linked operational user fails closed', async () => {
+    sessionMock.validateIamSession.mockResolvedValue(VALIDATED_SESSION);
+    prismaMock.user.findUnique.mockResolvedValue(operationalUser({ accountStatus: 'INACTIVE' }));
+
+    await expect((await getContext())(request({ iamToken: VALID_SESSION_TOKEN }))).resolves.toBeNull();
   });
 });

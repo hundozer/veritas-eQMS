@@ -115,32 +115,20 @@ export default function AdminPage() {
   const [publishSuccess, setPublishSuccess] = useState<string | null>(null);
   const [publishError, setPublishError] = useState<string | null>(null);
 
-  // Load active user session cookie
+  // Load the active user from the server-side opaque session.
   useEffect(() => {
-    const cookies = document.cookie.split(';');
-    const emailCookie = cookies.find(c => c.trim().startsWith('user-email='));
-    if (emailCookie) {
-      const email = emailCookie.split('=')[1].trim();
-      const decodedEmail = decodeURIComponent(email);
-      // Validate if it is admin whitelisted
-      const lower = decodedEmail.toLowerCase();
-      if (lower.endsWith('@simpleafied.app') || lower.endsWith('@simpleafied.eu') || lower.endsWith('@simpleafied.de')) {
-        setCurrentUserEmail(decodedEmail);
-        setIsGodMode(lower === 'god@simpleafied.app' || lower === 'god@simpleafied.eu' || lower === 'god@simpleafied.de');
-      }
-    }
+    fetch('/api/auth/session')
+      .then((res) => res.ok ? res.json() : null)
+      .then((data) => {
+        const email = data?.user?.email;
+        if (!email) return;
+        const lower = email.toLowerCase();
+        if (lower.endsWith('@simpleafied.app') || lower.endsWith('@simpleafied.eu') || lower.endsWith('@simpleafied.de')) {
+          setCurrentUserEmail(email);
+          setIsGodMode(lower === 'god@simpleafied.app' || lower === 'god@simpleafied.eu' || lower === 'god@simpleafied.de');
+        }
+      });
   }, []);
-
-  // Fetch admin content when logged in
-  useEffect(() => {
-    if (currentUserEmail) {
-      fetchStats();
-      fetchTenants();
-      fetchUsers();
-      fetchRegulations();
-      fetchAuditLogs();
-    }
-  }, [currentUserEmail]);
 
   const fetchStats = async () => {
     try {
@@ -193,6 +181,17 @@ export default function AdminPage() {
     } catch (e) { console.error(e); }
   };
 
+  // Fetch admin content when logged in
+  useEffect(() => {
+    if (currentUserEmail) {
+      fetchStats();
+      fetchTenants();
+      fetchUsers();
+      fetchRegulations();
+      fetchAuditLogs();
+    }
+  }, [currentUserEmail]);
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoginError(null);
@@ -234,8 +233,8 @@ export default function AdminPage() {
     }
   };
 
-  const handleLogout = () => {
-    document.cookie = 'user-email=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT;';
+  const handleLogout = async () => {
+    await fetch('/api/auth/logout', { method: 'POST' });
     setCurrentUserEmail(null);
     setIsGodMode(false);
     setLoginEmail('');

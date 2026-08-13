@@ -291,6 +291,7 @@ export default function Home() {
   const [showAuditSupplierModal, setShowAuditSupplierModal] = useState(false);
   const [showReceiptModal, setShowReceiptModal] = useState(false);
   const [showLoginModal, setShowLoginModal] = useState(false);
+  const [loginPassword, setLoginPassword] = useState('');
   const [showRegisterModal, setShowRegisterModal] = useState(false);
   const [showInviteUserModal, setShowInviteUserModal] = useState(false);
   const [showEditUserModal, setShowEditUserModal] = useState(false);
@@ -458,30 +459,20 @@ export default function Home() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
-  // Load tenant users on start & verify active session
+  // Restore the authenticated user from the server-side opaque session.
   useEffect(() => {
-    fetch('/api/users')
+    fetch('/api/auth/session')
       .then((res) => res.json())
       .then((data) => {
-        if (data.users) {
-          setUsers(data.users);
-          // Verify authenticated user session cookie
-          const match = document.cookie.match(/user-email=([^;]+)/);
-          
-          if (match) {
-            const email = decodeURIComponent(match[1]);
-            const activeUser = data.users.find((u: User) => u.email === email);
-            if (activeUser) {
-              setCurrentUser(activeUser);
-              setViewMode('app');
-            } else {
-              setCurrentUser(null);
-              setViewMode('landing');
-            }
-          } else {
-            setCurrentUser(null);
-            setViewMode('landing');
-          }
+        if (data.user) {
+          setCurrentUser(data.user);
+          setViewMode('app');
+          fetch('/api/users')
+            .then((res) => res.json())
+            .then((usersData) => setUsers(usersData.users || []));
+        } else {
+          setCurrentUser(null);
+          setViewMode('landing');
         }
       })
       .catch((err) => {
@@ -492,9 +483,8 @@ export default function Home() {
   }, []);
 
   // Handle Sign Out / Logout
-  const handleSignOut = () => {
-    document.cookie = 'user-email=; path=/; max-age=0';
-    document.cookie = 'iam-access-token=; path=/; max-age=0';
+  const handleSignOut = async () => {
+    await fetch('/api/auth/logout', { method: 'POST' });
     setCurrentUser(null);
     setViewMode('landing');
     setSuccessMessage('Signed out successfully.');
@@ -1392,8 +1382,7 @@ export default function Home() {
 
       const data = await res.json();
       if (res.ok) {
-        setSuccessMessage(`Organization "${data.tenant.name}" created! Default GxP SOPs generated.`);
-        setCurrentUser(data.user);
+        setSuccessMessage(`Organization "${data.tenant.name}" created. Complete credential setup, then sign in.`);
         setShowRegisterModal(false);
         setRegCompanyName('');
         setRegFullName('');
@@ -1413,17 +1402,18 @@ export default function Home() {
   };
 
   // Login / Switch User Session
-  const handleLoginUser = async (targetEmail: string): Promise<boolean> => {
+  const handleLoginUser = async (targetEmail: string, password: string): Promise<boolean> => {
     try {
       const res = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: targetEmail }),
+        body: JSON.stringify({ email: targetEmail, password }),
       });
 
       const data = await res.json();
       if (res.ok) {
         setCurrentUser(data.user);
+        setLoginPassword('');
         setShowLoginModal(false);
         setSuccessMessage(`Switched active session to ${data.user.fullName} (${data.user.role})`);
         fetchData();
@@ -1781,7 +1771,7 @@ export default function Home() {
               </div>
 
               <div style={{ background: '#FBFBFA', border: '1px solid rgba(10, 14, 23, 0.1)', borderLeft: '3px solid #0A0E17', padding: '20px', fontSize: '13px', color: '#1E293B', lineHeight: '1.6', marginBottom: '28px', fontFamily: 'monospace' }}>
-                "This procedure defines statutory release criteria for biological products compliant with EU Annex 16 and FDA 21 CFR Part 211."
+                &ldquo;This procedure defines statutory release criteria for biological products compliant with EU Annex 16 and FDA 21 CFR Part 211.&rdquo;
               </div>
 
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderTop: '1px solid rgba(10, 14, 23, 0.12)', paddingTop: '20px' }}>
@@ -2184,7 +2174,7 @@ export default function Home() {
                 </div>
 
                 {/* Standard Email Authentication Form */}
-                <form onSubmit={async (e) => { e.preventDefault(); if (loginEmail) { const ok = await handleLoginUser(loginEmail); if (ok) setViewMode('app'); } }}>
+                <form onSubmit={async (e) => { e.preventDefault(); if (loginEmail && loginPassword) { const ok = await handleLoginUser(loginEmail, loginPassword); if (ok) setViewMode('app'); } }}>
                   <div style={{ marginBottom: '18px' }}>
                     <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', color: '#0A0E17', fontFamily: 'monospace', letterSpacing: '0.05em', textTransform: 'uppercase', marginBottom: '6px' }}>
                       Work Email Address
@@ -2207,7 +2197,9 @@ export default function Home() {
                       style={{ width: '100%', padding: '12px 14px', border: '1px solid rgba(10, 14, 23, 0.2)', borderRadius: '0px', background: '#FBFBFA', fontSize: '14px', color: '#0A0E17' }}
                       type="password"
                       placeholder="••••••••••••"
-                      defaultValue="demo123456"
+                      value={loginPassword}
+                      onChange={(e) => setLoginPassword(e.target.value)}
+                      required
                     />
                   </div>
 
@@ -5387,7 +5379,7 @@ export default function Home() {
               </div>
 
               {/* Standard Email Authentication Form */}
-              <form onSubmit={async (e) => { e.preventDefault(); if (loginEmail) { const ok = await handleLoginUser(loginEmail); if (ok) setViewMode('app'); } }}>
+              <form onSubmit={async (e) => { e.preventDefault(); if (loginEmail && loginPassword) { const ok = await handleLoginUser(loginEmail, loginPassword); if (ok) setViewMode('app'); } }}>
                 <div className={styles.formGroup}>
                   <label className={styles.formLabel}>Work Email Address</label>
                   <input
@@ -5406,7 +5398,9 @@ export default function Home() {
                     className={styles.input}
                     type="password"
                     placeholder="••••••••••••"
-                    defaultValue="demo123456"
+                    value={loginPassword}
+                    onChange={(e) => setLoginPassword(e.target.value)}
+                    required
                   />
                 </div>
 
@@ -5691,5 +5685,3 @@ export default function Home() {
       </AppShell>
     );
   }
-
-

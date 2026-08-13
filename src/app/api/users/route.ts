@@ -6,11 +6,12 @@ import { getContext, logAuditEvent } from '@/lib/auth';
 export async function GET(req: NextRequest) {
   try {
     const user = await getContext(req);
-
-    const where = user ? { tenantId: user.tenantId } : {};
+    if (!user) {
+      return NextResponse.json({ error: { code: 'Unauthorized', message: 'User context not found' } }, { status: 401 });
+    }
 
     const users = await prisma.user.findMany({
-      where,
+      where: { tenantId: user.tenantId },
       include: { tenant: true },
       orderBy: { fullName: 'asc' },
     });
