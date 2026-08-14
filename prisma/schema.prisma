@@ -11,62 +11,62 @@ datasource db {
 }
 
 model Tenant {
-  id                  String                        @id @default(uuid())
-  name                String
-  createdAt           DateTime                      @default(now())
-  users               User[]
-  documents           Document[]
-  auditLogs           AuditLog[]
-  deviations          Deviation[]
-  capas               CAPA[]
-  equipment           Equipment[]
-  suppliers           Supplier[]
-  auditPlans          AuditPlan[]
-  notifications       Notification[]
+  id                    String                        @id @default(uuid())
+  name                  String
+  createdAt             DateTime                      @default(now())
+  users                 User[]
+  documents             Document[]
+  auditLogs             AuditLog[]
+  deviations            Deviation[]
+  capas                 CAPA[]
+  equipment             Equipment[]
+  suppliers             Supplier[]
+  auditPlans            AuditPlan[]
+  notifications         Notification[]
   regulatoryAssessments TenantRequirementAssessment[]
   iamOrganization       IamOrganization?
 }
 
 model User {
-  id                      String               @id @default(uuid())
-  email                   String               @unique
+  id                      String                        @id @default(uuid())
+  email                   String                        @unique
   fullName                String
   firstName               String?
   lastName                String?
   phone                   String?
   profilePicture          String?
-  mfaEnabled              Boolean              @default(false)
-  accountStatus           String               @default("ACTIVE") // ACTIVE, INACTIVE, SUSPENDED, PENDING_INVITATION
-  role                    String               // e.g. "ADMIN", "OWNER", "QUALITY_MANAGER", "QA_REVIEWER", "DOCUMENT_OWNER", "DEPARTMENT_MANAGER", "TRAINING_COORDINATOR", "INVESTIGATOR", "APPROVER", "EMPLOYEE", "EXTERNAL_AUDITOR", "SUPPLIER", "CONSULTANT"
-  department              String               // e.g. "QA", "QC", "PRODUCTION", "REGULATORY", "ENGINEERING"
+  mfaEnabled              Boolean                       @default(false)
+  accountStatus           String                        @default("ACTIVE") // ACTIVE, INACTIVE, SUSPENDED, PENDING_INVITATION
+  role                    String // e.g. "ADMIN", "OWNER", "QUALITY_MANAGER", "QA_REVIEWER", "DOCUMENT_OWNER", "DEPARTMENT_MANAGER", "TRAINING_COORDINATOR", "INVESTIGATOR", "APPROVER", "EMPLOYEE", "EXTERNAL_AUDITOR", "SUPPLIER", "CONSULTANT"
+  department              String // e.g. "QA", "QC", "PRODUCTION", "REGULATORY", "ENGINEERING"
   businessUnit            String?
-  site                    String               @default("Main Facility") // e.g. "Dublin Lab A", "Frankfurt Plant 2"
+  site                    String                        @default("Main Facility") // e.g. "Dublin Lab A", "Frankfurt Plant 2"
   location                String?
-  country                 String?              @default("Germany")
-  employmentType          String               @default("EMPLOYEE") // EMPLOYEE, CONTRACTOR, CONSULTANT, EXTERNAL_AUDITOR, SUPPLIER
-  trainingStatus          String               @default("QUALIFIED")
-  digitalSignatureEnabled Boolean              @default(true)
-  signatureAuthorityLevel String               @default("LEVEL_1")
-  approvalAuthorityLevel  String               @default("LEVEL_1")
-  clearance               String               @default("INTERNAL") // e.g. "INTERNAL", "RESTRICTED"
-  expiresAt               DateTime?            // For temporary Consultant / External Auditor access
+  country                 String?                       @default("Germany")
+  employmentType          String                        @default("EMPLOYEE") // EMPLOYEE, CONTRACTOR, CONSULTANT, EXTERNAL_AUDITOR, SUPPLIER
+  trainingStatus          String                        @default("QUALIFIED")
+  digitalSignatureEnabled Boolean                       @default(true)
+  signatureAuthorityLevel String                        @default("LEVEL_1")
+  approvalAuthorityLevel  String                        @default("LEVEL_1")
+  clearance               String                        @default("INTERNAL") // e.g. "INTERNAL", "RESTRICTED"
+  expiresAt               DateTime? // For temporary Consultant / External Auditor access
   tenantId                String
-  tenant                  Tenant               @relation(fields: [tenantId], references: [id])
-  documentOwner           Document[]           @relation("DocumentOwner")
+  tenant                  Tenant                        @relation(fields: [tenantId], references: [id])
+  documentOwner           Document[]                    @relation("DocumentOwner")
   approvals               ApprovalRouteStep[]
   signatures              SignatureManifest[]
   trainingAssignments     TrainingAssignment[]
   quizResults             QuizResult[]
-  deviationsDetected      Deviation[]          @relation("DetectedBy")
-  deviationsInvestigated  Deviation[]          @relation("Investigator")
-  capasAssigned           CAPA[]               @relation("CapaAssigned")
-  maintenanceLogs         MaintenanceLog[]     @relation("PerformedMaintenance")
-  supplierAudits          SupplierAudit[]      @relation("AuditedSupplier")
-  materialInspections     MaterialReceipt[]    @relation("InspectedMaterial")
-  auditsLead              AuditPlan[]          @relation("LeadAuditor")
+  deviationsDetected      Deviation[]                   @relation("DetectedBy")
+  deviationsInvestigated  Deviation[]                   @relation("Investigator")
+  capasAssigned           CAPA[]                        @relation("CapaAssigned")
+  maintenanceLogs         MaintenanceLog[]              @relation("PerformedMaintenance")
+  supplierAudits          SupplierAudit[]               @relation("AuditedSupplier")
+  materialInspections     MaterialReceipt[]             @relation("InspectedMaterial")
+  auditsLead              AuditPlan[]                   @relation("LeadAuditor")
   notifications           Notification[]
-  requirementAssessments TenantRequirementAssessment[] @relation("RequirementOwner")
-  iamMembership          IamMembership?
+  requirementAssessments  TenantRequirementAssessment[] @relation("RequirementOwner")
+  iamMembership           IamMembership?
 
   @@unique([id, tenantId])
 }
@@ -75,8 +75,8 @@ model Document {
   id                   String                  @id @default(uuid())
   title                String
   description          String
-  classification       String                  // e.g. "CONTROLLED", "INTERNAL", "HIGHLY_RESTRICTED"
-  status               String                  // e.g. "DRAFT", "IN_REVIEW", "APPROVED", "EFFECTIVE", "OBSOLETE"
+  classification       String // e.g. "CONTROLLED", "INTERNAL", "HIGHLY_RESTRICTED"
+  status               String // e.g. "DRAFT", "IN_REVIEW", "APPROVED", "EFFECTIVE", "OBSOLETE"
   ownerId              String
   owner                User                    @relation("DocumentOwner", fields: [ownerId], references: [id])
   tenantId             String
@@ -92,34 +92,40 @@ model Document {
 model DocumentVersion {
   id                String             @id @default(uuid())
   documentId        String
-  document          Document           @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  document          Document           @relation(fields: [documentId], references: [id], onDelete: Restrict)
   versionNumber     Int
-  filePath          String
-  fileData          String?            // Base64 encoded file content
-  hash              String             // SHA-256 integrity hash
+  filePath          String // Legacy filesystem path; retained for inherited records
+  fileData          String? // Legacy Base64 content; new versions use private object storage
+  storageKey        String?            @unique
+  originalFileName  String?
+  mimeType          String?
+  sizeBytes         Int?
+  hash              String // SHA-256 content-integrity evidence
   createdAt         DateTime           @default(now())
   createdBy         String
   signatureManifest SignatureManifest?
   approvalRoutes    ApprovalRoute[]
+
+  @@unique([documentId, versionNumber])
 }
 
 model ApprovalRoute {
   id                String              @id @default(uuid())
   documentVersionId String
-  documentVersion   DocumentVersion     @relation(fields: [documentVersionId], references: [id], onDelete: Cascade)
+  documentVersion   DocumentVersion     @relation(fields: [documentVersionId], references: [id], onDelete: Restrict)
   steps             ApprovalRouteStep[]
-  status            String              // e.g. "PENDING", "APPROVED", "REJECTED"
+  status            String // e.g. "PENDING", "APPROVED", "REJECTED"
   createdAt         DateTime            @default(now())
 }
 
 model ApprovalRouteStep {
   id              String        @id @default(uuid())
   approvalRouteId String
-  approvalRoute   ApprovalRoute @relation(fields: [approvalRouteId], references: [id], onDelete: Cascade)
+  approvalRoute   ApprovalRoute @relation(fields: [approvalRouteId], references: [id], onDelete: Restrict)
   approverId      String
   approver        User          @relation(fields: [approverId], references: [id])
   sequence        Int
-  status          String        // e.g. "PENDING", "APPROVED", "REJECTED"
+  status          String // e.g. "PENDING", "APPROVED", "REJECTED"
   signedAt        DateTime?
   comment         String?
 }
@@ -127,32 +133,32 @@ model ApprovalRouteStep {
 model SignatureManifest {
   id                String          @id @default(uuid())
   documentVersionId String          @unique
-  documentVersion   DocumentVersion @relation(fields: [documentVersionId], references: [id], onDelete: Cascade)
+  documentVersion   DocumentVersion @relation(fields: [documentVersionId], references: [id], onDelete: Restrict)
   signedBy          String
   signer            User            @relation(fields: [signedBy], references: [id])
   signedAt          DateTime        @default(now())
-  meaning           String          // e.g. "Authorship", "Approval", "Review"
+  meaning           String // e.g. "Authorship", "Approval", "Review"
   hashSigned        String
   ipAddress         String
 }
 
 model TrainingRequirement {
-  id              String               @id @default(uuid())
-  documentId      String               @unique
-  document        Document             @relation(fields: [documentId], references: [id], onDelete: Cascade)
-  requiredForRoles String               // Comma-separated roles or departments
-  requiresQuiz    Boolean              @default(false)
-  quizQuestions   String?              // JSON string containing questions, options, and correct answers
-  assignments     TrainingAssignment[]
+  id               String               @id @default(uuid())
+  documentId       String               @unique
+  document         Document             @relation(fields: [documentId], references: [id], onDelete: Restrict)
+  requiredForRoles String // Comma-separated roles or departments
+  requiresQuiz     Boolean              @default(false)
+  quizQuestions    String? // JSON string containing questions, options, and correct answers
+  assignments      TrainingAssignment[]
 }
 
 model TrainingAssignment {
   id            String              @id @default(uuid())
   requirementId String
-  requirement   TrainingRequirement @relation(fields: [requirementId], references: [id], onDelete: Cascade)
+  requirement   TrainingRequirement @relation(fields: [requirementId], references: [id], onDelete: Restrict)
   userId        String
-  user          User                @relation(fields: [userId], references: [id], onDelete: Cascade)
-  status        String              // e.g. "ASSIGNED", "COMPLETED", "OVERDUE"
+  user          User                @relation(fields: [userId], references: [id], onDelete: Restrict)
+  status        String // e.g. "ASSIGNED", "COMPLETED", "OVERDUE"
   assignedAt    DateTime            @default(now())
   completedAt   DateTime?
   quizResultId  String?             @unique
@@ -162,7 +168,7 @@ model TrainingAssignment {
 model QuizResult {
   id                 String              @id @default(uuid())
   userId             String
-  user               User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user               User                @relation(fields: [userId], references: [id], onDelete: Restrict)
   score              Int
   passed             Boolean
   createdAt          DateTime            @default(now())
@@ -173,8 +179,8 @@ model ChangeRequest {
   id        String                  @id @default(uuid())
   title     String
   reason    String
-  riskLevel String                  // e.g. "LOW", "MEDIUM", "HIGH"
-  status    String                  // e.g. "DRAFT", "UNDER_REVIEW", "APPROVED", "CLOSED"
+  riskLevel String // e.g. "LOW", "MEDIUM", "HIGH"
+  status    String // e.g. "DRAFT", "UNDER_REVIEW", "APPROVED", "CLOSED"
   createdAt DateTime                @default(now())
   documents ChangeRequestDocument[]
 }
@@ -183,26 +189,26 @@ model ChangeRequestDocument {
   changeRequestId String
   changeRequest   ChangeRequest @relation(fields: [changeRequestId], references: [id], onDelete: Cascade)
   documentId      String
-  document        Document      @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  document        Document      @relation(fields: [documentId], references: [id], onDelete: Restrict)
 
   @@id([changeRequestId, documentId])
 }
 
 model Deviation {
-  id                 String   @id @default(uuid())
+  id                 String     @id @default(uuid())
   tenantId           String
-  tenant             Tenant   @relation(fields: [tenantId], references: [id])
+  tenant             Tenant     @relation(fields: [tenantId], references: [id])
   title              String
   description        String
-  classification     String   // e.g. "MINOR", "MAJOR", "CRITICAL"
-  status             String   // e.g. "LOGGED", "UNDER_INVESTIGATION", "QA_REVIEW", "CLOSED"
+  classification     String // e.g. "MINOR", "MAJOR", "CRITICAL"
+  status             String // e.g. "LOGGED", "UNDER_INVESTIGATION", "QA_REVIEW", "CLOSED"
   detectedById       String
-  detectedBy         User     @relation("DetectedBy", fields: [detectedById], references: [id])
+  detectedBy         User       @relation("DetectedBy", fields: [detectedById], references: [id])
   investigatorId     String?
-  investigator       User?    @relation("Investigator", fields: [investigatorId], references: [id])
+  investigator       User?      @relation("Investigator", fields: [investigatorId], references: [id])
   investigationNotes String?
-  createdAt          DateTime @default(now())
-  updatedAt          DateTime @updatedAt
+  createdAt          DateTime   @default(now())
+  updatedAt          DateTime   @updatedAt
   capas              CAPA[]
   equipmentId        String?
   equipment          Equipment? @relation("EquipmentDeviations", fields: [equipmentId], references: [id])
@@ -214,37 +220,37 @@ model CAPA {
   tenant        Tenant         @relation(fields: [tenantId], references: [id])
   title         String
   actionPlan    String
-  status        String         // e.g. "OPEN", "IN_PROGRESS", "CLOSED"
+  status        String // e.g. "OPEN", "IN_PROGRESS", "CLOSED"
   dueDate       DateTime
   completedAt   DateTime?
   assignedToId  String
   assignedTo    User           @relation("CapaAssigned", fields: [assignedToId], references: [id])
   deviationId   String?
-  deviation     Deviation?     @relation(fields: [deviationId], references: [id], onDelete: Cascade)
+  deviation     Deviation?     @relation(fields: [deviationId], references: [id], onDelete: SetNull)
   auditFindings AuditFinding[]
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
 }
 
 model AuditLog {
-  id          String   @id @default(uuid())
-  tenantId    String
-  tenant      Tenant   @relation(fields: [tenantId], references: [id])
-  eventId     String   @unique // UUID for client-side correlation and WORM checks
-  timestamp   DateTime @default(now())
-  userId      String?
-  iamUserId   String?
+  id           String   @id @default(uuid())
+  tenantId     String
+  tenant       Tenant   @relation(fields: [tenantId], references: [id])
+  eventId      String   @unique // UUID for client-side correlation and WORM checks
+  timestamp    DateTime @default(now())
+  userId       String?
+  iamUserId    String?
   membershipId String?
-  roleId      String?
-  userEmail   String?
-  userRole    String?
-  action      String   // e.g. Document.Create, Document.View, ESign.Execute
-  objectType  String   // e.g. Document, User, Tenant
-  objectId    String?
-  payload     String   // JSON payload (includes before/after for CUD, fieldsReturned for reads)
-  status      String   // Success, Failed, Denied
-  sourceIp    String?
-  requestUrl  String?
+  roleId       String?
+  userEmail    String?
+  userRole     String?
+  action       String // e.g. Document.Create, Document.View, ESign.Execute
+  objectType   String // e.g. Document, User, Tenant
+  objectId     String?
+  payload      String // JSON payload (includes before/after for CUD, fieldsReturned for reads)
+  status       String // Success, Failed, Denied
+  sourceIp     String?
+  requestUrl   String?
 }
 
 model Equipment {
@@ -255,9 +261,9 @@ model Equipment {
   description             String?
   modelNumber             String?
   serialNumber            String?
-  location                String           // e.g. "Cleanroom Suite A"
-  status                  String           // e.g. "ACTIVE", "OUT_OF_SERVICE", "UNDER_MAINTENANCE", "CALIBRATION_DUE"
-  calibrationIntervalDays Int              // e.g. 90, 180, 365
+  location                String // e.g. "Cleanroom Suite A"
+  status                  String // e.g. "ACTIVE", "OUT_OF_SERVICE", "UNDER_MAINTENANCE", "CALIBRATION_DUE"
+  calibrationIntervalDays Int // e.g. 90, 180, 365
   lastCalibratedAt        DateTime         @default(now())
   nextCalibrationDueDate  DateTime
   createdAt               DateTime         @default(now())
@@ -267,38 +273,38 @@ model Equipment {
 }
 
 model MaintenanceLog {
-  id              String    @id @default(uuid())
-  equipmentId     String
-  equipment       Equipment @relation(fields: [equipmentId], references: [id], onDelete: Cascade)
-  performedById   String
-  performedBy     User      @relation("PerformedMaintenance", fields: [performedById], references: [id])
-  performedAt     DateTime  @default(now())
-  activityType    String    // e.g. "CALIBRATION", "PREVENTATIVE_MAINTENANCE", "REPAIR"
-  notes           String
-  result          String    // e.g. "PASS", "FAIL"
-  esignSignatureId String?   // 21 CFR Part 11 signature record if signed
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
+  id               String    @id @default(uuid())
+  equipmentId      String
+  equipment        Equipment @relation(fields: [equipmentId], references: [id], onDelete: Restrict)
+  performedById    String
+  performedBy      User      @relation("PerformedMaintenance", fields: [performedById], references: [id])
+  performedAt      DateTime  @default(now())
+  activityType     String // e.g. "CALIBRATION", "PREVENTATIVE_MAINTENANCE", "REPAIR"
+  notes            String
+  result           String // e.g. "PASS", "FAIL"
+  esignSignatureId String? // 21 CFR Part 11 signature record if signed
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
 }
 
 model Supplier {
-  id                      String            @id @default(uuid())
-  tenantId                String
-  tenant                  Tenant            @relation(fields: [tenantId], references: [id])
-  name                    String
-  contactEmail            String?
-  contactPhone            String?
-  category                String            // e.g. "RAW_MATERIAL", "PACKAGING", "CONTRACT_LAB", "SOFTWARE"
-  status                  String            // e.g. "APPROVED", "CONDITIONALLY_APPROVED", "UNDER_EVALUATION", "DISQUALIFIED"
-  riskClassification      String            // e.g. "CRITICAL", "MAJOR", "MINOR"
-  qualificationDate       DateTime          @default(now())
-  reEvaluationDueDate     DateTime
-  notes                   String?
-  createdAt               DateTime          @default(now())
-  updatedAt               DateTime          @updatedAt
-  audits                  SupplierAudit[]
-  materialReceipts        MaterialReceipt[]
-  attachments             SupplierAttachment[]
+  id                  String               @id @default(uuid())
+  tenantId            String
+  tenant              Tenant               @relation(fields: [tenantId], references: [id])
+  name                String
+  contactEmail        String?
+  contactPhone        String?
+  category            String // e.g. "RAW_MATERIAL", "PACKAGING", "CONTRACT_LAB", "SOFTWARE"
+  status              String // e.g. "APPROVED", "CONDITIONALLY_APPROVED", "UNDER_EVALUATION", "DISQUALIFIED"
+  riskClassification  String // e.g. "CRITICAL", "MAJOR", "MINOR"
+  qualificationDate   DateTime             @default(now())
+  reEvaluationDueDate DateTime
+  notes               String?
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+  audits              SupplierAudit[]
+  materialReceipts    MaterialReceipt[]
+  attachments         SupplierAttachment[]
 }
 
 model SupplierAttachment {
@@ -307,21 +313,21 @@ model SupplierAttachment {
   supplier   Supplier @relation(fields: [supplierId], references: [id], onDelete: Cascade)
   fileName   String
   fileType   String
-  fileData   String   // Base64 encoded file content
+  fileData   String // Base64 encoded file content
   uploadedAt DateTime @default(now())
 }
 
 model SupplierAudit {
   id               String   @id @default(uuid())
   supplierId       String
-  supplier         Supplier @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  supplier         Supplier @relation(fields: [supplierId], references: [id], onDelete: Restrict)
   auditorId        String
   auditor          User     @relation("AuditedSupplier", fields: [auditorId], references: [id])
   auditDate        DateTime @default(now())
-  auditType        String   // e.g. "INITIAL_QUALIFICATION", "ROUTINE_ANNUAL", "FOR_CAUSE"
+  auditType        String // e.g. "INITIAL_QUALIFICATION", "ROUTINE_ANNUAL", "FOR_CAUSE"
   findings         String
-  result           String   // e.g. "PASS", "CONDITIONAL_PASS", "FAIL"
-  esignSignatureId String?  // 21 CFR Part 11 signature record if signed
+  result           String // e.g. "PASS", "CONDITIONAL_PASS", "FAIL"
+  esignSignatureId String? // 21 CFR Part 11 signature record if signed
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 }
@@ -329,12 +335,12 @@ model SupplierAudit {
 model MaterialReceipt {
   id               String   @id @default(uuid())
   supplierId       String
-  supplier         Supplier @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  supplier         Supplier @relation(fields: [supplierId], references: [id], onDelete: Restrict)
   materialName     String
   lotNumber        String
   quantityReceived Int
-  unit             String   // e.g. "kg", "L", "units"
-  inspectionStatus String   // e.g. "PASSED", "REJECTED", "QUARANTINE"
+  unit             String // e.g. "kg", "L", "units"
+  inspectionStatus String // e.g. "PASSED", "REJECTED", "QUARANTINE"
   inspectedById    String
   inspectedBy      User     @relation("InspectedMaterial", fields: [inspectedById], references: [id])
   notes            String?
@@ -344,34 +350,34 @@ model MaterialReceipt {
 }
 
 model AuditPlan {
-  id              String         @id @default(uuid())
-  tenantId        String
-  tenant          Tenant         @relation(fields: [tenantId], references: [id])
-  title           String
-  scope           String         // e.g. "EU GMP Annex 11 / ISO 13485 Internal Audit"
-  auditType       String         // e.g. "INTERNAL", "SUPPLIER", "REGULATORY_PREPARATION"
-  status          String         // e.g. "PLANNED", "IN_PROGRESS", "REPORT_GENERATED", "CLOSED"
-  scheduledDate   DateTime
-  completedDate   DateTime?
-  leadAuditorId   String
-  leadAuditor     User           @relation("LeadAuditor", fields: [leadAuditorId], references: [id])
-  summary         String?
-  findings        AuditFinding[]
-  createdAt       DateTime       @default(now())
-  updatedAt       DateTime       @updatedAt
+  id            String         @id @default(uuid())
+  tenantId      String
+  tenant        Tenant         @relation(fields: [tenantId], references: [id])
+  title         String
+  scope         String // e.g. "EU GMP Annex 11 / ISO 13485 Internal Audit"
+  auditType     String // e.g. "INTERNAL", "SUPPLIER", "REGULATORY_PREPARATION"
+  status        String // e.g. "PLANNED", "IN_PROGRESS", "REPORT_GENERATED", "CLOSED"
+  scheduledDate DateTime
+  completedDate DateTime?
+  leadAuditorId String
+  leadAuditor   User           @relation("LeadAuditor", fields: [leadAuditorId], references: [id])
+  summary       String?
+  findings      AuditFinding[]
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
 }
 
 model AuditFinding {
-  id           String    @id @default(uuid())
-  auditPlanId  String
-  auditPlan    AuditPlan @relation(fields: [auditPlanId], references: [id], onDelete: Cascade)
-  classification String  // e.g. "CRITICAL", "MAJOR", "MINOR", "RECOMMENDATION"
-  description  String
-  capaId       String?
-  capa         CAPA?     @relation(fields: [capaId], references: [id])
-  status       String    // e.g. "OPEN", "CAPA_LINKED", "RESOLVED"
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
+  id             String    @id @default(uuid())
+  auditPlanId    String
+  auditPlan      AuditPlan @relation(fields: [auditPlanId], references: [id], onDelete: Restrict)
+  classification String // e.g. "CRITICAL", "MAJOR", "MINOR", "RECOMMENDATION"
+  description    String
+  capaId         String?
+  capa           CAPA?     @relation(fields: [capaId], references: [id])
+  status         String // e.g. "OPEN", "CAPA_LINKED", "RESOLVED"
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
 }
 
 model Notification {
@@ -382,7 +388,7 @@ model Notification {
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   title     String
   message   String
-  type      String   // e.g. "TRAINING_OVERDUE", "DOCUMENT_REVIEW", "CAPA_DUE", "CALIBRATION_ALERT"
+  type      String // e.g. "TRAINING_OVERDUE", "DOCUMENT_REVIEW", "CAPA_DUE", "CALIBRATION_ALERT"
   read      Boolean  @default(false)
   link      String?
   createdAt DateTime @default(now())
@@ -396,8 +402,8 @@ model Regulation {
   id           String              @id @default(uuid())
   regulationId String              @unique // e.g. "EU-GMP-VOL4"
   name         String
-  authority    String              // e.g. "European Commission"
-  jurisdiction String              // e.g. "European Union"
+  authority    String // e.g. "European Commission"
+  jurisdiction String // e.g. "European Union"
   status       String              @default("ACTIVE") // ACTIVE, ARCHIVED
   createdAt    DateTime            @default(now())
   updatedAt    DateTime            @updatedAt
@@ -405,20 +411,20 @@ model Regulation {
 }
 
 model RegulationVersion {
-  id                String              @id @default(uuid())
+  id                String             @id @default(uuid())
   regulationId      String
-  regulation        Regulation          @relation(fields: [regulationId], references: [id], onDelete: Cascade)
-  versionNumber     String              // e.g. "2024.1"
+  regulation        Regulation         @relation(fields: [regulationId], references: [id], onDelete: Cascade)
+  versionNumber     String // e.g. "2024.1"
   publicationDate   DateTime
   effectiveDate     DateTime
-  status            String              @default("ACTIVE") // ACTIVE, SUPERSEDED
-  previousVersionId String?             @unique
-  previousVersion   RegulationVersion?  @relation("VersionSequence", fields: [previousVersionId], references: [id])
-  nextVersion       RegulationVersion?  @relation("VersionSequence")
+  status            String             @default("ACTIVE") // ACTIVE, SUPERSEDED
+  previousVersionId String?            @unique
+  previousVersion   RegulationVersion? @relation("VersionSequence", fields: [previousVersionId], references: [id])
+  nextVersion       RegulationVersion? @relation("VersionSequence")
   chapters          Chapter[]
   sourceDocuments   SourceDocument[]
-  createdAt         DateTime            @default(now())
-  updatedAt         DateTime            @updatedAt
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
 }
 
 model SourceDocument {
@@ -436,7 +442,7 @@ model Chapter {
   id                  String            @id @default(uuid())
   regulationVersionId String
   regulationVersion   RegulationVersion @relation(fields: [regulationVersionId], references: [id], onDelete: Cascade)
-  chapterNumber       String            // e.g. "Chapter 4", "Annex 11"
+  chapterNumber       String // e.g. "Chapter 4", "Annex 11"
   title               String
   sections            Section[]
   createdAt           DateTime          @default(now())
@@ -447,7 +453,7 @@ model Section {
   id            String        @id @default(uuid())
   chapterId     String
   chapter       Chapter       @relation(fields: [chapterId], references: [id], onDelete: Cascade)
-  sectionNumber String        // e.g. "4.1", "Clause 3"
+  sectionNumber String // e.g. "4.1", "Clause 3"
   title         String
   requirements  Requirement[]
   createdAt     DateTime      @default(now())
@@ -459,12 +465,12 @@ model Requirement {
   requirementId      String                        @unique // e.g. "REQ-EU-GMP-CH4-V2024.1-P4.1-1"
   sectionId          String
   section            Section                       @relation(fields: [sectionId], references: [id], onDelete: Cascade)
-  paragraphReference String                        // e.g. "Paragraph 4.1"
-  originalWording    String                        // Immutable regulatory text
+  paragraphReference String // e.g. "Paragraph 4.1"
+  originalWording    String // Immutable regulatory text
   pageNumber         Int?
-  riskClassification String                        // CRITICAL, MAJOR, MINOR
+  riskClassification String // CRITICAL, MAJOR, MINOR
   category           String
-  keywords           String                        // Comma-separated or JSON array list
+  keywords           String // Comma-separated or JSON array list
   qualityArea        String
   importDate         DateTime                      @default(now())
   parserVersion      String                        @default("1.0")
@@ -484,10 +490,10 @@ model TenantRequirementAssessment {
   requirementId        String
   requirement          Requirement                @relation(fields: [requirementId], references: [id], onDelete: Cascade)
   applicability        String                     @default("NOT_ASSESSED") // NOT_ASSESSED, UNDER_REVIEW, APPLICABLE, NOT_APPLICABLE
-  justification        String?                    // Mandatory if NOT_APPLICABLE
+  justification        String? // Mandatory if NOT_APPLICABLE
   implementationStatus String                     @default("NOT_STARTED") // NOT_STARTED, UNDER_REVIEW, MAPPED, IMPLEMENTED, VERIFIED, MONITORING
-  interpretation       String?                    // Plain-language corporate interpretation
-  aiInterpretation     String?                    // AI-drafted interpretation proposal
+  interpretation       String? // Plain-language corporate interpretation
+  aiInterpretation     String? // AI-drafted interpretation proposal
   ownerId              String?
   owner                User?                      @relation("RequirementOwner", fields: [ownerId], references: [id])
   reviewDate           DateTime?
@@ -504,31 +510,31 @@ model TenantRequirementMapping {
   tenantId     String
   assessmentId String
   assessment   TenantRequirementAssessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
-  targetType   String                      // DOCUMENT, TRAINING_REQUIREMENT, PROCESS, RISK, CAPA, AUDIT_PLAN, VALIDATION, EQUIPMENT, SUPPLIER
-  targetId     String                      // ID of the target QMS record
-  targetTitle  String                      // Cached display name
+  targetType   String // DOCUMENT, TRAINING_REQUIREMENT, PROCESS, RISK, CAPA, AUDIT_PLAN, VALIDATION, EQUIPMENT, SUPPLIER
+  targetId     String // ID of the target QMS record
+  targetTitle  String // Cached display name
   mappingType  String                      @default("SATISFIES") // SATISFIES, VERIFIES, MITIGATES, APPLIES_TO
   createdAt    DateTime                    @default(now())
 }
 
 model IamUser {
-  id                 String          @id @default(uuid())
-  email              String          @unique
-  passwordHash       String
-  firstName          String
-  lastName           String
-  phone              String?
-  mfaEnabled         Boolean         @default(false)
-  mfaSecret          String?         // TOTP key or secret
-  accountStatus      String          @default("INVITED") // INVITED, ACTIVE, SUSPENDED, DEACTIVATED
-  createdAt          DateTime        @default(now())
-  updatedAt          DateTime        @updatedAt
-  lastLogin          DateTime?
-  lastPasswordChange DateTime?
-  memberships        IamMembership[]
-  sessions           IamSession[]
+  id                     String                     @id @default(uuid())
+  email                  String                     @unique
+  passwordHash           String
+  firstName              String
+  lastName               String
+  phone                  String?
+  mfaEnabled             Boolean                    @default(false)
+  mfaSecret              String? // TOTP key or secret
+  accountStatus          String                     @default("INVITED") // INVITED, ACTIVE, SUSPENDED, DEACTIVATED
+  createdAt              DateTime                   @default(now())
+  updatedAt              DateTime                   @updatedAt
+  lastLogin              DateTime?
+  lastPasswordChange     DateTime?
+  memberships            IamMembership[]
+  sessions               IamSession[]
   credentialActionTokens IamCredentialActionToken[]
-  auditTrails        IamAuditTrail[]
+  auditTrails            IamAuditTrail[]
 }
 
 enum IamCredentialActionPurpose {
@@ -557,22 +563,22 @@ model IamOrganization {
 }
 
 model IamMembership {
-  id             String          @id @default(uuid())
-  userId         String
-  user           IamUser         @relation(fields: [userId], references: [id], onDelete: Cascade)
-  organizationId String
-  tenantId       String
-  organization   IamOrganization @relation(fields: [organizationId, tenantId], references: [id, tenantId], onDelete: Cascade)
+  id                String          @id @default(uuid())
+  userId            String
+  user              IamUser         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organizationId    String
+  tenantId          String
+  organization      IamOrganization @relation(fields: [organizationId, tenantId], references: [id, tenantId], onDelete: Cascade)
   operationalUserId String
   operationalUser   User            @relation(fields: [operationalUserId, tenantId], references: [id, tenantId])
-  roleId         String
-  role           IamRole         @relation(fields: [roleId], references: [id])
-  status         String          @default("PENDING") // PENDING, ACTIVE, SUSPENDED
-  createdBy      String?
-  approvedBy     String?
-  createdAt      DateTime        @default(now())
-  updatedAt      DateTime        @updatedAt
-  sessions       IamSession[]
+  roleId            String
+  role              IamRole         @relation(fields: [roleId], references: [id])
+  status            String          @default("PENDING") // PENDING, ACTIVE, SUSPENDED
+  createdBy         String?
+  approvedBy        String?
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+  sessions          IamSession[]
 
   @@unique([userId, organizationId])
   @@unique([operationalUserId, tenantId])
@@ -582,7 +588,7 @@ model IamProductSubscription {
   id             String          @id @default(uuid())
   organizationId String
   organization   IamOrganization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  productName    String          // VERITAS, NEXUS, GENESIS
+  productName    String // VERITAS, NEXUS, GENESIS
   status         String          @default("INACTIVE") // ACTIVE, INACTIVE
   createdAt      DateTime        @default(now())
   updatedAt      DateTime        @updatedAt
@@ -591,17 +597,17 @@ model IamProductSubscription {
 }
 
 model IamRole {
-  id          String                  @id @default(uuid())
-  name        String                  @unique // e.g. "Organization Owner", "Quality Manager", "Employee"
+  id          String              @id @default(uuid())
+  name        String              @unique // e.g. "Organization Owner", "Quality Manager", "Employee"
   description String
-  isSystem    Boolean                 @default(false)
+  isSystem    Boolean             @default(false)
   memberships IamMembership[]
   permissions IamRolePermission[]
 }
 
 model IamPermission {
-  id          String                  @id @default(uuid())
-  name        String                  @unique // e.g. "DOCUMENT_VIEW", "USER_INVITE"
+  id          String              @id @default(uuid())
+  name        String              @unique // e.g. "DOCUMENT_VIEW", "USER_INVITE"
   description String
   roles       IamRolePermission[]
 }
@@ -616,37 +622,37 @@ model IamRolePermission {
 }
 
 model IamSession {
-  id           String        @id @default(uuid())
-  userId       String
-  user         IamUser       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id     String  @id @default(uuid())
+  userId String
+  user   IamUser @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   membershipId String
   membership   IamMembership @relation(fields: [membershipId], references: [id], onDelete: Cascade)
 
-  tokenHash    String        @unique // SHA-256 digest only; plaintext bearer tokens must never be persisted
-  expiresAt    DateTime
-  revokedAt    DateTime?
+  tokenHash String    @unique // SHA-256 digest only; plaintext bearer tokens must never be persisted
+  expiresAt DateTime
+  revokedAt DateTime?
 
-  ipAddress    String?
-  userAgent    String?
-  location     String?       @default("Unknown")
+  ipAddress String?
+  userAgent String?
+  location  String? @default("Unknown")
 
-  createdAt    DateTime      @default(now())
-  lastActiveAt DateTime      @default(now())
+  createdAt    DateTime @default(now())
+  lastActiveAt DateTime @default(now())
 }
 
 model IamCredentialActionToken {
-  id         String                     @id @default(uuid())
-  userId     String
-  user       IamUser                    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id     String  @id @default(uuid())
+  userId String
+  user   IamUser @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  tokenHash  String                     @unique // SHA-256 digest only; plaintext bearer tokens must never be persisted
-  purpose    IamCredentialActionPurpose
+  tokenHash String                     @unique // SHA-256 digest only; plaintext bearer tokens must never be persisted
+  purpose   IamCredentialActionPurpose
 
   expiresAt  DateTime
   consumedAt DateTime?
 
-  createdAt  DateTime                   @default(now())
+  createdAt DateTime @default(now())
 
   @@index([userId, purpose])
 }
@@ -659,10 +665,10 @@ model IamAuditTrail {
   user           IamUser?         @relation(fields: [userId], references: [id], onDelete: SetNull)
   userEmail      String
   userRole       String?
-  action         String           // e.g. LOGIN, USER_INVITED, ROLE_ASSIGNED
-  objectType     String           // e.g. User, Organization, Membership
+  action         String // e.g. LOGIN, USER_INVITED, ROLE_ASSIGNED
+  objectType     String // e.g. User, Organization, Membership
   objectId       String?
-  payload        String           // JSON string of metadata (e.g. before/after, reason)
+  payload        String // JSON string of metadata (e.g. before/after, reason)
   status         String           @default("SUCCESS") // SUCCESS, FAILED, DENIED
   ipAddress      String?
   reason         String?

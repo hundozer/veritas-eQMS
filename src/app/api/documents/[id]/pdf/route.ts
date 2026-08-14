@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 import { getContext } from '@/lib/auth';
+import { hasPermission } from '@/lib/rbac';
+import { sanitizeDisplayFileName, sha256, vercelBlobStorage, verifyControlledObject } from '@/lib/controlled-storage';
 
 // GET /api/documents/[id]/pdf - Render watermarked GxP PDF viewer with exact uploaded file content + 21 CFR Part 11 metadata
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -9,6 +11,9 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     const user = await getContext(req);
     if (!user) {
       return new NextResponse('Unauthorized: Please log in to view controlled document', { status: 401 });
+    }
+    if (!hasPermission(user, 'documents.read')) {
+      return new NextResponse('Forbidden', { status: 403 });
     }
 
     const document = await prisma.document.findUnique({
@@ -36,20 +41,46 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     const signature = latestVersion?.signatureManifest;
     const isRaw = req.nextUrl.searchParams.get('raw') === 'true';
 
-    // If raw binary PDF requested and fileData exists, return raw PDF stream
-    if (isRaw && latestVersion?.fileData) {
-      const buffer = Buffer.from(latestVersion.fileData, 'base64');
-      return new NextResponse(buffer, {
+    // Resolve storage identity only from authorized database metadata. Client-supplied
+    // Blob URLs or keys are never accepted by this route.
+    if (isRaw && latestVersion) {
+      let bytes: Uint8Array;
+      let contentType = latestVersion.mimeType || 'application/pdf';
+      try {
+        if (latestVersion.storageKey) {
+          const object = await verifyControlledObject(vercelBlobStorage, latestVersion.storageKey, latestVersion.hash);
+          bytes = object.bytes;
+          contentType = latestVersion.mimeType || object.contentType;
+        } else if (latestVersion.fileData) {
+          bytes = new Uint8Array(Buffer.from(latestVersion.fileData, 'base64'));
+          if (sha256(bytes) !== latestVersion.hash) {
+            return new NextResponse('Controlled document integrity verification failed', { status: 409 });
+          }
+        } else {
+          return new NextResponse('Controlled document content is unavailable', { status: 404 });
+        }
+      } catch (error) {
+        console.error('Controlled document retrieval failed', { documentId: id, versionId: latestVersion.id, error });
+        return new NextResponse('Controlled document content could not be verified', { status: 409 });
+      }
+
+      const disposition = contentType === 'application/pdf' ? 'inline' : 'attachment';
+      const displayName = sanitizeDisplayFileName(latestVersion.originalFileName || `${document.title}-v${latestVersion.versionNumber}.pdf`);
+      return new NextResponse(Buffer.from(bytes), {
         headers: {
-          'Content-Type': 'application/pdf',
-          'Content-Disposition': `inline; filename="${document.title.replace(/[^a-z0-9]/gi, '_')}-v${latestVersion.versionNumber}.pdf"`,
+          'Content-Type': contentType,
+          'Content-Disposition': `${disposition}; filename="${displayName}"`,
+          'Cache-Control': 'private, no-store',
+          'X-Content-Type-Options': 'nosniff',
         },
       });
     }
 
-    const pdfDataUri = latestVersion?.fileData
-      ? `data:application/pdf;base64,${latestVersion.fileData}`
-      : null;
+    const pdfSource = latestVersion?.storageKey
+      ? `/api/documents/${document.id}/pdf?raw=true`
+      : latestVersion?.fileData
+        ? `data:application/pdf;base64,${latestVersion.fileData}`
+        : null;
 
     const html = `<!DOCTYPE html>
 <html lang="en">
@@ -204,7 +235,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     </div>
     <div style="display: flex; align-items: center; gap: 16px;">
       <span class="badge">${document.status}</span>
-      ${pdfDataUri ? `<a href="/api/documents/${document.id}/pdf?raw=true" target="_blank" class="btn-download">📥 Open / Download Raw Uploaded PDF</a>` : ''}
+      ${pdfSource ? `<a href="/api/documents/${document.id}/pdf?raw=true" target="_blank" class="btn-download">📥 Open / Download Raw Uploaded PDF</a>` : ''}
     </div>
   </div>
 
@@ -259,9 +290,9 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       📄 UPLOADED PHYSICAL SOP ATTACHMENT PREVIEW:
     </div>
 
-    ${pdfDataUri ? `
-      <object data="${pdfDataUri}" type="application/pdf" class="pdf-frame">
-        <embed src="${pdfDataUri}" type="application/pdf" class="pdf-frame" />
+    ${pdfSource ? `
+      <object data="${pdfSource}" type="application/pdf" class="pdf-frame">
+        <embed src="${pdfSource}" type="application/pdf" class="pdf-frame" />
         <div style="padding: 24px; text-align: center; color: #64748b;">
           PDF Preview unavailable in this browser engine. <a href="/api/documents/${document.id}/pdf?raw=true" target="_blank" style="color: #0284c7; font-weight: 600;">Click here to open raw PDF file directly.</a>
         </div>
@@ -284,7 +315,8 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     return new NextResponse(html, {
       headers: {
         'Content-Type': 'text/html; charset=utf-8',
-        'Cache-Control': 'no-cache',
+        'Cache-Control': 'private, no-store',
+        'X-Content-Type-Options': 'nosniff',
       },
     });
   } catch (error: any) {

@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 import { logAuditEvent } from '@/lib/auth';
 import { ensureEUGMPKnowledgeBaseSeeded } from '@/lib/eugmp-knowledge-base';
+import { randomUUID } from 'node:crypto';
+import { cleanupUncontrolledObject, createControlledObjectKey, createServerGeneratedTextUpload, vercelBlobStorage } from '@/lib/controlled-storage';
 
 // POST /api/onboarding/initialize - Process 10-Step Enterprise Onboarding & Initialize Regulated Environment
 export async function POST(req: NextRequest) {
@@ -107,54 +109,52 @@ export async function POST(req: NextRequest) {
     });
 
     if (!existingDoc) {
-      const starterDoc = await prisma.document.create({
-        data: {
-          title: `SOP-QA-001: ${companyName} Quality Management System Policy`,
-          description: `Governing Quality Manual for ${companyName} compliant with ${regulatoryFrameworks.join(' and ')}.`,
-          classification: 'CONTROLLED',
-          status: 'EFFECTIVE',
-          ownerId: adminUser.id,
-          tenantId: tenant.id,
-          currentVersionNumber: 1,
-        },
-      });
-
-      const docVer = await prisma.documentVersion.create({
-        data: {
-          documentId: starterDoc.id,
-          versionNumber: 1,
-          filePath: `effective/SOP-QA-001-${tenant.id}-v1.pdf`,
-          hash: 'e8f9a2b4c6d8e0f2a4b6c8d0e2f4a6b8c0d2e4f6a8b0c2d4e6f8a0b2c4d6e8f0',
-          createdBy: fullName,
-        },
-      });
-
-      await prisma.signatureManifest.create({
-        data: {
-          documentVersionId: docVer.id,
-          signedBy: adminUser.id,
-          meaning: 'Authorship & Executive QA Approval',
-          hashSigned: `${docVer.hash}-${adminUser.id}-APPROVED`,
-          ipAddress: '127.0.0.1',
-        },
-      });
-
-      const starterTraining = await prisma.trainingRequirement.create({
-        data: {
-          documentId: starterDoc.id,
-          requiredForRoles: 'EMPLOYEE,QUALITY_ASSURANCE,QUALITY_MANAGER,ADMIN',
-          requiresQuiz: false,
-        },
-      });
-
-      await prisma.trainingAssignment.create({
-        data: {
-          requirementId: starterTraining.id,
-          userId: adminUser.id,
-          status: 'COMPLETED',
-          completedAt: new Date(),
-        },
-      });
+      const documentId = randomUUID();
+      const upload = createServerGeneratedTextUpload(
+        'SOP-QA-001 starter quality-policy record. Replace through the controlled revision process.',
+        'SOP-QA-001-v1.txt',
+      );
+      const storageKey = createControlledObjectKey({ tenantId: tenant.id, documentId, versionNumber: 1 });
+      try {
+        await vercelBlobStorage.putObject(storageKey, upload.bytes, upload.mimeType);
+        await prisma.$transaction(async (tx) => {
+          const starterDoc = await tx.document.create({
+            data: {
+              id: documentId,
+              title: `SOP-QA-001: ${companyName} Quality Management System Policy`,
+              description: `Governing Quality Manual for ${companyName} compliant with ${regulatoryFrameworks.join(' and ')}.`,
+              classification: 'CONTROLLED', status: 'EFFECTIVE', ownerId: adminUser.id,
+              tenantId: tenant.id, currentVersionNumber: 1,
+            },
+          });
+          const docVer = await tx.documentVersion.create({
+            data: {
+              documentId: starterDoc.id, versionNumber: 1, filePath: storageKey, storageKey,
+              fileData: null, originalFileName: upload.fileName, mimeType: upload.mimeType,
+              sizeBytes: upload.bytes.byteLength, hash: upload.hash, createdBy: fullName,
+            },
+          });
+          await tx.signatureManifest.create({
+            data: {
+              documentVersionId: docVer.id, signedBy: adminUser.id,
+              meaning: 'Authorship & Executive QA Approval', hashSigned: `${docVer.hash}-${adminUser.id}-APPROVED`,
+              ipAddress: '127.0.0.1',
+            },
+          });
+          const starterTraining = await tx.trainingRequirement.create({
+            data: {
+              documentId: starterDoc.id,
+              requiredForRoles: 'EMPLOYEE,QUALITY_ASSURANCE,QUALITY_MANAGER,ADMIN', requiresQuiz: false,
+            },
+          });
+          await tx.trainingAssignment.create({
+            data: { requirementId: starterTraining.id, userId: adminUser.id, status: 'COMPLETED', completedAt: new Date() },
+          });
+        });
+      } catch (error) {
+        await cleanupUncontrolledObject(vercelBlobStorage, storageKey);
+        throw error;
+      }
     }
 
     // 6. Log Audit Event

@@ -3,9 +3,12 @@ import prisma from '@/lib/db';
 import { getContext, logAuditEvent } from '@/lib/auth';
 import { hasPermission } from '@/lib/rbac';
 import { writeMandatoryAudit } from '@/lib/audit';
-import * as fs from 'fs';
-
-import * as path from 'path';
+import {
+  cleanupUncontrolledObject,
+  createControlledObjectKey,
+  decodeControlledUpload,
+  vercelBlobStorage,
+} from '@/lib/controlled-storage';
 
 // GET /api/documents/[id] - Get document details + version history + training configs
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -25,7 +28,15 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
         owner: true,
         versions: {
           orderBy: { versionNumber: 'desc' },
-          include: {
+          select: {
+            id: true,
+            versionNumber: true,
+            hash: true,
+            originalFileName: true,
+            mimeType: true,
+            sizeBytes: true,
+            createdAt: true,
+            createdBy: true,
             signatureManifest: {
               include: { signer: true }
             }
@@ -62,6 +73,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
 
 // PUT /api/documents/[id] - Upload a new version or edit document metadata
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  let uploadedKey: string | null = null;
   try {
     const { id } = await params;
     const user = await getContext(req);
@@ -74,7 +86,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
 
     const document = await prisma.document.findUnique({
       where: { id },
-      include: { versions: true },
+      include: { versions: { orderBy: { versionNumber: 'desc' } } },
     });
 
     if (!document || document.tenantId !== user.tenantId) {
@@ -82,7 +94,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     }
 
     const body = await req.json();
-    const { title, description, classification, contentBase64, requiredRoles, requiresQuiz, quizQuestions } = body;
+    const { title, description, classification, contentBase64, fileName, mimeType, requiredRoles, requiresQuiz, quizQuestions } = body;
 
     // Enforce Change Control lock on effective documents
     if (document.status === 'EFFECTIVE' && contentBase64) {
@@ -110,23 +122,16 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     const nextVersionNumber = document.currentVersionNumber + 1;
 
     // 1. Process new version upload if contentBase64 is provided
-    let filePath = document.versions[0]?.filePath || '';
-    let hash = document.versions[0]?.hash || '';
+    let upload: ReturnType<typeof decodeControlledUpload> | null = null;
 
     if (contentBase64) {
-      const crypto = await import('crypto');
-      const buffer = Buffer.from(contentBase64, 'base64');
-      hash = crypto.createHash('sha256').update(buffer).digest('hex');
-      
-      const uploadDir = path.join(process.cwd(), 'public', 'uploads');
-      if (!fs.existsSync(uploadDir)) {
-        fs.mkdirSync(uploadDir, { recursive: true });
+      try {
+        upload = decodeControlledUpload({ contentBase64, fileName, mimeType });
+      } catch (error) {
+        return NextResponse.json({ error: { code: 'ValidationFailed', message: (error as Error).message } }, { status: 400 });
       }
-      
-      const cleanTitle = (title || document.title).replace(/[^a-z0-9]/gi, '_').toLowerCase();
-      const fileName = `${Date.now()}-${cleanTitle}-v${nextVersionNumber}.pdf`;
-      filePath = `uploads/${fileName}`;
-      fs.writeFileSync(path.join(process.cwd(), 'public', filePath), buffer);
+      uploadedKey = createControlledObjectKey({ tenantId: user.tenantId, documentId: id, versionNumber: nextVersionNumber });
+      await vercelBlobStorage.putObject(uploadedKey, upload.bytes, upload.mimeType);
     }
 
     // 2. Transactionally save everything (metadata update, new version entry, update training)
@@ -144,14 +149,18 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       });
 
       // Insert new version if new content uploaded
-      if (contentBase64) {
+      if (upload && uploadedKey) {
         await tx.documentVersion.create({
           data: {
             documentId: id,
             versionNumber: nextVersionNumber,
-            filePath,
-            fileData: contentBase64,
-            hash,
+            filePath: uploadedKey,
+            fileData: null,
+            storageKey: uploadedKey,
+            originalFileName: upload.fileName,
+            mimeType: upload.mimeType,
+            sizeBytes: upload.bytes.byteLength,
+            hash: upload.hash,
             createdBy: user.fullName,
           },
         });
@@ -183,8 +192,10 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       return doc;
     });
 
+    uploadedKey = null;
     return NextResponse.json({ document: updatedDoc });
   } catch (error: any) {
+    if (uploadedKey) await cleanupUncontrolledObject(vercelBlobStorage, uploadedKey);
     console.error('Update document error:', error);
     return NextResponse.json({ error: { code: 'InternalError', message: error.message } }, { status: 500 });
   }
