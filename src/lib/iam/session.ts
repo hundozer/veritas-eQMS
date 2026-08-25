@@ -46,6 +46,7 @@ export type ValidatedIamSession = {
   tenantId: string;
   roleId: string;
   roleName: string;
+  permissions: readonly string[];
   expiresAt: Date;
 };
 
@@ -136,7 +137,12 @@ export async function validateIamSession(
     where: { tokenHash: hashSessionToken(sessionToken) },
     include: {
       user: true,
-      membership: { include: { organization: true, role: true } },
+      membership: {
+        include: {
+          organization: true,
+          role: { include: { permissions: { include: { permission: true } } } },
+        },
+      },
     },
   });
 
@@ -174,6 +180,7 @@ export async function validateIamSession(
     tenantId: session.membership.organization.tenantId,
     roleId: session.membership.role.id,
     roleName: session.membership.role.name,
+    permissions: session.membership.role.permissions.map(({ permission }) => permission.name),
     expiresAt: session.expiresAt,
   };
 }

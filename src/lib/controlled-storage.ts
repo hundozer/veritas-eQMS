@@ -2,6 +2,7 @@ import 'server-only';
 
 import { createHash, randomUUID } from 'node:crypto';
 import { del, get, head, put } from '@vercel/blob';
+import { reportServerError } from './server-errors';
 
 export const MAX_CONTROLLED_FILE_BYTES = 25 * 1024 * 1024;
 
@@ -150,7 +151,7 @@ export async function cleanupUncontrolledObject(
     await storage.deleteObject(key);
     return true;
   } catch (error) {
-    console.error('Controlled storage orphan cleanup failed', { key, error });
+    reportServerError('storage.cleanupFailed');
     return false;
   }
 }

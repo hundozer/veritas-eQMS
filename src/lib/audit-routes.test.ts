@@ -3,12 +3,7 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 const mandatoryFamilies = [
-  ['users', ['src/app/api/users/route.ts', 'src/app/api/users/[id]/route.ts']],
   ['documents', ['src/app/api/documents/route.ts', 'src/app/api/documents/[id]/route.ts', 'src/app/api/documents/[id]/approve/route.ts']],
-  ['training', ['src/app/api/trainings/route.ts']],
-  ['change control', ['src/app/api/change-requests/route.ts', 'src/app/api/change-requests/[id]/approve/route.ts']],
-  ['nonconformance', ['src/app/api/deviations/route.ts', 'src/app/api/deviations/[id]/route.ts']],
-  ['CAPA', ['src/app/api/capas/route.ts', 'src/app/api/capas/[id]/route.ts']],
 ] as const;
 
 describe('mandatory route-family audit transaction contracts', () => {

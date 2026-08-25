@@ -31,7 +31,13 @@ const activeMembership = {
   operationalUserId: 'user-1',
   status: 'ACTIVE',
   organization: { id: 'organization-1', tenantId: 'tenant-1', status: 'ACTIVE' },
-  role: { id: 'role-1', name: 'Employee' },
+  role: {
+    id: 'role-1',
+    name: 'Employee',
+    permissions: [
+      { permissionId: 'permission-1', permission: { id: 'permission-1', name: 'documents.read' } },
+    ],
+  },
 };
 
 function sha256(value: string): string {
@@ -202,9 +208,19 @@ describe('validateIamSession and revokeIamSession', () => {
       userEmail: storedSession.user.email,
       membershipId: activeMembership.id,
       organizationId: activeMembership.organization.id,
+      permissions: ['documents.read'],
     });
     expect(prismaMock.iamSession.findUnique).toHaveBeenCalledWith(
-      expect.objectContaining({ where: { tokenHash: sha256(token) } }),
+      expect.objectContaining({
+        where: { tokenHash: sha256(token) },
+        include: expect.objectContaining({
+          membership: expect.objectContaining({
+            include: expect.objectContaining({
+              role: { include: { permissions: { include: { permission: true } } } },
+            }),
+          }),
+        }),
+      }),
     );
   });
 

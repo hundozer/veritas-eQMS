@@ -33,6 +33,7 @@ const VALIDATED_SESSION = {
   tenantId: 'tenant-1',
   roleId: 'role-1',
   roleName: 'Employee',
+  permissions: ['documents.read'],
   expiresAt: new Date(Date.now() + 60_000),
 };
 
@@ -196,6 +197,7 @@ describe('getContext authentication security boundary', () => {
       membershipId: VALIDATED_SESSION.membershipId,
       roleId: VALIDATED_SESSION.roleId,
       membershipRole: VALIDATED_SESSION.roleName,
+      permissions: VALIDATED_SESSION.permissions,
       id: user.id,
       email: user.email,
       fullName: user.fullName,

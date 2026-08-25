@@ -1,5 +1,6 @@
 import type { UserContext } from './auth';
 
+// Migration contract only. Runtime authorization never grants from this list.
 export const P0_PERMISSIONS = [
   'users.read', 'users.create', 'users.update', 'users.deactivate',
   'documents.read', 'documents.create', 'documents.update_draft',
@@ -68,6 +69,7 @@ const ROLE_PERMISSIONS: Readonly<Record<RbacRole, ReadonlySet<P0Permission>>> = 
   ]),
 };
 
+// Migration contract only. Do not expose this static map as effective policy.
 export function getP0RoleDefinitions(): Array<{ role: RbacRole; permissions: P0Permission[] }> {
   return (Object.keys(ROLE_PERMISSIONS) as RbacRole[]).map((role) => ({
     role,
@@ -86,9 +88,7 @@ export function hasPermission(
   permission: string,
   tenantId?: string,
 ): boolean {
-  if (!context?.membershipRole || !context.tenantId) return false;
+  if (!context?.tenantId || !context.permissions) return false;
   if (tenantId !== undefined && context.tenantId !== tenantId) return false;
-  const role = normalizeMembershipRole(context.membershipRole);
-  if (!role || !P0_PERMISSIONS.includes(permission as P0Permission)) return false;
-  return ROLE_PERMISSIONS[role].has(permission as P0Permission);
+  return context.permissions.includes(permission);
 }

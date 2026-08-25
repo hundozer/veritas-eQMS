@@ -4,19 +4,15 @@
 import "dotenv/config";
 import { defineConfig } from "prisma/config";
 
-const databaseUrl = process.env.DATABASE_URL;
-
-if (!databaseUrl?.trim()) {
-  throw new Error("Database configuration is unavailable");
-}
+const databaseUrl = process.env.DATABASE_URL?.trim();
+const schemaEngine = databaseUrl
+  ? { engine: "classic" as const, datasource: { url: databaseUrl } }
+  : {};
 
 export default defineConfig({
   schema: "prisma/schema.prisma",
   migrations: {
     path: "prisma/migrations",
   },
-  engine: "classic",
-  datasource: {
-    url: databaseUrl,
-  },
+  ...schemaEngine,
 });

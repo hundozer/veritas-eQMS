@@ -3,12 +3,14 @@ import prisma from '@/lib/db';
 import { getContext, logAuditEvent } from '@/lib/auth';
 import { hasPermission } from '@/lib/rbac';
 import { writeMandatoryAudit } from '@/lib/audit';
+import { unexpectedErrorResponse } from '../../../../lib/server-errors';
 import {
   cleanupUncontrolledObject,
   createControlledObjectKey,
   decodeControlledUpload,
   vercelBlobStorage,
 } from '@/lib/controlled-storage';
+import { assertTransition, lifecycleErrorResponse } from '@/lib/document-lifecycle';
 
 // GET /api/documents/[id] - Get document details + version history + training configs
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -22,31 +24,61 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       return NextResponse.json({ error: { code: 'Forbidden', message: 'Insufficient permission' } }, { status: 403 });
     }
 
-    const document = await prisma.document.findUnique({
-      where: { id },
-      include: {
-        owner: true,
+    const document = await prisma.document.findFirst({
+      where: { id, tenantId: user.tenantId },
+      select: {
+        id: true,
+        documentNumber: true,
+        documentType: true,
+        title: true,
+        description: true,
+        classification: true,
+        status: true,
+        ownerId: true,
+        currentVersionNumber: true,
+        createdAt: true,
+        updatedAt: true,
+        owner: { select: { id: true, fullName: true } },
         versions: {
           orderBy: { versionNumber: 'desc' },
           select: {
             id: true,
             versionNumber: true,
+            status: true,
+            effectiveDate: true,
+            changeSummary: true,
             hash: true,
             originalFileName: true,
             mimeType: true,
             sizeBytes: true,
             createdAt: true,
             createdBy: true,
-            signatureManifest: {
-              include: { signer: true }
-            }
+            authoredById: true,
+            approvalRoutes: {
+              orderBy: { createdAt: 'desc' },
+              select: {
+                id: true,
+                status: true,
+                steps: {
+                  orderBy: { sequence: 'asc' },
+                  select: {
+                    id: true,
+                    stepType: true,
+                    status: true,
+                    approver: { select: { id: true, fullName: true } },
+                  },
+                },
+              },
+            },
           }
         },
-        trainingRequirement: true,
+        trainingRequirement: {
+          select: { id: true, requiredForRoles: true, requiresQuiz: true },
+        },
       },
     });
 
-    if (!document || document.tenantId !== user.tenantId) {
+    if (!document) {
       return NextResponse.json({ error: { code: 'NotFound', message: 'Document not found' } }, { status: 404 });
     }
 
@@ -55,7 +87,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       tenantId: user.tenantId,
       userId: user.id,
       userEmail: user.email,
-      userRole: user.role,
+      userRole: user.membershipRole,
       action: 'Document.View',
       objectType: 'Document',
       objectId: id,
@@ -64,14 +96,16 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       requestUrl: req.nextUrl.pathname,
     });
 
-    return NextResponse.json({ document });
+    return NextResponse.json(
+      { document },
+      { headers: { 'Cache-Control': 'no-store' } },
+    );
   } catch (error: any) {
-    console.error('Get document details error:', error);
-    return NextResponse.json({ error: { code: 'InternalError', message: error.message } }, { status: 500 });
+    return unexpectedErrorResponse('document.get');
   }
 }
 
-// PUT /api/documents/[id] - Upload a new version or edit document metadata
+// PUT /api/documents/[id] - Replace content or metadata of the current DRAFT version only
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   let uploadedKey: string | null = null;
   try {
@@ -84,42 +118,22 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       return NextResponse.json({ error: { code: 'Forbidden', message: 'Insufficient permission' } }, { status: 403 });
     }
 
-    const document = await prisma.document.findUnique({
-      where: { id },
+    const document = await prisma.document.findFirst({
+      where: { id, tenantId: user.tenantId },
       include: { versions: { orderBy: { versionNumber: 'desc' } } },
     });
 
-    if (!document || document.tenantId !== user.tenantId) {
+    if (!document) {
       return NextResponse.json({ error: { code: 'NotFound', message: 'Document not found' } }, { status: 404 });
     }
 
     const body = await req.json();
     const { title, description, classification, contentBase64, fileName, mimeType, requiredRoles, requiresQuiz, quizQuestions } = body;
 
-    // Enforce Change Control lock on effective documents
-    if (document.status === 'EFFECTIVE' && contentBase64) {
-      const activeCR = await prisma.changeRequest.findFirst({
-        where: {
-          status: 'APPROVED',
-          documents: {
-            some: {
-              documentId: id
-            }
-          }
-        }
-      });
-
-      if (!activeCR) {
-        return NextResponse.json({
-          error: {
-            code: 'Forbidden',
-            message: 'Revising this effective GxP document is locked. An APPROVED Change Request is required to create a new version.'
-          }
-        }, { status: 403 });
-      }
+    const currentVersion = document.versions.find((version) => version.versionNumber === document.currentVersionNumber);
+    if (!currentVersion || document.status !== 'DRAFT' || currentVersion.status !== 'DRAFT') {
+      return NextResponse.json({ error: { code: 'InvalidTransition', message: 'Only the current draft version may be edited' } }, { status: 409 });
     }
-
-    const nextVersionNumber = document.currentVersionNumber + 1;
 
     // 1. Process new version upload if contentBase64 is provided
     let upload: ReturnType<typeof decodeControlledUpload> | null = null;
@@ -130,30 +144,29 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       } catch (error) {
         return NextResponse.json({ error: { code: 'ValidationFailed', message: (error as Error).message } }, { status: 400 });
       }
-      uploadedKey = createControlledObjectKey({ tenantId: user.tenantId, documentId: id, versionNumber: nextVersionNumber });
+      uploadedKey = createControlledObjectKey({ tenantId: user.tenantId, documentId: id, versionNumber: currentVersion.versionNumber });
       await vercelBlobStorage.putObject(uploadedKey, upload.bytes, upload.mimeType);
     }
 
     // 2. Transactionally save everything (metadata update, new version entry, update training)
     const updatedDoc = await prisma.$transaction(async (tx: any) => {
       // Update basic fields
-      const doc = await tx.document.update({
-        where: { id },
+      const documentUpdate = await tx.document.updateMany({
+        where: { id, tenantId: user.tenantId, status: 'DRAFT', currentVersionNumber: currentVersion.versionNumber },
         data: {
           title: title || document.title,
           description: description !== undefined ? description : document.description,
           classification: classification || document.classification,
-          currentVersionNumber: contentBase64 ? nextVersionNumber : document.currentVersionNumber,
-          status: contentBase64 ? 'DRAFT' : document.status, // Reverts to DRAFT for review if new content is uploaded
         },
       });
+      if (documentUpdate.count !== 1) throw new Error('STALE_DRAFT');
 
-      // Insert new version if new content uploaded
+      // A draft replacement gets a fresh immutable object key while retaining the
+      // same draft version identity. Reviewed/historical versions never reach here.
       if (upload && uploadedKey) {
-        await tx.documentVersion.create({
+        const replaced = await tx.documentVersion.updateMany({
+          where: { id: currentVersion.id, status: 'DRAFT' },
           data: {
-            documentId: id,
-            versionNumber: nextVersionNumber,
             filePath: uploadedKey,
             fileData: null,
             storageKey: uploadedKey,
@@ -161,9 +174,9 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
             mimeType: upload.mimeType,
             sizeBytes: upload.bytes.byteLength,
             hash: upload.hash,
-            createdBy: user.fullName,
           },
         });
+        if (replaced.count !== 1) throw new Error('STALE_DRAFT');
       }
 
       // Update training requirements
@@ -185,19 +198,19 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       }
 
       await writeMandatoryAudit(tx, {
-        context: user, action: 'Document.Update', objectType: 'Document', objectId: id,
-        payload: { previousStatus: document.status, status: doc.status, previousVersion: document.currentVersionNumber, version: doc.currentVersionNumber, newVersionUploaded: Boolean(contentBase64) },
+        context: user, action: 'DOCUMENT_DRAFT_UPDATED', objectType: 'DocumentVersion', objectId: currentVersion.id,
+        payload: { documentId: id, version: currentVersion.versionNumber, status: 'DRAFT', contentReplaced: Boolean(contentBase64), previousHash: contentBase64 ? currentVersion.hash : undefined, hash: upload?.hash },
         requestUrl: req.nextUrl.pathname,
       });
-      return doc;
+      return tx.document.findUniqueOrThrow({ where: { id } });
     });
 
     uploadedKey = null;
     return NextResponse.json({ document: updatedDoc });
   } catch (error: any) {
     if (uploadedKey) await cleanupUncontrolledObject(vercelBlobStorage, uploadedKey);
-    console.error('Update document error:', error);
-    return NextResponse.json({ error: { code: 'InternalError', message: error.message } }, { status: 500 });
+    if (error.message === 'STALE_DRAFT') return NextResponse.json({ error: { code: 'StaleWorkflowAction', message: 'Draft changed; refresh and try again' } }, { status: 409 });
+    return unexpectedErrorResponse('document.update');
   }
 }
 
@@ -213,31 +226,63 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
       return NextResponse.json({ error: { code: 'Forbidden', message: 'Insufficient permission' } }, { status: 403 });
     }
 
-    const document = await prisma.document.findUnique({
-      where: { id },
-    });
+    const body = await req.json().catch(() => ({}));
+    const reason = typeof body.reason === 'string' ? body.reason.trim() : '';
+    if (!reason) return NextResponse.json({ error: { code: 'ValidationFailed', message: 'An obsolescence reason is required' } }, { status: 400 });
 
-    if (!document || document.tenantId !== user.tenantId) {
+    const document = await prisma.document.findFirst({ where: { id, tenantId: user.tenantId } });
+
+    if (!document) {
       return NextResponse.json({ error: { code: 'NotFound', message: 'Document not found' } }, { status: 404 });
     }
 
-    // Set status to OBSOLETE (instead of hard deleting to preserve GxP audit records)
-    const archivedDoc = await prisma.$transaction(async (tx) => {
-      const archived = await tx.document.update({ where: { id }, data: { status: 'OBSOLETE' } });
-      await writeMandatoryAudit(tx, {
-      context: user,
-      action: 'Document.Obsolete',
-      objectType: 'Document',
-      objectId: id,
-      payload: { previousStatus: document.status, status: archived.status },
-      requestUrl: req.nextUrl.pathname,
+    if (!['DRAFT', 'APPROVED', 'EFFECTIVE'].includes(document.status)) {
+      return NextResponse.json({ error: { code: 'InvalidTransition', message: `Document cannot be obsoleted from ${document.status}` } }, { status: 409 });
+    }
+    const version = await prisma.documentVersion.findUnique({ where: { documentId_versionNumber: { documentId: id, versionNumber: document.currentVersionNumber } } });
+    if (!version) return NextResponse.json({ error: { code: 'Conflict', message: 'Current document version is missing' } }, { status: 409 });
+    assertTransition(version.status, 'OBSOLETE');
+
+    const effectiveVersions = await prisma.documentVersion.findMany({
+      where: { documentId: id, status: 'EFFECTIVE', id: { not: version.id } },
+      select: { id: true, versionNumber: true },
     });
+
+    const archivedDoc = await prisma.$transaction(async (tx) => {
+      const versionUpdate = await tx.documentVersion.updateMany({ where: { id: version.id, status: version.status }, data: { status: 'OBSOLETE' } });
+      const effectiveUpdate = await tx.documentVersion.updateMany({
+        where: { id: { in: effectiveVersions.map((item) => item.id) }, status: 'EFFECTIVE' },
+        data: { status: 'OBSOLETE' },
+      });
+      const documentUpdate = await tx.document.updateMany({ where: { id, tenantId: user.tenantId, currentVersionNumber: version.versionNumber, status: document.status }, data: { status: 'OBSOLETE' } });
+      if (versionUpdate.count !== 1 || effectiveUpdate.count !== effectiveVersions.length || documentUpdate.count !== 1) throw new Error('STALE_OBSOLESCENCE');
+      const archived = await tx.document.findUniqueOrThrow({ where: { id } });
+      await writeMandatoryAudit(tx, {
+        context: user,
+        action: 'DOCUMENT_OBSOLETED',
+        objectType: 'DocumentVersion',
+        objectId: version.id,
+        payload: { documentId: id, version: version.versionNumber, before: document.status, after: archived.status, reason },
+        requestUrl: req.nextUrl.pathname,
+      });
+      for (const effective of effectiveVersions) {
+        await writeMandatoryAudit(tx, {
+          context: user,
+          action: 'DOCUMENT_OBSOLETED',
+          objectType: 'DocumentVersion',
+          objectId: effective.id,
+          payload: { documentId: id, version: effective.versionNumber, before: 'EFFECTIVE', after: 'OBSOLETE', reason },
+          requestUrl: req.nextUrl.pathname,
+        });
+      }
       return archived;
     });
 
     return NextResponse.json({ success: true, document: archivedDoc });
   } catch (error: any) {
-    console.error('Delete document error:', error);
-    return NextResponse.json({ error: { code: 'InternalError', message: error.message } }, { status: 500 });
+    const lifecycle = lifecycleErrorResponse(error);
+    if (lifecycle) return NextResponse.json({ error: { code: lifecycle.code, message: lifecycle.message } }, { status: lifecycle.status });
+    if (error.message === 'STALE_OBSOLESCENCE') return NextResponse.json({ error: { code: 'StaleWorkflowAction', message: 'Document state changed; refresh and try again' } }, { status: 409 });
+    return unexpectedErrorResponse('document.delete');
   }
 }

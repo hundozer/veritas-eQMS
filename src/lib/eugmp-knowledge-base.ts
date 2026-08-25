@@ -1,5 +1,7 @@
+import { reportServerNotice } from './server-errors';
+
 export async function ensureEUGMPKnowledgeBaseSeeded() {
-  console.log("Regulatory Intelligence Engine Rebuild: ensureEUGMPKnowledgeBaseSeeded stub active.");
+  reportServerNotice('regulatory.knowledgeBaseStub');
   return { success: true };
 }
 

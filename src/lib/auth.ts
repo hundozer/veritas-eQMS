@@ -1,12 +1,14 @@
 import { NextRequest } from 'next/server';
 import prisma from './db';
 import { validateIamSession } from './iam/session';
+import { reportServerError } from './server-errors';
 
 export interface UserContext {
   iamUserId: string;
   membershipId: string;
   roleId: string;
   membershipRole: string;
+  permissions: readonly string[];
   id: string;
   email: string;
   fullName: string;
@@ -55,6 +57,7 @@ export async function getContext(req?: NextRequest): Promise<UserContext | null>
     membershipId: session.membershipId,
     roleId: session.roleId,
     membershipRole: session.roleName,
+    permissions: session.permissions,
     id: user.id,
     email: user.email,
     fullName: user.fullName,
@@ -64,38 +67,6 @@ export async function getContext(req?: NextRequest): Promise<UserContext | null>
     tenantId: user.tenantId,
     tenantName: user.tenant?.name || 'Simpleafied Biotech',
   };
-}
-
-// Simple ABAC checker function
-export function checkAbac(
-  user: UserContext,
-  resource: { classification: string; ownerId: string },
-  action: 'view' | 'create' | 'edit' | 'delete' | 'approve' | 'download'
-): boolean {
-  // QA_ADMIN bypasses all except tenant bounds (which is handled by database query scope)
-  if (user.role === 'ADMIN') return true;
-
-  // Auditor has view-only access
-  if (user.role === 'AUDITOR') {
-    return action === 'view';
-  }
-
-  // Classification check: RESTRICTED clearance needed for RESTRICTED docs
-  if (resource.classification === 'RESTRICTED' && user.clearance !== 'RESTRICTED') {
-    return false;
-  }
-
-  // Edit / Delete check: Only owner or admin
-  if ((action === 'edit' || action === 'delete') && resource.ownerId !== user.id) {
-    return false;
-  }
-
-  // Approver check
-  if (action === 'approve' && user.role !== 'APPROVER' && user.role !== 'ADMIN') {
-    return false;
-  }
-
-  return true;
 }
 
 // Audit logger helper
@@ -133,7 +104,7 @@ export async function logSecurityEventBestEffort(params: {
       },
     });
   } catch (err) {
-    console.error('Failed to log audit event:', err);
+    reportServerError('audit.writeFailed');
   }
 }
 

@@ -9,7 +9,10 @@ const GENERIC_AUTH_FAILURE = {
 };
 
 function authenticationFailed() {
-  return NextResponse.json(GENERIC_AUTH_FAILURE, { status: 401 });
+  return NextResponse.json(GENERIC_AUTH_FAILURE, {
+    status: 401,
+    headers: { 'Cache-Control': 'no-store' },
+  });
 }
 
 export async function POST(req: NextRequest) {
@@ -32,7 +35,24 @@ export async function POST(req: NextRequest) {
       include: {
         memberships: {
           where: { status: 'ACTIVE', organization: { status: { in: ['ACTIVE', 'TRIAL'] } } },
-          include: { organization: true, role: true, operationalUser: { include: { tenant: true } } },
+          include: {
+            organization: { select: { tenantId: true, status: true } },
+            role: { select: { id: true } },
+            operationalUser: {
+              select: {
+                id: true,
+                email: true,
+                fullName: true,
+                role: true,
+                department: true,
+                clearance: true,
+                tenantId: true,
+                accountStatus: true,
+                expiresAt: true,
+                tenant: { select: { name: true } },
+              },
+            },
+          },
         },
       },
     });
@@ -48,7 +68,7 @@ export async function POST(req: NextRequest) {
     if (iamUser.memberships.length > 1) {
       return NextResponse.json(
         { error: { code: 'MembershipSelectionRequired', message: 'Organization selection is required' } },
-        { status: 409 },
+        { status: 409, headers: { 'Cache-Control': 'no-store' } },
       );
     }
 
@@ -80,7 +100,18 @@ export async function POST(req: NextRequest) {
       userAgent: req.headers.get('user-agent') ?? undefined,
     });
 
-    const response = NextResponse.json({ user: operationalUser });
+    const response = NextResponse.json({
+      user: {
+        id: operationalUser.id,
+        email: operationalUser.email,
+        fullName: operationalUser.fullName,
+        role: operationalUser.role,
+        department: operationalUser.department,
+        clearance: operationalUser.clearance,
+        tenantId: operationalUser.tenantId,
+        tenantName: operationalUser.tenant.name,
+      },
+    }, { headers: { 'Cache-Control': 'no-store' } });
     response.cookies.set(SESSION_COOKIE_NAME, session.sessionToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',

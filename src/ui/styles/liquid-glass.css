@@ -59,7 +59,7 @@
 
 html{font-size:13.5px;scroll-behavior:smooth}
 body{
-  font-family:'Plus Jakarta Sans',system-ui,-apple-system,sans-serif;
+  font-family:var(--font-sans);
   background:var(--bg);
   color:var(--t1);
   -webkit-font-smoothing:antialiased;

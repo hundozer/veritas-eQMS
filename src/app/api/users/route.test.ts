@@ -1,109 +1,94 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { NextRequest } from 'next/server';
-import type { UserContext } from '@/lib/auth';
 
-const authMock = vi.hoisted(() => ({ getContext: vi.fn(), logAuditEvent: vi.fn() }));
-const prismaMock = vi.hoisted(() => ({
-  $transaction: vi.fn(),
-  user: { findMany: vi.fn(), findUnique: vi.fn(), create: vi.fn(), update: vi.fn() },
-  trainingRequirement: { findMany: vi.fn() },
-  trainingAssignment: { create: vi.fn() },
-  auditLog: { create: vi.fn() },
+const { getContext, findMany, create, update, transaction } = vi.hoisted(() => ({
+  getContext: vi.fn(),
+  findMany: vi.fn(),
+  create: vi.fn(),
+  update: vi.fn(),
+  transaction: vi.fn(),
 }));
 
-vi.mock('@/lib/auth', () => authMock);
-vi.mock('@/lib/db', () => ({ default: prismaMock }));
-vi.mock('@/lib/rbac', async () => await import('../../../lib/rbac'));
-vi.mock('@/lib/audit', async () => await import('../../../lib/audit'));
+vi.mock('@/lib/auth', () => ({ getContext }));
+vi.mock('@/lib/db', () => ({
+  default: { user: { findMany, create, update }, $transaction: transaction },
+}));
 
 import { GET, POST } from './route';
-import { PUT } from './[id]/route';
+import { DELETE, PUT } from './[id]/route';
 
-function context(membershipRole: string, tenantId = 'tenant-1'): UserContext {
-  return {
-    iamUserId: 'iam-1', membershipId: 'membership-1', roleId: 'role-1', membershipRole,
-    id: 'user-1', email: 'user@example.invalid', fullName: 'User', role: 'ADMIN', department: 'QA',
-    clearance: 'INTERNAL', tenantId, tenantName: 'Tenant',
-  };
+const context = {
+  id: 'user-1',
+  tenantId: 'tenant-1',
+  membershipRole: 'TENANT_ADMIN',
+  permissions: ['users.read'],
+};
+
+function request() {
+  return new NextRequest('http://localhost/api/users');
 }
 
-function request(method = 'GET', body?: object) {
-  return new NextRequest('https://veritas.example.test/api/users', {
-    method,
-    headers: body ? { 'content-type': 'application/json' } : undefined,
-    body: body ? JSON.stringify(body) : undefined,
-  });
-}
-
-describe('user-administration RBAC boundary', () => {
+describe('user-administration containment', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    prismaMock.user.findMany.mockResolvedValue([]);
-    prismaMock.user.findUnique.mockResolvedValue(null);
-    prismaMock.trainingRequirement.findMany.mockResolvedValue([]);
-    prismaMock.$transaction.mockImplementation(async (callback) => callback(prismaMock));
   });
 
-  it('returns 401 before database access when unauthenticated', async () => {
-    authMock.getContext.mockResolvedValue(null);
+  it('USER-ADMIN-T001 rejects roster reads without identity or persisted permission', async () => {
+    getContext.mockResolvedValue(null);
     expect((await GET(request())).status).toBe(401);
-    expect(prismaMock.user.findMany).not.toHaveBeenCalled();
+    getContext.mockResolvedValue({ ...context, permissions: [] });
+    expect((await GET(request())).status).toBe(403);
+    expect(findMany).not.toHaveBeenCalled();
   });
 
-  it('allows tenant admin user reads and scopes them to the authenticated tenant', async () => {
-    authMock.getContext.mockResolvedValue(context('TENANT_ADMIN'));
-    expect((await GET(request())).status).toBe(200);
-    expect(prismaMock.user.findMany).toHaveBeenCalledWith(expect.objectContaining({
+  it('USER-ADMIN-T002 returns a minimized non-cacheable tenant roster', async () => {
+    const users = [{ id: 'user-1', fullName: 'Current User' }];
+    getContext.mockResolvedValue(context);
+    findMany.mockResolvedValue(users);
+
+    const response = await GET(request());
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get('Cache-Control')).toBe('no-store');
+    expect(findMany).toHaveBeenCalledWith({
       where: { tenantId: 'tenant-1' },
-    }));
-  });
-
-  it('denies employee administration even when client body claims an admin role', async () => {
-    authMock.getContext.mockResolvedValue(context('EMPLOYEE'));
-    const response = await POST(request('POST', {
-      email: 'new@example.invalid', fullName: 'New User', role: 'TENANT_ADMIN', clientRole: 'TENANT_ADMIN',
-    }));
-    expect(response.status).toBe(403);
-    expect(prismaMock.user.create).not.toHaveBeenCalled();
-  });
-
-  it('prevents tenant admins from assigning platform privilege', async () => {
-    authMock.getContext.mockResolvedValue(context('TENANT_ADMIN'));
-    const response = await POST(request('POST', {
-      email: 'new@example.invalid', fullName: 'New User', role: 'PLATFORM_ADMIN',
-    }));
-    expect(response.status).toBe(403);
-    expect(prismaMock.user.create).not.toHaveBeenCalled();
-  });
-
-  it('creates one user and one mandatory audit event in the same transaction', async () => {
-    authMock.getContext.mockResolvedValue(context('TENANT_ADMIN'));
-    prismaMock.user.create.mockResolvedValue({ id: 'new-user', email: 'new@example.invalid', role: 'EMPLOYEE', department: 'QA' });
-    const response = await POST(request('POST', { email: 'new@example.invalid', fullName: 'New User', role: 'EMPLOYEE' }));
-    expect(response.status).toBe(201);
-    expect(prismaMock.$transaction).toHaveBeenCalledOnce();
-    expect(prismaMock.user.create).toHaveBeenCalledOnce();
-    expect(prismaMock.auditLog.create).toHaveBeenCalledOnce();
-  });
-
-  it('fails the regulated operation when mandatory audit persistence fails', async () => {
-    authMock.getContext.mockResolvedValue(context('TENANT_ADMIN'));
-    prismaMock.user.create.mockResolvedValue({ id: 'new-user', email: 'new@example.invalid', role: 'EMPLOYEE', department: 'QA' });
-    prismaMock.auditLog.create.mockRejectedValue(new Error('audit unavailable'));
-    const response = await POST(request('POST', { email: 'new@example.invalid', fullName: 'New User', role: 'EMPLOYEE' }));
-    expect(response.status).toBe(500);
-    expect(prismaMock.$transaction).toHaveBeenCalledOnce();
-    expect(prismaMock.user.create).toHaveBeenCalledOnce();
-    expect(prismaMock.auditLog.create).toHaveBeenCalledOnce();
-  });
-
-  it('does not update a user belonging to another tenant', async () => {
-    authMock.getContext.mockResolvedValue(context('TENANT_ADMIN'));
-    prismaMock.user.findUnique.mockResolvedValue({ id: 'target', tenantId: 'tenant-2' });
-    const response = await PUT(request('PUT', { fullName: 'Changed' }), {
-      params: Promise.resolve({ id: 'target' }),
+      select: {
+        id: true,
+        fullName: true,
+        email: true,
+        accountStatus: true,
+        role: true,
+        department: true,
+        site: true,
+        employmentType: true,
+        clearance: true,
+        expiresAt: true,
+      },
+      orderBy: { fullName: 'asc' },
     });
-    expect(response.status).toBe(404);
-    expect(prismaMock.user.update).not.toHaveBeenCalled();
+    await expect(response.json()).resolves.toEqual({ users });
+  });
+
+  it.each([
+    ['POST', POST],
+    ['PUT', PUT],
+    ['DELETE', DELETE],
+  ])('USER-ADMIN-T003 disables %s without identity or data processing', async (_method, handler) => {
+    const response = await handler();
+
+    expect(handler).toHaveLength(0);
+    expect(response.status).toBe(503);
+    expect(response.headers.get('Cache-Control')).toBe('no-store');
+    expect(response.headers.get('Retry-After')).toBe('86400');
+    await expect(response.json()).resolves.toEqual({
+      error: {
+        code: 'UserAdministrationDisabled',
+        message: 'User provisioning and role changes are temporarily unavailable',
+      },
+    });
+    expect(getContext).not.toHaveBeenCalled();
+    expect(create).not.toHaveBeenCalled();
+    expect(update).not.toHaveBeenCalled();
+    expect(transaction).not.toHaveBeenCalled();
   });
 });

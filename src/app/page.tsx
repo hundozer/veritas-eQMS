@@ -4,25 +4,15 @@ import { useState, useEffect, useCallback } from 'react';
 import styles from './page.module.css';
 import { AppShell, useThemeMode } from '@/ui';
 import type { NavGroup } from '@/ui';
-import dynamic from 'next/dynamic';
-
-const IAM_URL = process.env.NEXT_PUBLIC_IAM_URL || 'http://localhost:3001';
-
-const DashboardAnalytics = dynamic(() => import('@/components/DashboardAnalytics'), { ssr: false });
-import { DEFAULT_SYSTEM_ROLES, SYSTEM_PERMISSIONS } from '@/lib/permissions';
 import {
   Dashboard as DashboardIcon,
   Description as DescriptionIcon,
   School as SchoolIcon,
-  PublishedWithChanges as ChangeIcon,
-  Report as ReportIcon,
   History as HistoryIcon,
   Build as BuildIcon,
   LocalShipping as SupplierIcon,
   Psychology as PsychologyIcon
 } from '@mui/icons-material';
-import { RegulatoryIntelligenceModule } from '@/ui/components/RegulatoryIntelligenceModule';
-import { OnboardingWizardModal } from '@/ui/components/OnboardingWizardModal';
 
 interface User {
   id: string;
@@ -33,6 +23,7 @@ interface User {
   clearance: string;
   tenantId: string;
   tenantName?: string;
+  membershipRole?: string;
   tenant?: {
     id?: string;
     name: string;
@@ -42,10 +33,18 @@ interface User {
 interface DocumentVersion {
   id: string;
   versionNumber: number;
-  filePath: string;
+  status: string;
+  effectiveDate?: string | null;
+  changeSummary?: string | null;
   hash: string;
   createdAt: string;
   createdBy: string;
+  authoredById?: string | null;
+  approvalRoutes?: Array<{
+    id: string;
+    status: string;
+    steps: Array<{ id: string; stepType: string; status: string; comment?: string | null; approver: User }>;
+  }>;
   signatureManifest?: {
     id: string;
     signedAt: string;
@@ -57,6 +56,8 @@ interface DocumentVersion {
 
 interface Document {
   id: string;
+  documentNumber?: string | null;
+  documentType: string;
   title: string;
   description: string;
   classification: string;
@@ -87,7 +88,6 @@ interface TrainingAssignment {
     id: string;
     requiredForRoles: string;
     requiresQuiz: boolean;
-    quizQuestions: string | null;
     document: Document;
   };
   quizResult?: {
@@ -113,53 +113,11 @@ interface AuditLog {
   requestUrl: string | null;
 }
 
-interface ChangeRequest {
-  id: string;
-  title: string;
-  reason: string;
-  riskLevel: string;
-  status: string;
-  createdAt: string;
-  documents: {
-    documentId: string;
-    document: Document;
-  }[];
-}
-
-interface Deviation {
-  id: string;
-  title: string;
-  description: string;
-  classification: string;
-  status: string;
-  detectedById: string;
-  detectedBy: User;
-  investigatorId: string | null;
-  investigator: User | null;
-  investigationNotes: string | null;
-  createdAt: string;
-  capas: CAPA[];
-}
-
-interface CAPA {
-  id: string;
-  title: string;
-  actionPlan: string;
-  status: string;
-  dueDate: string;
-  completedAt: string | null;
-  assignedToId: string;
-  assignedTo: User;
-  deviationId: string | null;
-  deviation: Deviation | null;
-  createdAt: string;
-}
-
 interface MaintenanceLog {
   id: string;
   equipmentId: string;
   performedById: string;
-  performedBy: User;
+  performedBy: { fullName: string };
   performedAt: string;
   activityType: string;
   notes: string;
@@ -181,14 +139,13 @@ interface Equipment {
   nextCalibrationDueDate: string;
   createdAt: string;
   maintenanceLogs: MaintenanceLog[];
-  deviations: Deviation[];
 }
 
 interface SupplierAudit {
   id: string;
   supplierId: string;
   auditorId: string;
-  auditor: User;
+  auditor: { fullName: string };
   auditDate: string;
   auditType: string;
   findings: string;
@@ -206,7 +163,7 @@ interface MaterialReceipt {
   unit: string;
   inspectionStatus: string;
   inspectedById: string;
-  inspectedBy: User;
+  inspectedBy: { fullName: string };
   notes: string | null;
   receivedAt: string;
   createdAt: string;
@@ -238,24 +195,12 @@ interface Supplier {
   attachments?: SupplierAttachment[];
 }
 
-interface QuizQuestion {
-  id: string;
-  text: string;
-  options: string[];
-  correctAnswerIndex: number;
-}
-
-interface QuizAnswer {
-  questionId: string;
-  answerIndex: number;
-}
-
 export default function Home() {
   // Mode: Landing Page vs eQMS Workspace App
   const [viewMode, setViewMode] = useState<'landing' | 'app'>('landing');
 
   // Navigation
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'documents' | 'training' | 'audit' | 'audits-management' | 'users-management' | 'change-control' | 'quality-events' | 'equipment' | 'suppliers' | 'intelligence'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'documents' | 'training' | 'audit' | 'audits-management' | 'users-management' | 'equipment' | 'suppliers'>('dashboard');
 
   // Users / Personas
   const [users, setUsers] = useState<User[]>([]);
@@ -265,132 +210,31 @@ export default function Home() {
   const [documents, setDocuments] = useState<Document[]>([]);
   const [trainings, setTrainings] = useState<TrainingAssignment[]>([]);
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
-  const [changeRequests, setChangeRequests] = useState<ChangeRequest[]>([]);
-  const [deviations, setDeviations] = useState<Deviation[]>([]);
-  const [capas, setCapas] = useState<CAPA[]>([]);
   const [equipmentList, setEquipmentList] = useState<Equipment[]>([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
-  const [healthScore, setHealthScore] = useState<any>(null);
   const [auditPlans, setAuditPlans] = useState<any[]>([]);
   const [notifications, setNotifications] = useState<any[]>([]);
 
   // Selected Detail views
   const [selectedDocId, setSelectedDocId] = useState<string | null>(null);
-  const [selectedTrainingId, setSelectedTrainingId] = useState<string | null>(null);
-  const [selectedCRId, setSelectedCRId] = useState<string | null>(null);
-  const [selectedDeviationId, setSelectedDeviationId] = useState<string | null>(null);
-  const [selectedCapaId, setSelectedCapaId] = useState<string | null>(null);
   const [selectedEquipmentId, setSelectedEquipmentId] = useState<string | null>(null);
   const [selectedSupplierId, setSelectedSupplierId] = useState<string | null>(null);
 
   // Forms / Modals
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showApproveModal, setShowApproveModal] = useState(false);
-  const [showTrainingModal, setShowTrainingModal] = useState(false);
-  const [showCreateSupplierModal, setShowCreateSupplierModal] = useState(false);
-  const [showAuditSupplierModal, setShowAuditSupplierModal] = useState(false);
-  const [showReceiptModal, setShowReceiptModal] = useState(false);
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [loginPassword, setLoginPassword] = useState('');
-  const [showRegisterModal, setShowRegisterModal] = useState(false);
-  const [showInviteUserModal, setShowInviteUserModal] = useState(false);
-  const [showEditUserModal, setShowEditUserModal] = useState(false);
-  const [showDemoPersonas, setShowDemoPersonas] = useState(false);
   const [showDemoRequestModal, setShowDemoRequestModal] = useState(false);
-  const [showOnboardingWizard, setShowOnboardingWizard] = useState(false);
-  const [demoName, setDemoName] = useState('');
-  const [demoEmail, setDemoEmail] = useState('');
-  const [demoCompany, setDemoCompany] = useState('');
-  const [demoSize, setDemoSize] = useState('11-50');
-  const [demoSuccess, setDemoSuccess] = useState(false);
-
-  // User Management State
-  const [inviteEmail, setInviteEmail] = useState('');
-  const [inviteFullName, setInviteFullName] = useState('');
-  const [inviteRole, setInviteRole] = useState('EMPLOYEE');
-  const [inviteDept, setInviteDept] = useState('QA');
-  const [editingUser, setEditingUser] = useState<User | null>(null);
-  const [editRole, setEditRole] = useState('EMPLOYEE');
-  const [editDept, setEditDept] = useState('QA');
 
   // Auth / Login Form State
   const [loginEmail, setLoginEmail] = useState('');
-  const [ssoNotice, setSsoNotice] = useState<string | null>(null);
-
-  // Company Registration & Onboarding Form State
-  const [regCompanyName, setRegCompanyName] = useState('');
-  const [regFullName, setRegFullName] = useState('');
-  const [regEmail, setRegEmail] = useState('');
-  const [regDepartment, setRegDepartment] = useState('QA');
-  const [regRole, setRegRole] = useState('OWNER');
-  const [regGxPStandard, setRegGxPStandard] = useState('21 CFR Part 11 / ISO 13485');
-
-  // Supplier Form State
-  const [newSupName, setNewSupName] = useState('');
-  const [newSupEmail, setNewSupEmail] = useState('');
-  const [newSupPhone, setNewSupPhone] = useState('');
-  const [newSupCategory, setNewSupCategory] = useState('RAW_MATERIAL');
-  const [newSupRisk, setNewSupRisk] = useState('CRITICAL');
-  const [newSupNotes, setNewSupNotes] = useState('');
-  const [newSupInterval, setNewSupInterval] = useState('365');
-  const [newSupAttachments, setNewSupAttachments] = useState<Array<{ fileName: string; fileType: string; fileData: string }>>([]);
-
-  // Supplier Audit Form State
-  const [auditType, setAuditType] = useState('ROUTINE_ANNUAL');
-  const [auditFindings, setAuditFindings] = useState('');
-  const [auditResult, setAuditResult] = useState('PASS');
-  const [auditPassword, setAuditPassword] = useState('');
-
-  // Material Receipt Form State
-  const [recMaterialName, setRecMaterialName] = useState('');
-  const [recLotNumber, setRecLotNumber] = useState('');
-  const [recQty, setRecQty] = useState('100');
-  const [recUnit, setRecUnit] = useState('units');
-  const [recInspectionStatus, setRecInspectionStatus] = useState('PASSED');
-  const [recNotes, setRecNotes] = useState('');
-  const [showCreateCRModal, setShowCreateCRModal] = useState(false);
-  const [showCRSignModal, setShowCRSignModal] = useState(false);
-  const [showCreateDeviationModal, setShowCreateDeviationModal] = useState(false);
-  const [showCreateCapaModal, setShowCreateCapaModal] = useState(false);
-  const [showCapaSignModal, setShowCapaSignModal] = useState(false);
-  const [showDeviationInvestigateModal, setShowDeviationInvestigateModal] = useState(false);
-  const [showLogMaintenanceModal, setShowLogMaintenanceModal] = useState(false);
-
-  // Deviation form state
-  const [newDevTitle, setNewDevTitle] = useState('');
-  const [newDevDescription, setNewDevDescription] = useState('');
-  const [newDevClassification, setNewDevClassification] = useState('MINOR');
-
-  // CAPA form state
-  const [newCapaTitle, setNewCapaTitle] = useState('');
-  const [newCapaActionPlan, setNewCapaActionPlan] = useState('');
-  const [newCapaDueDate, setNewCapaDueDate] = useState('');
-  const [newCapaAssignedToId, setNewCapaAssignedToId] = useState('');
-  const [newCapaDeviationId, setNewCapaDeviationId] = useState<string | null>(null);
-
-  // Deviation investigation form state
-  const [investigationNotes, setInvestigationNotes] = useState('');
-  const [investigationStatus, setInvestigationStatus] = useState('UNDER_INVESTIGATION');
-  const [investigationInvestigatorId, setInvestigationInvestigatorId] = useState('');
-
-  // CAPA sign-off state
-  const [esignCapaPassword, setEsignCapaPassword] = useState('');
-
-  // Change Control form state
-  const [newCRTitle, setNewCRTitle] = useState('');
-  const [newCRReason, setNewCRReason] = useState('');
-  const [newCRRiskLevel, setNewCRRiskLevel] = useState('MEDIUM');
-  const [newCRDocIds, setNewCRDocIds] = useState<string[]>([]);
-
-  // Change Control E-Sign sign-off state
-  const [esignCRPassword, setEsignCRPassword] = useState('');
-  const [esignCRAction, setEsignCRAction] = useState<'APPROVE' | 'CLOSE'>('APPROVE');
-  const [esignCRComment, setEsignCRComment] = useState('');
 
   // Document creation form state
   const [newTitle, setNewTitle] = useState('');
   const [newDesc, setNewDesc] = useState('');
   const [newClassification, setNewClassification] = useState('CONTROLLED');
+  const [newDocumentType, setNewDocumentType] = useState('SOP');
   const [newRequiredRoles, setNewRequiredRoles] = useState('EMPLOYEE');
   const [newRequiresQuiz, setNewRequiresQuiz] = useState(false);
   const [newQuizQ1, setNewQuizQ1] = useState('What is the correct way to correct a handwritten error on a GxP document?');
@@ -406,12 +250,14 @@ export default function Home() {
   const [docFileName, setDocFileName] = useState('');
   const [docFileSize, setDocFileSize] = useState('');
   const [docFileHash, setDocFileHash] = useState('');
+  const [docFileMime, setDocFileMime] = useState('application/pdf');
 
   const handleDocFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
     setDocFileName(file.name);
+    setDocFileMime(file.type || 'application/pdf');
     setDocFileSize(`${(file.size / 1024).toFixed(1)} KB`);
 
     // Calculate SHA-256 Hash
@@ -436,24 +282,11 @@ export default function Home() {
   };
 
   // Approval form state
-  const [esignPassword, setEsignPassword] = useState('');
-  const [esignMeaning, setEsignMeaning] = useState('Approval of Document Release');
   const [esignComment, setEsignComment] = useState('');
-
-  // Quiz submission state
-  const [quizAnswers, setQuizAnswers] = useState<{ [questionId: string]: number }>({});
-  const [esignTrainingPassword, setEsignTrainingPassword] = useState('');
-  const [quizError, setQuizError] = useState<string | null>(null);
 
   // Audit Filters
   const [auditActionFilter, setAuditActionFilter] = useState('');
   const [auditTypeFilter, setAuditTypeFilter] = useState('');
-
-  // Equipment Maintenance form state
-  const [eqLogActivityType, setEqLogActivityType] = useState('CALIBRATION');
-  const [eqLogNotes, setEqLogNotes] = useState('');
-  const [eqLogResult, setEqLogResult] = useState('PASS');
-  const [eqLogPassword, setEqLogPassword] = useState('');
 
   // General Notification / Error messages
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -497,16 +330,12 @@ export default function Home() {
 
     try {
       // Fetch Documents
-      const docRes = await fetch('/api/documents', {
-        headers: { 'x-user-email': currentUser.email },
-      });
+      const docRes = await fetch('/api/documents');
       const docData = await docRes.json();
       if (docData.documents) setDocuments(docData.documents);
 
       // Fetch Trainings
-      const trRes = await fetch('/api/trainings', {
-        headers: { 'x-user-email': currentUser.email },
-      });
+      const trRes = await fetch('/api/trainings');
       const trData = await trRes.json();
       if (trData.assignments) setTrainings(trData.assignments);
 
@@ -516,66 +345,28 @@ export default function Home() {
         if (auditActionFilter) auditQuery.append('action', auditActionFilter);
         if (auditTypeFilter) auditQuery.append('objectType', auditTypeFilter);
 
-        const audRes = await fetch(`/api/audit?${auditQuery.toString()}`, {
-          headers: { 'x-user-email': currentUser.email },
-        });
+        const audRes = await fetch(`/api/audit?${auditQuery.toString()}`);
         const audData = await audRes.json();
         if (audData.logs) setAuditLogs(audData.logs);
       }
 
-      // Fetch Change Requests
-      const crRes = await fetch('/api/change-requests', {
-        headers: { 'x-user-email': currentUser.email },
-      });
-      const crData = await crRes.json();
-      if (crData.changeRequests) setChangeRequests(crData.changeRequests);
-
-      // Fetch Deviations
-      const devRes = await fetch('/api/deviations', {
-        headers: { 'x-user-email': currentUser.email },
-      });
-      const devData = await devRes.json();
-      if (devData.deviations) setDeviations(devData.deviations);
-
-      // Fetch CAPAs
-      const capaRes = await fetch('/api/capas', {
-        headers: { 'x-user-email': currentUser.email },
-      });
-      const capaData = await capaRes.json();
-      if (capaData.capas) setCapas(capaData.capas);
-
       // Fetch Equipment
-      const eqRes = await fetch('/api/equipment', {
-        headers: { 'x-user-email': currentUser.email },
-      });
+      const eqRes = await fetch('/api/equipment');
       const eqData = await eqRes.json();
       if (eqData.equipment) setEquipmentList(eqData.equipment);
 
       // Fetch Suppliers
-      const supRes = await fetch('/api/suppliers', {
-        headers: { 'x-user-email': currentUser.email },
-      });
+      const supRes = await fetch('/api/suppliers');
       const supData = await supRes.json();
       if (supData.suppliers) setSuppliers(supData.suppliers);
 
-      // Fetch Veritas Intelligence Compliance Health
-      const intelRes = await fetch('/api/intelligence', {
-        headers: { 'x-user-email': currentUser.email },
-      });
-      const intelData = await intelRes.json();
-      if (intelData.health) setHealthScore(intelData.health);
-
       // Fetch Audit Plans
-      const auditPlanRes = await fetch('/api/audits', {
-        headers: { 'x-user-email': currentUser.email },
-      });
+      const auditPlanRes = await fetch('/api/audits');
       const auditPlanData = await auditPlanRes.json();
       if (auditPlanData.auditPlans) setAuditPlans(auditPlanData.auditPlans);
 
       // Fetch Notifications
-      const notifRes = await fetch('/api/notifications', {
-        headers: { 'x-user-email': currentUser.email },
-      });
+      const notifRes = await fetch('/api/notifications');
       const notifData = await notifRes.json();
       if (notifData.notifications) setNotifications(notifData.notifications);
     } catch (err) {
@@ -587,332 +378,43 @@ export default function Home() {
     fetchData();
   }, [fetchData]);
 
-  // Invite new employee & assign role
-  const handleInviteUser = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!inviteEmail || !inviteFullName || !currentUser) return;
-
-    try {
-      setErrorMessage('');
-      const res = await fetch('/api/users', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-user-email': currentUser.email,
-        },
-        body: JSON.stringify({
-          email: inviteEmail,
-          fullName: inviteFullName,
-          role: inviteRole,
-          department: inviteDept,
-        }),
-      });
-
-      const data = await res.json();
-      if (!res.ok) {
-        setErrorMessage(data.error?.message || 'Failed to invite user');
-        return;
-      }
-
-      setSuccessMessage(`User ${inviteFullName} successfully invited as ${inviteRole} in ${inviteDept}`);
-      setShowInviteUserModal(false);
-      setInviteEmail('');
-      setInviteFullName('');
-      fetchData();
-    } catch (err: any) {
-      setErrorMessage(err.message || 'Error inviting team member');
-    }
-  };
-
-  // Update existing user role & department
-  const handleUpdateUserRole = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!editingUser || !currentUser) return;
-
-    try {
-      setErrorMessage('');
-      const res = await fetch(`/api/users/${editingUser.id}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-user-email': currentUser.email,
-        },
-        body: JSON.stringify({
-          role: editRole,
-          department: editDept,
-        }),
-      });
-
-      const data = await res.json();
-      if (!res.ok) {
-        setErrorMessage(data.error?.message || 'Failed to update user role');
-        return;
-      }
-
-      setSuccessMessage(`Role for ${editingUser.fullName} updated to ${editRole} (${editDept})`);
-      setShowEditUserModal(false);
-      setEditingUser(null);
-      fetchData();
-    } catch (err: any) {
-      setErrorMessage(err.message || 'Error updating user role');
-    }
-  };
-
-  // Log new Deviation
-  const handleCreateDeviation = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newDevTitle.trim() || !newDevDescription.trim()) return;
-
-    try {
-      const res = await fetch('/api/deviations', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-user-email': currentUser?.email || '',
-        },
-        body: JSON.stringify({
-          title: newDevTitle,
-          description: newDevDescription,
-          classification: newDevClassification,
-        }),
-      });
-
-      const data = await res.json();
-      if (res.ok) {
-        setSuccessMessage('Deviation logged successfully!');
-        setShowCreateDeviationModal(false);
-        setNewDevTitle('');
-        setNewDevDescription('');
-        fetchData();
-      } else {
-        setErrorMessage(data.error?.message || 'Failed to log deviation');
-      }
-      setTimeout(() => {
-        setSuccessMessage(null);
-        setErrorMessage(null);
-      }, 4000);
-    } catch (err: any) {
-      setErrorMessage(err.message);
-      setTimeout(() => setErrorMessage(null), 4000);
-    }
-  };
-
-  // Perform root cause investigation
-  const handleDeviationInvestigate = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!selectedDeviationId || !investigationNotes.trim()) return;
-
-    try {
-      const res = await fetch(`/api/deviations/${selectedDeviationId}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-user-email': currentUser?.email || '',
-        },
-        body: JSON.stringify({
-          investigatorId: investigationInvestigatorId || undefined,
-          investigationNotes,
-          status: investigationStatus,
-        }),
-      });
-
-      const data = await res.json();
-      if (res.ok) {
-        setSuccessMessage('Investigation details updated!');
-        setShowDeviationInvestigateModal(false);
-        fetchData();
-      } else {
-        setErrorMessage(data.error?.message || 'Failed to update investigation');
-      }
-      setTimeout(() => {
-        setSuccessMessage(null);
-        setErrorMessage(null);
-      }, 4000);
-    } catch (err: any) {
-      setErrorMessage(err.message);
-      setTimeout(() => setErrorMessage(null), 4000);
-    }
-  };
-
-  // Create new CAPA
-  const handleCreateCapa = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newCapaTitle.trim() || !newCapaActionPlan.trim() || !newCapaDueDate || !newCapaAssignedToId) return;
-
-    try {
-      const res = await fetch('/api/capas', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-user-email': currentUser?.email || '',
-        },
-        body: JSON.stringify({
-          title: newCapaTitle,
-          actionPlan: newCapaActionPlan,
-          dueDate: newCapaDueDate,
-          assignedToId: newCapaAssignedToId,
-          deviationId: newCapaDeviationId,
-        }),
-      });
-
-      const data = await res.json();
-      if (res.ok) {
-        setSuccessMessage('CAPA successfully logged and assigned!');
-        setShowCreateCapaModal(false);
-        setNewCapaTitle('');
-        setNewCapaActionPlan('');
-        setNewCapaDueDate('');
-        setNewCapaAssignedToId('');
-        setNewCapaDeviationId(null);
-        fetchData();
-      } else {
-        setErrorMessage(data.error?.message || 'Failed to create CAPA');
-      }
-      setTimeout(() => {
-        setSuccessMessage(null);
-        setErrorMessage(null);
-      }, 4000);
-    } catch (err: any) {
-      setErrorMessage(err.message);
-      setTimeout(() => setErrorMessage(null), 4000);
-    }
-  };
-
-  // E-Sign and Close CAPA
-  const handleCapaSignOff = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!selectedCapaId || !esignCapaPassword) return;
-
-    try {
-      const res = await fetch(`/api/capas/${selectedCapaId}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-user-email': currentUser?.email || '',
-        },
-        body: JSON.stringify({
-          status: 'CLOSED',
-          password: esignCapaPassword,
-        }),
-      });
-
-      const data = await res.json();
-      if (res.ok) {
-        setSuccessMessage('CAPA closed and verified via electronic signature!');
-        setShowCapaSignModal(false);
-        setEsignCapaPassword('');
-        fetchData();
-      } else {
-        setErrorMessage(data.error?.message || 'E-Sign validation failed');
-      }
-      setTimeout(() => {
-        setSuccessMessage(null);
-        setErrorMessage(null);
-      }, 4000);
-    } catch (err: any) {
-      setErrorMessage(err.message);
-      setTimeout(() => setErrorMessage(null), 4000);
-    }
-  };
-
-  // Create Change Request
-  const handleCreateCR = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newCRTitle.trim() || !newCRReason.trim() || newCRDocIds.length === 0) return;
-
-    try {
-      const res = await fetch('/api/change-requests', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-user-email': currentUser?.email || '',
-        },
-        body: JSON.stringify({
-          title: newCRTitle,
-          reason: newCRReason,
-          riskLevel: newCRRiskLevel,
-          documentIds: newCRDocIds,
-        }),
-      });
-
-      const data = await res.json();
-      if (res.ok) {
-        setSuccessMessage('Change Request submitted under QA review!');
-        setShowCreateCRModal(false);
-        setNewCRTitle('');
-        setNewCRReason('');
-        setNewCRDocIds([]);
-        fetchData();
-      } else {
-        setErrorMessage(data.error?.message || 'Failed to submit Change Request');
-      }
-      setTimeout(() => {
-        setSuccessMessage(null);
-        setErrorMessage(null);
-      }, 4000);
-    } catch (err: any) {
-      setErrorMessage(err.message);
-      setTimeout(() => setErrorMessage(null), 4000);
-    }
-  };
-
-  // E-Sign Change Request Approval or Closure
-  const handleCRSignOff = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!selectedCRId || !esignCRPassword) return;
-
-    try {
-      const res = await fetch(`/api/change-requests/${selectedCRId}/approve`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-user-email': currentUser?.email || '',
-        },
-        body: JSON.stringify({
-          password: esignCRPassword,
-          actionType: esignCRAction,
-          comment: esignCRComment,
-        }),
-      });
-
-      const data = await res.json();
-      if (res.ok) {
-        setSuccessMessage(`Change Request successfully ${esignCRAction === 'APPROVE' ? 'Approved' : 'Closed'}!`);
-        setShowCRSignModal(false);
-        setEsignCRPassword('');
-        setEsignCRComment('');
-        fetchData();
-      } else {
-        setErrorMessage(data.error?.message || 'Verification failed');
-      }
-      setTimeout(() => {
-        setSuccessMessage(null);
-        setErrorMessage(null);
-      }, 4000);
-    } catch (err: any) {
-      setErrorMessage(err.message);
-      setTimeout(() => setErrorMessage(null), 4000);
-    }
-  };
-
   // Create Draft Revision for locked/effective document
   const handleUploadNewVersion = async (docId: string) => {
+    const reason = window.prompt('Describe the reason for this revision:')?.trim();
+    if (!reason) return;
+
+    const file = await new Promise<File | null>((resolve) => {
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = '.pdf,.doc,.docx,.txt,.png';
+      input.onchange = () => resolve(input.files?.[0] || null);
+      input.click();
+    });
+    if (!file) return;
+
     try {
-      const res = await fetch(`/api/documents/${docId}`, {
-        method: 'PUT',
+      const contentBase64 = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result).split(',')[1]);
+        reader.onerror = () => reject(new Error('Unable to read the selected file'));
+        reader.readAsDataURL(file);
+      });
+      const res = await fetch(`/api/documents/${docId}/revision`, {
+        method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'x-user-email': currentUser?.email || '',
         },
         body: JSON.stringify({
-          // Send mock PDF base64 indicating version update
-          contentBase64: 'JVBERi0xLjQKJcfsj6IKMSAwIG9iagogIDw8L1R5cGUvQ2F0YWxvZy9QYWdlcyAyIDAgUj4+CmVuZG9iagoyIDAgb2JqCiAgPDwvVHlwZS9QYWdlcy9LaWRzWzMgMCBSXS9Db3VudCAxPj4KZW5kb2JqCjMgMCBvYmoKICA8PC9UeXBlL1BhZ2UvUGFyZW50IDIgMCBSL01lZGlhQm94WzAgMCA1OTUgODQyXS9Db250ZW50cyA0IDAgUj4+CmVuZG9iago0IDAgb2JqCiAgPDwvTGVuZ3RoIDU5Pj5zdHJlYW0KQlQKICAvRjEgMjQgVGYKICA3MCA3MDAgVGQKICAoVmVyaXRhcyBlUU1TIC0gR3hQIFJldmlzaW9uKSBUagogRVQKZW5kc3RyZWFtCmVuZG9iagp4cmVmCjAgNQowMDAwMDAwMDAwIDY1NTM1IGYgCjAwMDAwMDAwMTkgMDAwMDAgbiAKMDAwMDAwMDA3MCAwMDAwMCBuIAowMDAwMDAwMTI3IDAwMDAwIGYgCjAwMDAwMDAyMDkgMDAwMDAgbiAKdHJhaWxlcgowMDAwMDAwMjg4Cg==',
+          reason,
+          fileName: file.name,
+          mimeType: file.type || 'application/octet-stream',
+          contentBase64,
         }),
       });
 
       const data = await res.json();
       if (res.ok) {
-        setSuccessMessage('Successfully drafted new version! Status reset to DRAFT.');
+        setSuccessMessage('A new draft revision was created; the effective version remains controlled.');
         fetchData();
       } else {
         setErrorMessage(data.error?.message || 'Failed to create document revision');
@@ -927,23 +429,47 @@ export default function Home() {
     }
   };
 
-  // Switch persona
-  const handleUserChange = (email: string) => {
-    const selected = users.find((u) => u.email === email);
-    if (selected) {
-      setCurrentUser(selected);
-      document.cookie = `user-email=${selected.email}; path=/; max-age=86400`;
-      setSelectedDocId(null);
-      setSelectedTrainingId(null);
-      setSuccessMessage(`Switched active user context to ${selected.fullName} (${selected.role})`);
-      setTimeout(() => setSuccessMessage(null), 3000);
+  const handleReplaceDraftFile = async (docId: string) => {
+    const file = await new Promise<File | null>((resolve) => {
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = '.pdf,.doc,.docx,.txt,.png';
+      input.onchange = () => resolve(input.files?.[0] || null);
+      input.click();
+    });
+    if (!file) return;
+    try {
+      const contentBase64 = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result).split(',')[1]);
+        reader.onerror = () => reject(new Error('Unable to read the selected file'));
+        reader.readAsDataURL(file);
+      });
+      const res = await fetch(`/api/documents/${docId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ contentBase64, fileName: file.name, mimeType: file.type || 'application/octet-stream' }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error?.message || 'Draft replacement failed');
+      setSuccessMessage('Draft file replaced with a new immutable controlled object.');
+      await fetchData();
+    } catch (error: any) {
+      setErrorMessage(error.message);
     }
+    setTimeout(() => {
+      setSuccessMessage(null);
+      setErrorMessage(null);
+    }, 5000);
   };
 
   // Create Document
   const handleCreateDocument = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newTitle.trim()) return;
+    if (!newTitle.trim() || !docFileBase64) {
+      setErrorMessage('A source file is required for every controlled document.');
+      return;
+    }
 
     try {
       const quizQuestionsList = [
@@ -959,16 +485,18 @@ export default function Home() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'x-user-email': currentUser?.email || '',
         },
         body: JSON.stringify({
           title: newTitle,
+          documentType: newDocumentType,
+          fileName: docFileName,
+          mimeType: docFileMime,
           description: newDesc,
           classification: newClassification,
           requiredRoles: newRequiredRoles,
           requiresQuiz: newRequiresQuiz,
           quizQuestions: newRequiresQuiz ? quizQuestionsList : null,
-          contentBase64: docFileBase64 || 'JVBERi0xLjQKJcfsj6IKMSAwIG9iagogIDw8L1R5cGUvQ2F0YWxvZy9QYWdlcyAyIDAgUj4+CmVuZG9iagoyIDAgb2JqCiAgPDwvVHlwZS9QYWdlcy9LaWRzWzMgMCBSXS9Db3VudCAxPj4KZW5kb2JqCjMgMCBvYmoKICA8PC9UeXBlL1BhZ2UvUGFyZW50IDIgMCBSL01lZGlhQm94WzAgMCA1OTUgODQyXS9Db250ZW50cyA0IDAgUj4+CmVuZG9iago0IDAgb2JqCiAgPDwvTGVuZ3RoIDU5Pj5zdHJlYW0KQlQKICAvRjEgMjQgVGYKICA3MCA3MDAgVGQKICAoVmVyaXRhcyBlUU1TIC0gR3hQIERvY3VtZW50KSBUagogRVQKZW5kc3RyZWFtCmVuZG9iagp4cmVmCjAgNQowMDAwMDAwMDAwIDY1NTM1IGYgCjAwMDAwMDAwMTkgMDAwMDAgbiAKMDAwMDAwMDA3MCAwMDAwMCBuIAowMDAwMDAwMTI3IDAwMDAwIGYgCjAwMDAwMDAyMDkgMDAwMDAgbiAKdHJhaWxlcgowMDAwMDAwMjg4Cg==',
+          contentBase64: docFileBase64,
         }),
       });
 
@@ -978,6 +506,7 @@ export default function Home() {
         setShowCreateModal(false);
         setNewTitle('');
         setNewDesc('');
+        setNewDocumentType('SOP');
         setNewClassification('CONTROLLED');
         setNewRequiredRoles('EMPLOYEE');
         setNewRequiresQuiz(false);
@@ -999,30 +528,24 @@ export default function Home() {
     }
   };
 
-  // E-Sign Document Approval
+  // Assigned workflow approval. Electronic signatures are a separate control.
   const handleApproveDocument = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedDocId || !esignPassword) return;
+    if (!selectedDocId) return;
 
     try {
       const res = await fetch(`/api/documents/${selectedDocId}/approve`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'x-user-email': currentUser?.email || '',
         },
-        body: JSON.stringify({
-          password: esignPassword,
-          meaning: esignMeaning,
-          comment: esignComment,
-        }),
+        body: JSON.stringify({ comment: esignComment }),
       });
 
       const data = await res.json();
       if (res.ok) {
-        setSuccessMessage(`Document approved and released! Created ${data.trainingAssignmentsCreated} training assignments.`);
+        setSuccessMessage('Document approved. It must still be explicitly made effective.');
         setShowApproveModal(false);
-        setEsignPassword('');
         setEsignComment('');
         fetchData();
       } else {
@@ -1038,367 +561,73 @@ export default function Home() {
     }
   };
 
-  // Submit Training Quiz & E-Sign
-  const handleSubmitTraining = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!selectedTrainingId || !esignTrainingPassword) return;
-
-    const assignment = trainings.find((t) => t.id === selectedTrainingId);
-    if (!assignment) return;
-
-    const answersList: QuizAnswer[] = [];
-    if (assignment.requirement.requiresQuiz && assignment.requirement.quizQuestions) {
-      const questions: QuizQuestion[] = JSON.parse(assignment.requirement.quizQuestions);
-      let missingAnswers = false;
-      
-      questions.forEach((q: QuizQuestion) => {
-        const val = quizAnswers[q.id];
-        if (val === undefined) {
-          missingAnswers = true;
-        } else {
-          answersList.push({ questionId: q.id, answerIndex: val });
-        }
-      });
-
-      if (missingAnswers) {
-        setQuizError('Please answer all questions before submitting.');
-        return;
-      }
-    }
-
+  const runDocumentAction = async (
+    path: string,
+    method: 'POST' | 'DELETE',
+    body: Record<string, unknown>,
+    success: string,
+  ) => {
     try {
-      const res = await fetch('/api/trainings', {
-        method: 'POST',
+      const res = await fetch(path, {
+        method,
         headers: {
           'Content-Type': 'application/json',
-          'x-user-email': currentUser?.email || '',
         },
-        body: JSON.stringify({
-          assignmentId: selectedTrainingId,
-          answers: answersList,
-          esignPassword: esignTrainingPassword,
-        }),
+        body: JSON.stringify(body),
       });
-
       const data = await res.json();
-      if (res.ok) {
-        if (data.success) {
-          setSuccessMessage(`Training sign-off complete! Score: ${data.score}%`);
-          setShowTrainingModal(false);
-          setQuizAnswers({});
-          setEsignTrainingPassword('');
-          setQuizError(null);
-          fetchData();
-        } else {
-          setQuizError(`Quiz failed with score ${data.score}%. An 80% passing score is required. Please review material and try again.`);
-        }
-      } else {
-        setQuizError(data.error?.message || 'Submission failed');
-      }
-    } catch (err: any) {
-      setQuizError(err.message);
+      if (!res.ok) throw new Error(data.error?.message || 'Document action failed');
+      setSuccessMessage(success);
+      await fetchData();
+    } catch (error: any) {
+      setErrorMessage(error.message);
     }
+    setTimeout(() => {
+      setSuccessMessage(null);
+      setErrorMessage(null);
+    }, 5000);
   };
 
-  // Log Equipment Maintenance/Calibration with E-Sign
-  const handleLogMaintenance = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!selectedEquipmentId || !eqLogNotes.trim() || !eqLogPassword) return;
-
-    try {
-      const res = await fetch(`/api/equipment/${selectedEquipmentId}/logs`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-user-email': currentUser?.email || '',
-        },
-        body: JSON.stringify({
-          activityType: eqLogActivityType,
-          notes: eqLogNotes,
-          result: eqLogResult,
-          password: eqLogPassword,
-        }),
-      });
-
-      const data = await res.json();
-      if (res.ok) {
-        const resultMsg = eqLogResult === 'FAIL'
-          ? 'Activity logged as FAIL — equipment taken OUT_OF_SERVICE and MAJOR deviation auto-created.'
-          : 'Activity logged successfully. Equipment status updated.';
-        setSuccessMessage(resultMsg);
-        setShowLogMaintenanceModal(false);
-        setEqLogNotes('');
-        setEqLogPassword('');
-        setEqLogResult('PASS');
-        setEqLogActivityType('CALIBRATION');
-        fetchData();
-      } else {
-        setErrorMessage(data.error?.message || 'Failed to log maintenance activity');
-      }
-      setTimeout(() => {
-        setSuccessMessage(null);
-        setErrorMessage(null);
-      }, 5000);
-    } catch (err: any) {
-      setErrorMessage(err.message);
-      setTimeout(() => setErrorMessage(null), 4000);
+  const handleSubmitForReview = async () => {
+    if (!selectedDoc) return;
+    const reviewerEmail = window.prompt('Reviewer email:')?.trim().toLowerCase();
+    const approverEmail = window.prompt('Approver email (must be a different person):')?.trim().toLowerCase();
+    const reviewer = users.find((user) => user.email.toLowerCase() === reviewerEmail);
+    const approver = users.find((user) => user.email.toLowerCase() === approverEmail);
+    if (!reviewer || !approver) {
+      setErrorMessage('Choose existing active users by exact email address.');
+      return;
     }
+    await runDocumentAction(
+      `/api/documents/${selectedDoc.id}/submit-review`,
+      'POST',
+      { reviewerId: reviewer.id, approverId: approver.id },
+      'Draft submitted for assigned review.',
+    );
   };
 
-  const handleSupplierFilesChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (!files) return;
-    const loadedAttachments: Array<{ fileName: string; fileType: string; fileData: string }> = [];
-
-    for (let i = 0; i < files.length; i++) {
-      const file = files[i];
-      const reader = new FileReader();
-      
-      const fileData = await new Promise<string>((resolve) => {
-        reader.onload = (ev) => {
-          const result = ev.target?.result as string;
-          const base64 = result.split(',')[1];
-          resolve(base64);
-        };
-        reader.readAsDataURL(file);
-      });
-
-      loadedAttachments.push({
-        fileName: file.name,
-        fileType: file.type,
-        fileData,
-      });
-    }
-
-    setNewSupAttachments(loadedAttachments);
+  const handleReviewDocument = async (action: 'COMPLETE' | 'RETURN') => {
+    if (!selectedDoc) return;
+    const comment = window.prompt(action === 'RETURN' ? 'Required return reason:' : 'Review comment (optional):')?.trim();
+    if (action === 'RETURN' && !comment) return;
+    await runDocumentAction(
+      `/api/documents/${selectedDoc.id}/review`,
+      'POST',
+      { action, comment },
+      action === 'COMPLETE' ? 'Review completed; assigned approval is now available.' : 'Document returned to draft.',
+    );
   };
 
-  // Register new supplier
-  const handleCreateSupplier = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newSupName.trim()) return;
-
-    try {
-      const res = await fetch('/api/suppliers', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-user-email': currentUser?.email || '',
-        },
-        body: JSON.stringify({
-          name: newSupName,
-          contactEmail: newSupEmail,
-          contactPhone: newSupPhone,
-          category: newSupCategory,
-          riskClassification: newSupRisk,
-          reEvaluationIntervalDays: newSupInterval,
-          notes: newSupNotes,
-          attachments: newSupAttachments,
-        }),
-      });
-
-      const data = await res.json();
-      if (res.ok) {
-        setSuccessMessage(`Supplier "${data.supplier.name}" registered successfully.`);
-        setShowCreateSupplierModal(false);
-        setNewSupName('');
-        setNewSupEmail('');
-        setNewSupPhone('');
-        setNewSupNotes('');
-        setNewSupAttachments([]);
-        fetchData();
-      } else {
-        setErrorMessage(data.error?.message || 'Failed to register supplier');
-      }
-      setTimeout(() => { setSuccessMessage(null); setErrorMessage(null); }, 5000);
-    } catch (err: any) {
-      setErrorMessage(err.message);
-      setTimeout(() => setErrorMessage(null), 5000);
-    }
-  };
-
-  const handleDeleteAttachment = async (attachmentId: string) => {
-    try {
-      const res = await fetch(`/api/suppliers?attachmentId=${attachmentId}`, {
-        method: 'DELETE',
-        headers: { 'x-user-email': currentUser?.email || '' },
-      });
-
-      if (res.ok) {
-        setSuccessMessage('Attachment deleted successfully.');
-        fetchData();
-      } else {
-        const data = await res.json();
-        setErrorMessage(data.error?.message || 'Failed to delete attachment');
-      }
-      setTimeout(() => { setSuccessMessage(null); setErrorMessage(null); }, 4000);
-    } catch (err: any) {
-      setErrorMessage(err.message);
-      setTimeout(() => setErrorMessage(null), 4000);
-    }
-  };
-
-  const handleAddAttachment = async (file: File) => {
-    if (!selectedSupplierId) return;
-    const reader = new FileReader();
-
-    try {
-      const fileData = await new Promise<string>((resolve) => {
-        reader.onload = (ev) => {
-          const result = ev.target?.result as string;
-          const base64 = result.split(',')[1];
-          resolve(base64);
-        };
-        reader.readAsDataURL(file);
-      });
-
-      const res = await fetch('/api/suppliers', {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-user-email': currentUser?.email || '',
-        },
-        body: JSON.stringify({
-          supplierId: selectedSupplierId,
-          fileName: file.name,
-          fileType: file.type,
-          fileData,
-        }),
-      });
-
-      if (res.ok) {
-        setSuccessMessage(`File "${file.name}" attached successfully.`);
-        fetchData();
-      } else {
-        const data = await res.json();
-        setErrorMessage(data.error?.message || 'Failed to attach document');
-      }
-      setTimeout(() => { setSuccessMessage(null); setErrorMessage(null); }, 4000);
-    } catch (err: any) {
-      setErrorMessage(err.message);
-      setTimeout(() => setErrorMessage(null), 4000);
-    }
-  };
-
-  // Log Supplier Audit (E-Signed)
-  const handleAuditSupplier = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!selectedSupplierId || !auditFindings.trim() || !auditPassword) return;
-
-    try {
-      const res = await fetch(`/api/suppliers/${selectedSupplierId}/audits`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-user-email': currentUser?.email || '',
-        },
-        body: JSON.stringify({
-          auditType,
-          findings: auditFindings,
-          result: auditResult,
-          signaturePassword: auditPassword,
-        }),
-      });
-
-      const data = await res.json();
-      if (res.ok) {
-        setSuccessMessage(`Audit logged successfully! Status updated to ${data.newStatus}.`);
-        setShowAuditSupplierModal(false);
-        setAuditFindings('');
-        setAuditPassword('');
-        fetchData();
-      } else {
-        setErrorMessage(data.error?.message || 'Audit submission failed');
-      }
-      setTimeout(() => { setSuccessMessage(null); setErrorMessage(null); }, 5000);
-    } catch (err: any) {
-      setErrorMessage(err.message);
-      setTimeout(() => setErrorMessage(null), 5000);
-    }
-  };
-
-  // Log Material Receipt & Inspection
-  const handleMaterialReceipt = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!selectedSupplierId || !recMaterialName.trim() || !recLotNumber.trim()) return;
-
-    try {
-      const res = await fetch(`/api/suppliers/${selectedSupplierId}/receipts`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-user-email': currentUser?.email || '',
-        },
-        body: JSON.stringify({
-          materialName: recMaterialName,
-          lotNumber: recLotNumber,
-          quantityReceived: recQty,
-          unit: recUnit,
-          inspectionStatus: recInspectionStatus,
-          notes: recNotes,
-        }),
-      });
-
-      const data = await res.json();
-      if (res.ok) {
-        let msg = `Material receipt logged for Lot ${data.receipt.lotNumber}.`;
-        if (data.createdDeviationId) {
-          msg += ` ⚠ Auto-deviation created for rejected material inspection.`;
-        }
-        setSuccessMessage(msg);
-        setShowReceiptModal(false);
-        setRecMaterialName('');
-        setRecLotNumber('');
-        setRecNotes('');
-        fetchData();
-      } else {
-        setErrorMessage(data.error?.message || 'Failed to log material receipt');
-      }
-      setTimeout(() => { setSuccessMessage(null); setErrorMessage(null); }, 5000);
-    } catch (err: any) {
-      setErrorMessage(err.message);
-      setTimeout(() => setErrorMessage(null), 5000);
-    }
-  };
-
-  // Onboard New Company / Organization
-  const handleRegisterCompany = async (e: React.FormEvent): Promise<boolean> => {
-    e.preventDefault();
-    if (!regCompanyName.trim() || !regFullName.trim() || !regEmail.trim()) return false;
-
-    try {
-      const res = await fetch('/api/auth/register', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          companyName: regCompanyName,
-          fullName: regFullName,
-          email: regEmail,
-          department: regDepartment,
-          role: regRole,
-          GxPStandard: regGxPStandard,
-        }),
-      });
-
-      const data = await res.json();
-      if (res.ok) {
-        setSuccessMessage(`Organization "${data.tenant.name}" created. Complete credential setup, then sign in.`);
-        setShowRegisterModal(false);
-        setRegCompanyName('');
-        setRegFullName('');
-        setRegEmail('');
-        fetchData();
-        return true;
-      } else {
-        setErrorMessage(data.error?.message || 'Registration failed');
-        return false;
-      }
-    } catch (err: any) {
-      setErrorMessage(err.message);
-      return false;
-    } finally {
-      setTimeout(() => { setSuccessMessage(null); setErrorMessage(null); }, 5000);
-    }
+  const handleObsoleteDocument = async () => {
+    if (!selectedDoc) return;
+    const reason = window.prompt('Required reason for making this document obsolete:')?.trim();
+    if (!reason) return;
+    await runDocumentAction(
+      `/api/documents/${selectedDoc.id}`,
+      'DELETE',
+      { reason },
+      'Document marked obsolete; retained records were not deleted.',
+    );
   };
 
   // Login / Switch User Session
@@ -1430,15 +659,17 @@ export default function Home() {
     }
   };
 
-  // Export CSV
-  const handleExportAudit = () => {
-    if (!currentUser) return;
-    const url = `/api/audit/export?x-user-email=${encodeURIComponent(currentUser.email)}`;
-    window.open(url, '_blank');
-  };
-
   const selectedDoc = documents.find((d) => d.id === selectedDocId);
-  const selectedTraining = trainings.find((t) => t.id === selectedTrainingId);
+  const lifecycleRole = (currentUser?.membershipRole || currentUser?.role || '').toUpperCase().replace(/[\s-]+/g, '_');
+  const canAuthorDocuments = lifecycleRole === 'QUALITY_MANAGER' || lifecycleRole === 'DOCUMENT_OWNER';
+  const canReviewDocuments = lifecycleRole === 'QUALITY_MANAGER' || lifecycleRole === 'APPROVER';
+  const canApproveDocuments = lifecycleRole === 'QUALITY_MANAGER' || lifecycleRole === 'APPROVER';
+  const canObsoleteDocuments = lifecycleRole === 'QUALITY_MANAGER';
+  const currentWorkflow = selectedDoc?.versions.find((version) => version.versionNumber === selectedDoc.currentVersionNumber)?.approvalRoutes?.[0];
+  const assignedReviewStep = currentWorkflow?.steps.find((step) => step.stepType === 'REVIEW');
+  const assignedApprovalStep = currentWorkflow?.steps.find((step) => step.stepType === 'APPROVAL');
+  const isAssignedReviewer = canReviewDocuments && Boolean(assignedReviewStep && assignedReviewStep.approver.id === currentUser?.id && assignedReviewStep.status === 'PENDING');
+  const isAssignedApprover = canApproveDocuments && Boolean(assignedApprovalStep && assignedApprovalStep.approver.id === currentUser?.id && assignedApprovalStep.status === 'PENDING');
 
   // Statistics calculation for Dashboard
   const statTotalDocs = documents.length;
@@ -1459,10 +690,6 @@ export default function Home() {
         { id: 'dashboard', label: 'Dashboard', route: 'dashboard', icon: <DashboardIcon /> },
         { id: 'documents', label: 'Document Control', route: 'documents', icon: <DescriptionIcon /> },
         { id: 'training', label: 'Training Hub', route: 'training', icon: <SchoolIcon /> },
-        ...(currentUser?.role && currentUser.role !== 'EMPLOYEE' ? [
-          { id: 'change-control', label: 'Change Control', route: 'change-control', icon: <ChangeIcon /> }
-        ] : []),
-        { id: 'quality-events', label: 'Quality Events (CAPA)', route: 'quality-events', icon: <ReportIcon /> },
         { id: 'equipment', label: 'Equipment Cal.', route: 'equipment', icon: <BuildIcon /> },
         { id: 'suppliers', label: 'Suppliers (AVL)', route: 'suppliers', icon: <SupplierIcon /> },
         { id: 'audits-management', label: 'GxP Audits', route: 'audits-management', icon: <HistoryIcon /> },
@@ -1471,9 +698,6 @@ export default function Home() {
         ] : []),
         ...(currentUser?.role && (currentUser.role === 'ADMIN' || currentUser.role === 'AUDITOR' || currentUser.role === 'OWNER') ? [
           { id: 'audit', label: 'Compliance Audit Logs', route: 'audit', icon: <HistoryIcon /> }
-        ] : []),
-        ...(currentUser?.role && (currentUser.role === 'ADMIN' || currentUser.role === 'QUALITY_MANAGER' || currentUser.role === 'REGULATORY_AFFAIRS' || currentUser.role === 'AUDITOR' || currentUser.role === 'OWNER') ? [
-          { id: 'intelligence', label: 'Regulatory Intelligence', route: 'intelligence', icon: <PsychologyIcon /> }
         ] : []),
       ]
     }
@@ -1493,7 +717,7 @@ export default function Home() {
             style={{ fontSize: '12px', padding: '6px 12px', display: 'flex', alignItems: 'center', gap: '6px' }}
           >
             👤 <strong>{currentUser.fullName}</strong> ({currentUser.role})
-            <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>▾ Switch</span>
+            <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>▾ Sign in differently</span>
           </button>
 
           <button
@@ -1513,14 +737,11 @@ export default function Home() {
       case 'dashboard': return 'Compliance Dashboard';
       case 'documents': return 'Document Repository';
       case 'training': return 'Training matrix & assignments';
-      case 'change-control': return 'Change Request Workflows';
-      case 'quality-events': return 'GxP Deviations & CAPA Workflow';
       case 'equipment': return 'Equipment Calibration & Maintenance';
       case 'suppliers': return 'Supplier Quality & Approved Vendor List';
       case 'audits-management': return 'Internal & Supplier Audit Planning';
       case 'users-management': return 'User Access Policy & ABAC/RBAC Roster';
-      case 'audit': return 'GxP 21 CFR Part 11 Audit Trail Logs';
-      case 'intelligence': return 'EU GMP Regulatory Intelligence Engine';
+      case 'audit': return 'Tenant Audit Event Index';
       default: return 'Veritas eQMS';
     }
   };
@@ -1536,14 +757,14 @@ export default function Home() {
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '11px', fontWeight: '600', color: '#047857', fontFamily: 'monospace' }}>
             <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#047857' }} />
-            SYSTEM ACTIVE • 21 CFR PART 11 / EU ANNEX 11 VERIFIED
+            CONTROLLED RECOVERY • VALIDATION IN PROGRESS
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
             <button className={styles.btnLuxurySecondary} onClick={() => setShowLoginModal(true)}>
               Member Sign In
             </button>
-            <button className={styles.btnLuxuryPrimary} onClick={() => setShowOnboardingWizard(true)}>
-              Start Your Compliance Environment →
+            <button className={styles.btnLuxuryPrimary} onClick={() => setShowDemoRequestModal(true)}>
+              Request a Product Walkthrough →
             </button>
           </div>
         </header>
@@ -1557,8 +778,8 @@ export default function Home() {
             Veritas operates as the underlying compliance infrastructure layer for emerging biotechnology and pharmaceutical enterprise.
           </p>
           <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
-            <button className={styles.btnLuxuryPrimary} onClick={() => setShowOnboardingWizard(true)}>
-              Start Your Compliance Environment →
+            <button className={styles.btnLuxuryPrimary} onClick={() => setShowDemoRequestModal(true)}>
+              Request a Product Walkthrough →
             </button>
             <button className={styles.btnLuxurySecondary} onClick={() => setShowLoginModal(true)}>
               Member Sign In
@@ -1575,7 +796,7 @@ export default function Home() {
             Every regulation maps directly to operational evidence.
           </h2>
           <p className={styles.luxurySubhead} style={{ fontSize: '18px', maxWidth: '640px' }}>
-            Regulations → Processes → Documents → People → Evidence operate in autonomous real-time alignment.
+            Explore how regulations, processes, documents, people, and evidence can be connected through controlled workflows.
           </p>
 
           <div className={styles.topologyFrame}>
@@ -1586,8 +807,8 @@ export default function Home() {
                 LIVE TOPOLOGY SYNC
               </div>
               <div>SYSTEM: VERITAS GxP GRAPH v2.4</div>
-              <div>LATENCY: 0.2ms</div>
-              <div style={{ fontWeight: '700', color: '#0A0E17' }}>21 CFR PART 11 / EU ANNEX 11 VERIFIED</div>
+              <div>ILLUSTRATIVE PRODUCT MODEL</div>
+                <div style={{ fontWeight: '700', color: '#0A0E17' }}>DESIGNED TO SUPPORT VALIDATED WORKFLOWS</div>
             </div>
 
             {/* SVG Network Graph */}
@@ -1679,9 +900,9 @@ export default function Home() {
                 <g transform="translate(300, 80)" className={styles.topologyNode}>
                   <rect x="-55" y="-22" width="110" height="44" fill="#FFFFFF" stroke="#0A0E17" strokeWidth="1.5" />
                   <text y="-3" textAnchor="middle" fill="#0A0E17" fontSize="12" fontWeight="800" fontFamily="monospace" letterSpacing="0.05em">PROCESSES</text>
-                  <text y="12" textAnchor="middle" fill="#475569" fontSize="9" fontWeight="600" fontFamily="monospace">CAPA & WORKFLOWS</text>
+                  <text y="12" textAnchor="middle" fill="#475569" fontSize="9" fontWeight="600" fontFamily="monospace">DOCUMENT WORKFLOWS</text>
                   <rect x="-36" y="26" width="72" height="16" fill="#FBFBFA" stroke="#0A0E17" strokeWidth="1" />
-                  <text y="37" textAnchor="middle" fill="#047857" fontSize="8" fontWeight="700" fontFamily="monospace">ENFORCED</text>
+                  <text y="37" textAnchor="middle" fill="#047857" fontSize="8" fontWeight="700" fontFamily="monospace">REVIEWABLE</text>
                 </g>
 
                 {/* NODE 03: DOCUMENTS (CENTRAL APEX) */}
@@ -1691,7 +912,7 @@ export default function Home() {
                   <text y="-4" textAnchor="middle" fill="#FFFFFF" fontSize="13" fontWeight="800" fontFamily="monospace" letterSpacing="0.05em">DOCUMENTS</text>
                   <text y="13" textAnchor="middle" fill="#E2E8F0" fontSize="9" fontWeight="600" fontFamily="monospace">CONTROLLED SOPs</text>
                   <rect x="-48" y="28" width="96" height="16" fill="#0A0E17" />
-                  <text y="39" textAnchor="middle" fill="#FBFBFA" fontSize="8" fontWeight="700" fontFamily="monospace">SHA-256 VERIFIED</text>
+                  <text y="39" textAnchor="middle" fill="#FBFBFA" fontSize="8" fontWeight="700" fontFamily="monospace">SHA-256 INTEGRITY</text>
                 </g>
 
                 {/* NODE 04: PEOPLE */}
@@ -1700,7 +921,7 @@ export default function Home() {
                   <text y="-3" textAnchor="middle" fill="#0A0E17" fontSize="12" fontWeight="800" fontFamily="monospace" letterSpacing="0.05em">PEOPLE</text>
                   <text y="12" textAnchor="middle" fill="#475569" fontSize="9" fontWeight="600" fontFamily="monospace">QUALIFICATIONS</text>
                   <rect x="-36" y="26" width="72" height="16" fill="#FBFBFA" stroke="#0A0E17" strokeWidth="1" />
-                  <text y="37" textAnchor="middle" fill="#047857" fontSize="8" fontWeight="700" fontFamily="monospace">100% READY</text>
+                  <text y="37" textAnchor="middle" fill="#047857" fontSize="8" fontWeight="700" fontFamily="monospace">STATUS VISIBLE</text>
                 </g>
 
                 {/* NODE 05: EVIDENCE */}
@@ -1710,7 +931,7 @@ export default function Home() {
                   <text y="-3" textAnchor="middle" fill="#FBFBFA" fontSize="12" fontWeight="800" fontFamily="monospace" letterSpacing="0.05em">EVIDENCE</text>
                   <text y="12" textAnchor="middle" fill="#94A3B8" fontSize="9" fontWeight="600" fontFamily="monospace">AUDIT LEDGER</text>
                   <rect x="-44" y="26" width="88" height="16" fill="#FBFBFA" stroke="#0A0E17" strokeWidth="1" />
-                  <text y="37" textAnchor="middle" fill="#0A0E17" fontSize="8" fontWeight="700" fontFamily="monospace">IMMUTABLE LOG</text>
+                  <text y="37" textAnchor="middle" fill="#0A0E17" fontSize="8" fontWeight="700" fontFamily="monospace">AUDIT TRAIL</text>
                 </g>
               </svg>
             </div>
@@ -1718,16 +939,16 @@ export default function Home() {
             {/* Bottom Status Summary Ledger */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', borderTop: '1px solid rgba(10, 14, 23, 0.08)', background: '#FBFBFA', padding: '18px 24px', fontSize: '11px', fontFamily: 'monospace' }}>
               <div style={{ borderRight: '1px solid rgba(10, 14, 23, 0.08)', paddingRight: '16px' }}>
-                <span style={{ color: '#475569', display: 'block', marginBottom: '2px' }}>REGULATORY SCOPE</span>
-                <strong style={{ color: '#0A0E17', fontSize: '12px' }}>EU Annex 11 • FDA 21 CFR Part 11</strong>
+                <span style={{ color: '#475569', display: 'block', marginBottom: '2px' }}>DESIGN REFERENCES</span>
+                <strong style={{ color: '#0A0E17', fontSize: '12px' }}>EU GMP Annex 11 • FDA 21 CFR Part 11</strong>
               </div>
               <div style={{ borderRight: '1px solid rgba(10, 14, 23, 0.08)', paddingRight: '16px', paddingLeft: '16px' }}>
-                <span style={{ color: '#475569', display: 'block', marginBottom: '2px' }}>PROPAGATION SPEED</span>
-                <strong style={{ color: '#047857', fontSize: '12px' }}>{"Real-time (< 50ms latency)"}</strong>
+                <span style={{ color: '#475569', display: 'block', marginBottom: '2px' }}>PERFORMANCE</span>
+                <strong style={{ color: '#047857', fontSize: '12px' }}>Environment-dependent; verify during validation</strong>
               </div>
               <div style={{ paddingLeft: '16px' }}>
-                <span style={{ color: '#475569', display: 'block', marginBottom: '2px' }}>AUDIT VERIFICATION</span>
-                <strong style={{ color: '#0A0E17', fontSize: '12px' }}>SHA-256 Cryptographic Ledger</strong>
+                <span style={{ color: '#475569', display: 'block', marginBottom: '2px' }}>CONTENT INTEGRITY</span>
+                <strong style={{ color: '#0A0E17', fontSize: '12px' }}>SHA-256 Content Hashing</strong>
               </div>
             </div>
           </div>
@@ -1739,17 +960,17 @@ export default function Home() {
             02 / PRECISION WORKFLOW
           </div>
           <h2 className={styles.luxuryHeadline} style={{ fontSize: '56px' }}>
-            Digital signatures with SHA-256 integrity verification.
+            Controlled document workflows with SHA-256 content verification.
           </h2>
 
           <div className={styles.precisionFrame} style={{ padding: 0, overflow: 'hidden' }}>
             <div className={styles.gxpCardHeader}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#047857', fontWeight: '700' }}>
                 <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#047857' }} />
-                CONTROLLED RECORD ACTIVE
+                ILLUSTRATIVE WORKFLOW
               </div>
               <div style={{ color: '#475569' }}>CLASSIFICATION: GxP RESTRICTED</div>
-              <div style={{ fontWeight: '700', color: '#047857' }}>STATUS: APPROVED / EFFECTIVE</div>
+              <div style={{ fontWeight: '700', color: '#047857' }}>EXAMPLE STATUS — NOT PRODUCTION EVIDENCE</div>
             </div>
 
             <div style={{ padding: '36px' }}>
@@ -1771,7 +992,7 @@ export default function Home() {
               </div>
 
               <div style={{ background: '#FBFBFA', border: '1px solid rgba(10, 14, 23, 0.1)', borderLeft: '3px solid #0A0E17', padding: '20px', fontSize: '13px', color: '#1E293B', lineHeight: '1.6', marginBottom: '28px', fontFamily: 'monospace' }}>
-                &ldquo;This procedure defines statutory release criteria for biological products compliant with EU Annex 16 and FDA 21 CFR Part 211.&rdquo;
+                &ldquo;Example controlled content mapped to customer-selected EU Annex 16 and FDA 21 CFR Part 211 requirements.&rdquo;
               </div>
 
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderTop: '1px solid rgba(10, 14, 23, 0.12)', paddingTop: '20px' }}>
@@ -1785,7 +1006,7 @@ export default function Home() {
                   </div>
                 </div>
                 <span style={{ fontSize: '11px', fontWeight: '700', color: '#047857', border: '1px solid #047857', padding: '6px 14px', fontFamily: 'monospace', letterSpacing: '0.05em' }}>
-                  ✓ 21 CFR PART 11 VERIFIED
+                  SIGNATURE EVIDENCE DISPLAY
                 </span>
               </div>
             </div>
@@ -1807,7 +1028,7 @@ export default function Home() {
                 <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#047857' }} />
                 ROLE-BASED PERSONNEL MATRIX
               </div>
-              <div style={{ color: '#047857', fontWeight: '700' }}>READINESS: 100% AUDIT READY</div>
+              <div style={{ color: '#047857', fontWeight: '700' }}>EXAMPLE QUALIFICATION VIEW</div>
             </div>
 
             <div style={{ padding: '28px 36px' }}>
@@ -1840,33 +1061,33 @@ export default function Home() {
         <section className={styles.darkNavySection}>
           <div style={{ maxWidth: '1040px', margin: '0 auto', textAlign: 'center' }}>
             <div style={{ fontSize: '11px', fontWeight: '700', letterSpacing: '0.15em', textTransform: 'uppercase', color: '#10B981', marginBottom: '24px', fontFamily: 'monospace' }}>
-              04 / IMMUTABLE AUDIT LEDGER
+              04 / CONTROLLED AUDIT TRAIL
             </div>
             <h2 style={{ fontSize: '56px', fontWeight: '800', letterSpacing: '-0.04em', color: '#FFFFFF', marginBottom: '24px', lineHeight: '1.08' }}>
-              Immutable audit logs recorded in real-time.
+              Attributable audit events available for review.
             </h2>
             <p style={{ fontSize: '18px', color: '#94A3B8', maxWidth: '640px', margin: '0 auto 48px', lineHeight: '1.6' }}>
-              Every signature, approval, revision, and permission change is cryptographically hashed and instantly exportable for regulatory inspections.
+              The product is being designed to record key workflow events and provide human-readable evidence for customer review and validation.
             </p>
 
             <div className={styles.terminalWindow}>
               <div className={styles.terminalBar}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#10B981', fontWeight: '700' }}>
                   <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#10B981' }} />
-                  VERITAS IMMUTABLE AUDIT LEDGER
+                  VERITAS AUDIT TRAIL PREVIEW
                 </div>
                 <div>FILTER: ALL EVENTS</div>
                 <div style={{ color: '#10B981', fontWeight: '700', cursor: 'pointer' }} onClick={() => setShowDemoRequestModal(true)}>
-                  [EXPORT INSPECTION PACKAGE ZIP]
+                  [REQUEST A PRODUCT WALKTHROUGH]
                 </div>
               </div>
 
               <div style={{ padding: '28px', textAlign: 'left', fontFamily: 'monospace', fontSize: '12px', color: '#94A3B8', lineHeight: '1.8' }}>
-                <div style={{ color: '#10B981', marginBottom: '10px' }}>[AUDIT-RECORD-2026-07-26T06:45:12.082Z] EVENT: ELECTRONIC_SIGNATURE_EXECUTED</div>
-                <div>AUTHENTICATED_USER: usr_9942a188 (Dr. Eleanor Vance — Head of QA)</div>
-                <div>RESOURCE_IDENTIFIER: doc_sop_qa_042_v3 (Batch Release Protocol v3.0)</div>
-                <div>SIGNATURE_AUTHORITY: APPROVAL_AUTHORITY_FINAL</div>
-                <div>STATUTORY_COMPLIANCE: 21 CFR Part 11 / EU Annex 11 Verified</div>
+                <div style={{ color: '#10B981', marginBottom: '10px' }}>[ILLUSTRATIVE-EVENT] DOCUMENT_WORKFLOW_REVIEWED</div>
+                <div>ACTOR: example authorized reviewer</div>
+                <div>RESOURCE: example controlled document version</div>
+                <div>WORKFLOW STATE: example only; not validation evidence</div>
+                <div>DESIGN_REFERENCE: 21 CFR Part 11 / EU GMP Annex 11</div>
                 <div style={{ color: '#64748B', marginTop: '8px', borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: '8px' }}>
                   CRYPTOGRAPHIC_CHECKSUM: 3f8a91c2b5d4e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1
                 </div>
@@ -1887,17 +1108,17 @@ export default function Home() {
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '24px', width: '100%' }}>
             <div className={styles.valueCard}>
               <div style={{ fontSize: '11px', fontWeight: '700', color: '#047857', fontFamily: 'monospace', marginBottom: '12px' }}>01 / DEPLOYMENT SPEED</div>
-              <h3 style={{ fontSize: '20px', fontWeight: '800', color: '#0A0E17', marginBottom: '12px' }}>Inspection-Ready in 48 Hours</h3>
+              <h3 style={{ fontSize: '20px', fontWeight: '800', color: '#0A0E17', marginBottom: '12px' }}>Focused Implementation Planning</h3>
               <p style={{ fontSize: '14px', color: '#475569', lineHeight: '1.6', margin: 0 }}>
-                Bypass 6-month legacy vendor onboarding. Pre-validated GxP templates allow emerging life science teams to achieve complete regulatory readiness in days.
+                Start with a defined document-and-training scope, controlled configuration, and a customer-owned validation plan.
               </p>
             </div>
 
             <div className={styles.valueCard}>
-              <div style={{ fontSize: '11px', fontWeight: '700', color: '#047857', fontFamily: 'monospace', marginBottom: '12px' }}>02 / ZERO AUDIT ANXIETY</div>
-              <h3 style={{ fontSize: '20px', fontWeight: '800', color: '#0A0E17', marginBottom: '12px' }}>Audit-Ready Guarantee</h3>
+              <div style={{ fontSize: '11px', fontWeight: '700', color: '#047857', fontFamily: 'monospace', marginBottom: '12px' }}>02 / REVIEWABLE EVIDENCE</div>
+              <h3 style={{ fontSize: '20px', fontWeight: '800', color: '#0A0E17', marginBottom: '12px' }}>Validation-Ready Foundation</h3>
               <p style={{ fontSize: '14px', color: '#475569', lineHeight: '1.6', margin: 0 }}>
-                Automatic compliance evidence generation for EU Annex 11 and FDA 21 CFR Part 11 inspections, satisfying auditors, regulators, and Series A/B investors.
+                Prepare traceable workflow evidence for review within each customer&apos;s intended use, procedures, configuration, and validation responsibilities.
               </p>
             </div>
 
@@ -1905,7 +1126,7 @@ export default function Home() {
               <div style={{ fontSize: '11px', fontWeight: '700', color: '#047857', fontFamily: 'monospace', marginBottom: '12px' }}>03 / CONNECTED INTELLIGENCE</div>
               <h3 style={{ fontSize: '20px', fontWeight: '800', color: '#0A0E17', marginBottom: '12px' }}>Relational GxP Topology</h3>
               <p style={{ fontSize: '14px', color: '#475569', lineHeight: '1.6', margin: 0 }}>
-                Updating one SOP automatically recalculates role qualifications, flags required retraining, and logs immutable audit evidence with zero orphan records.
+                Connect document revisions, role-based training requirements, retraining decisions, and attributable audit events.
               </p>
             </div>
           </div>
@@ -1956,140 +1177,40 @@ export default function Home() {
           </div>
         </footer>
 
-        {/* ENTERPRISE DEMO REQUEST MODAL */}
+        {/* WALKTHROUGH CONTACT MODAL */}
         {showDemoRequestModal && (
           <div className={styles.modalOverlay} style={{ background: 'rgba(10, 14, 23, 0.75)', backdropFilter: 'blur(12px)' }}>
             <div className={styles.modalContent} style={{ maxWidth: '540px', background: '#FFFFFF', border: '1px solid rgba(10, 14, 23, 0.2)', borderRadius: '0px', padding: '40px', boxShadow: '0 30px 60px rgba(0,0,0,0.25)' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', borderBottom: '1px solid rgba(10, 14, 23, 0.12)', paddingBottom: '20px', marginBottom: '24px' }}>
                 <div>
                   <div style={{ fontSize: '11px', fontWeight: '700', letterSpacing: '0.12em', color: '#047857', textTransform: 'uppercase', fontFamily: 'monospace', marginBottom: '4px' }}>
-                    DEMONSTRATION DISPATCH
+                    PRODUCT WALKTHROUGH
                   </div>
                   <h3 style={{ fontSize: '22px', fontWeight: '800', color: '#0A0E17', margin: 0, letterSpacing: '-0.02em' }}>
-                    Request Simpleafied Veritas Demo
+                    Contact Simpleafied Veritas
                   </h3>
                 </div>
                 <button
+                  aria-label="Close walkthrough contact"
                   style={{ background: 'transparent', border: '1px solid rgba(10, 14, 23, 0.2)', color: '#0A0E17', width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '16px', fontWeight: '700', cursor: 'pointer', borderRadius: '0px' }}
-                  onClick={() => { setShowDemoRequestModal(false); setDemoSuccess(false); }}
+                  onClick={() => setShowDemoRequestModal(false)}
                 >
                   ×
                 </button>
               </div>
-
-              <div>
-                {demoSuccess ? (
-                  <div style={{ textAlign: 'center', padding: '24px 0' }}>
-                    <div style={{ fontSize: '12px', fontWeight: '700', color: '#047857', fontFamily: 'monospace', marginBottom: '12px' }}>
-                      ✓ DISPATCH CONFIRMED
-                    </div>
-                    <h4 style={{ fontSize: '20px', fontWeight: '800', color: '#0A0E17', marginBottom: '12px' }}>
-                      Demonstration Request Dispatched
-                    </h4>
-                    <p style={{ fontSize: '14px', color: '#475569', lineHeight: '1.6', marginBottom: '24px' }}>
-                      Thank you, <strong>{demoName}</strong>. Your inquiry has been routed to <strong>contact@simpleafied.app</strong>. A European GxP Quality Architect will contact you at <strong>{demoEmail}</strong> within 24 hours.
-                    </p>
-                    <button
-                      className={styles.btnLuxuryPrimary}
-                      onClick={() => { setShowDemoRequestModal(false); setDemoSuccess(false); }}
-                      style={{ width: '100%', padding: '14px' }}
-                    >
-                      Close Window
-                    </button>
-                  </div>
-                ) : (
-                  <form onSubmit={async (e) => {
-                    e.preventDefault();
-                    if (demoEmail && demoName) {
-                      try {
-                        await fetch('/api/demo-request', {
-                          method: 'POST',
-                          headers: { 'Content-Type': 'application/json' },
-                          body: JSON.stringify({
-                            name: demoName,
-                            email: demoEmail,
-                            company: demoCompany,
-                            size: demoSize,
-                          }),
-                        });
-                      } catch (err) {
-                        console.error('Demo request dispatch error:', err);
-                      }
-                      setDemoSuccess(true);
-                    }
-                  }}>
-                    <p style={{ fontSize: '13px', color: '#475569', lineHeight: '1.5', marginBottom: '24px' }}>
-                      Schedule a 1-on-1 walkthrough with a Simpleafied GxP Quality Architect tailored to your regulatory requirements. Inquiries are routed directly to <strong>contact@simpleafied.app</strong>.
-                    </p>
-
-                    <div style={{ marginBottom: '18px' }}>
-                      <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', color: '#0A0E17', fontFamily: 'monospace', letterSpacing: '0.05em', textTransform: 'uppercase', marginBottom: '6px' }}>
-                        Full Name
-                      </label>
-                      <input
-                        style={{ width: '100%', padding: '12px 14px', border: '1px solid rgba(10, 14, 23, 0.2)', borderRadius: '0px', background: '#FBFBFA', fontSize: '14px', color: '#0A0E17' }}
-                        type="text"
-                        placeholder="Dr. Eleanor Vance"
-                        value={demoName}
-                        onChange={(e) => setDemoName(e.target.value)}
-                        required
-                      />
-                    </div>
-
-                    <div style={{ marginBottom: '18px' }}>
-                      <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', color: '#0A0E17', fontFamily: 'monospace', letterSpacing: '0.05em', textTransform: 'uppercase', marginBottom: '6px' }}>
-                        Work Email Address
-                      </label>
-                      <input
-                        style={{ width: '100%', padding: '12px 14px', border: '1px solid rgba(10, 14, 23, 0.2)', borderRadius: '0px', background: '#FBFBFA', fontSize: '14px', color: '#0A0E17' }}
-                        type="email"
-                        placeholder="eleanor.vance@heliosbio.eu"
-                        value={demoEmail}
-                        onChange={(e) => setDemoEmail(e.target.value)}
-                        required
-                      />
-                    </div>
-
-                    <div style={{ marginBottom: '18px' }}>
-                      <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', color: '#0A0E17', fontFamily: 'monospace', letterSpacing: '0.05em', textTransform: 'uppercase', marginBottom: '6px' }}>
-                        Company / Organization
-                      </label>
-                      <input
-                        style={{ width: '100%', padding: '12px 14px', border: '1px solid rgba(10, 14, 23, 0.2)', borderRadius: '0px', background: '#FBFBFA', fontSize: '14px', color: '#0A0E17' }}
-                        type="text"
-                        placeholder="Helios BioPharma Inc."
-                        value={demoCompany}
-                        onChange={(e) => setDemoCompany(e.target.value)}
-                        required
-                      />
-                    </div>
-
-                    <div style={{ marginBottom: '24px' }}>
-                      <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', color: '#0A0E17', fontFamily: 'monospace', letterSpacing: '0.05em', textTransform: 'uppercase', marginBottom: '6px' }}>
-                        Team Size
-                      </label>
-                      <select
-                        style={{ width: '100%', padding: '12px 14px', border: '1px solid rgba(10, 14, 23, 0.2)', borderRadius: '0px', background: '#FBFBFA', fontSize: '14px', color: '#0A0E17' }}
-                        value={demoSize}
-                        onChange={(e) => setDemoSize(e.target.value)}
-                      >
-                        <option value="1-10">1-10 employees (Early Stage)</option>
-                        <option value="11-50">11-50 employees (Clinical Phase)</option>
-                        <option value="51-200">51-200 employees (Scaleup)</option>
-                        <option value="200+">200+ employees (CDMO / CRO)</option>
-                      </select>
-                    </div>
-
-                    <button
-                      type="submit"
-                      className={styles.btnLuxuryPrimary}
-                      style={{ width: '100%', padding: '16px', fontSize: '13px', letterSpacing: '0.05em' }}
-                    >
-                      DISPATCH DEMONSTRATION REQUEST →
-                    </button>
-                  </form>
-                )}
-              </div>
+              <p style={{ fontSize: '14px', color: '#475569', lineHeight: '1.6', marginBottom: '16px' }}>
+                Online lead collection is unavailable during controlled recovery. You can contact the product team using your own email application.
+              </p>
+              <p style={{ fontSize: '12px', color: '#64748B', lineHeight: '1.6', marginBottom: '24px' }}>
+                The link below opens your email application; no contact details are submitted through Veritas.
+              </p>
+              <a
+                href="mailto:contact@simpleafied.app?subject=Veritas%20Product%20Walkthrough"
+                className={styles.btnLuxuryPrimary}
+                style={{ display: 'block', width: '100%', padding: '16px', fontSize: '13px', letterSpacing: '0.05em', textAlign: 'center', textDecoration: 'none' }}
+              >
+                EMAIL THE PRODUCT TEAM →
+              </a>
             </div>
           </div>
         )}
@@ -2116,62 +1237,9 @@ export default function Home() {
               </div>
 
               <div>
-                {ssoNotice && (
-                  <div style={{ background: '#FBFBFA', border: '1px solid rgba(10, 14, 23, 0.15)', borderLeft: '3px solid #047857', padding: '14px 16px', fontSize: '12px', color: '#0A0E17', fontFamily: 'monospace', marginBottom: '20px', lineHeight: '1.5' }}>
-                    <div style={{ fontWeight: '700', color: '#047857', marginBottom: '4px' }}>● ENTERPRISE SSO CONFIGURATION</div>
-                    {ssoNotice}
-                  </div>
-                )}
-
-                {/* Enterprise SSO Buttons */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '24px' }}>
-                  <a
-                    href={IAM_URL}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: '12px',
-                      padding: '14px',
-                      fontSize: '13px',
-                      fontWeight: '700',
-                      color: '#FFFFFF',
-                      background: '#059669',
-                      border: 'none',
-                      borderRadius: '0px',
-                      cursor: 'pointer',
-                      textDecoration: 'none',
-                    }}
-                  >
-                    🔐 Sign in with Simpleafied Identity (IAM)
-                  </a>
-                  <button
-                    type="button"
-                    style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px', padding: '14px', fontSize: '13px', fontWeight: '700', color: '#0A0E17', background: '#FBFBFA', border: '1px solid rgba(10, 14, 23, 0.2)', borderRadius: '0px', cursor: 'pointer' }}
-                    onClick={() => {
-                      setSsoNotice('Microsoft 365 Azure AD SSO integration is active. To connect your organization tenant, set AZURE_AD_CLIENT_ID in your Vercel settings, or sign in using your Work Email Address below.');
-                    }}
-                  >
-                    <svg width="18" height="18" viewBox="0 0 23 23"><path fill="#f35325" d="M1 1h10v10H1z"/><path fill="#81bc06" d="M12 1h10v10H12z"/><path fill="#05a6f0" d="M1 12h10v10H1z"/><path fill="#ffba08" d="M12 12h10v10H12z"/></svg>
-                    Sign in with Microsoft 365 (Azure AD)
-                  </button>
-                  <button
-                    type="button"
-                    style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px', padding: '14px', fontSize: '13px', fontWeight: '700', color: '#0A0E17', background: '#FBFBFA', border: '1px solid rgba(10, 14, 23, 0.2)', borderRadius: '0px', cursor: 'pointer' }}
-                    onClick={() => {
-                      setSsoNotice('Google Workspace Cloud Identity SSO initiated. To connect your domain, contact your QA Administrator or sign in using your Work Email Address below.');
-                    }}
-                  >
-                    <svg width="18" height="18" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/></svg>
-                    Sign in with Google Workspace
-                  </button>
-                </div>
-
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', margin: '24px 0', color: '#64748B', fontSize: '11px', fontFamily: 'monospace' }}>
-                  <div style={{ flex: 1, height: '1px', background: 'rgba(10,14,23,0.12)' }} />
-                  <span>OR SIGN IN WITH WORK EMAIL</span>
-                  <div style={{ flex: 1, height: '1px', background: 'rgba(10,14,23,0.12)' }} />
-                </div>
+                <p style={{ margin: '0 0 24px', color: '#64748B', fontSize: '13px', lineHeight: '1.6' }}>
+                  Single sign-on is unavailable during controlled recovery. Existing members can sign in with their work email and password.
+                </p>
 
                 {/* Standard Email Authentication Form */}
                 <form onSubmit={async (e) => { e.preventDefault(); if (loginEmail && loginPassword) { const ok = await handleLoginUser(loginEmail, loginPassword); if (ok) setViewMode('app'); } }}>
@@ -2191,7 +1259,7 @@ export default function Home() {
 
                   <div style={{ marginBottom: '24px' }}>
                     <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', color: '#0A0E17', fontFamily: 'monospace', letterSpacing: '0.05em', textTransform: 'uppercase', marginBottom: '6px' }}>
-                      Password / MFA Code
+                      Password
                     </label>
                     <input
                       style={{ width: '100%', padding: '12px 14px', border: '1px solid rgba(10, 14, 23, 0.2)', borderRadius: '0px', background: '#FBFBFA', fontSize: '14px', color: '#0A0E17' }}
@@ -2216,134 +1284,9 @@ export default function Home() {
           </div>
         )}
 
-        {showRegisterModal && (
-          <div className={styles.modalOverlay}>
-            <div className={styles.modalContent} style={{ maxWidth: '650px' }}>
-              <div className={styles.modalHeader}>
-                <h3>Onboard New Organization & Quality Owner</h3>
-                <button style={{ background: 'transparent', border: 'none', color: '#fff', fontSize: '20px', cursor: 'pointer' }} onClick={() => setShowRegisterModal(false)}>×</button>
-              </div>
-              <form onSubmit={async (e) => { const ok = await handleRegisterCompany(e); if (ok) setViewMode('app'); }}>
-                <div className={styles.modalBody}>
-                  {errorMessage && (
-                    <div style={{ background: 'rgba(239,68,68,0.15)', border: '1px solid #EF4444', color: '#F87171', padding: '10px 14px', borderRadius: '6px', fontSize: '13px', marginBottom: '16px' }}>
-                      ⚠ {errorMessage}
-                    </div>
-                  )}
-                  <div style={{ padding: '12px 16px', background: 'rgba(16,185,129,0.08)', borderRadius: '8px', border: '1px solid rgba(16,185,129,0.2)', marginBottom: '20px' }}>
-                    <div style={{ fontWeight: '600', color: '#10B981', fontSize: '14px' }}>✨ Instant GxP Workspace Provisioning</div>
-                    <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px' }}>
-                      Registering creates your tenant organization and auto-generates your starter SOP library compliant with 21 CFR Part 11 and ISO 13485.
-                    </div>
-                  </div>
-
-                  <div className={styles.formGroup}>
-                    <label className={styles.formLabel}>Company / Organization Name</label>
-                    <input
-                      className={styles.input}
-                      type="text"
-                      placeholder="e.g. Nova Therapeutics Inc."
-                      value={regCompanyName}
-                      onChange={(e) => setRegCompanyName(e.target.value)}
-                      required
-                    />
-                  </div>
-
-                  <div className={styles.grid2} style={{ margin: 0, gap: '12px' }}>
-                    <div className={styles.formGroup}>
-                      <label className={styles.formLabel}>Quality Owner Full Name</label>
-                      <input
-                        className={styles.input}
-                        type="text"
-                        placeholder="e.g. Dr. Sarah Jenkins"
-                        value={regFullName}
-                        onChange={(e) => setRegFullName(e.target.value)}
-                        required
-                      />
-                    </div>
-
-                    <div className={styles.formGroup}>
-                      <label className={styles.formLabel}>Work Email</label>
-                      <input
-                        className={styles.input}
-                        type="email"
-                        placeholder="sarah@novatx.com"
-                        value={regEmail}
-                        onChange={(e) => setRegEmail(e.target.value)}
-                        required
-                      />
-                    </div>
-                  </div>
-
-                  <div className={styles.grid3} style={{ margin: 0, gap: '12px' }}>
-                    <div className={styles.formGroup}>
-                      <label className={styles.formLabel}>Department</label>
-                      <select
-                        className={styles.input}
-                        value={regDepartment}
-                        onChange={(e) => setRegDepartment(e.target.value)}
-                      >
-                        <option value="QA">Quality Assurance (QA)</option>
-                        <option value="QC">Quality Control (QC)</option>
-                        <option value="PRODUCTION">Manufacturing</option>
-                        <option value="REGULATORY">Regulatory Affairs</option>
-                      </select>
-                    </div>
-
-                    <div className={styles.formGroup}>
-                      <label className={styles.formLabel}>User Role</label>
-                      <select
-                        className={styles.input}
-                        value={regRole}
-                        onChange={(e) => setRegRole(e.target.value)}
-                      >
-                        <option value="OWNER">System Owner (Full Admin)</option>
-                        <option value="ADMIN">QA Administrator</option>
-                        <option value="AUDITOR">Auditor</option>
-                      </select>
-                    </div>
-
-                    <div className={styles.formGroup}>
-                      <label className={styles.formLabel}>Primary Standard</label>
-                      <select
-                        className={styles.input}
-                        value={regGxPStandard}
-                        onChange={(e) => setRegGxPStandard(e.target.value)}
-                      >
-                        <option value="21 CFR Part 11 / ISO 13485">21 CFR Part 11 & ISO 13485</option>
-                        <option value="EU Annex 11 / GMP">EU Annex 11 & GMP</option>
-                        <option value="ISO 9001 / GAMP 5">ISO 9001 & GAMP 5</option>
-                      </select>
-                    </div>
-                  </div>
-                </div>
-                <div className={styles.modalFooter}>
-                  <button type="button" className={`${styles.btn} ${styles.btnSecondary}`} onClick={() => setShowRegisterModal(false)}>
-                    Cancel
-                  </button>
-                  <button type="submit" className={`${styles.btn} ${styles.btnPrimary}`}>
-                    Provision GxP Organization
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
-        )}
-
-        {/* ENTERPRISE ONBOARDING WIZARD (LANDING PAGE) */}
-        {showOnboardingWizard && (
-          <OnboardingWizardModal
-            onClose={() => setShowOnboardingWizard(false)}
-            onComplete={async () => {
-              setShowOnboardingWizard(false);
-              window.location.reload();
-            }}
-          />
-        )}
       </div>
     );
   }
-
   return (
     <AppShell
       navGroups={navGroups}
@@ -2371,30 +1314,27 @@ export default function Home() {
         {/* TAB 1: DASHBOARD */}
         {activeTab === 'dashboard' && (
           <div>
-            {/* Veritas Intelligence Health & Attention Center */}
+            {/* Recovery status & attention center */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '20px', marginBottom: '24px' }}>
-              {/* Veritas Intelligence Score */}
+              {/* Compliance scoring containment */}
               <div className={`${styles.card} ${styles.cardGlow}`} style={{ background: 'linear-gradient(135deg, rgba(16,185,129,0.08) 0%, rgba(15,23,42,0.6) 100%)', border: '1px solid rgba(16,185,129,0.25)' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-                  <span style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '1px', color: '#10B981', fontWeight: '700' }}>🛡️ Veritas Intelligence</span>
+                  <span style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '1px', color: '#10B981', fontWeight: '700' }}>🛡️ Compliance status</span>
                   <span style={{ fontSize: '11px', background: 'rgba(16,185,129,0.15)', color: '#10B981', padding: '2px 8px', borderRadius: '4px', fontWeight: '700' }}>
-                    {healthScore?.grade || 'A+'}
+                    Unavailable
                   </span>
                 </div>
 
                 <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px' }}>
-                  <div style={{ fontSize: '48px', fontWeight: '900', color: '#10B981', letterSpacing: '-1px' }}>
-                    {healthScore?.overallScore ?? 98}%
-                  </div>
-                  <span style={{ fontSize: '13px', color: 'var(--text-muted)' }}>Compliance Health</span>
+                  <span style={{ fontSize: '18px', color: 'var(--text-muted)', lineHeight: '1.5' }}>Automated compliance scoring is disabled during recovery.</span>
                 </div>
 
                 <div style={{ fontSize: '13px', fontWeight: '600', color: '#E2E8F0', marginTop: '6px' }}>
-                  {healthScore?.statusLabel || '100% Audit Ready — Continuous Compliance'}
+                  No compliance or audit-readiness conclusion is generated.
                 </div>
 
                 <div style={{ marginTop: '16px', borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: '12px', fontSize: '12px', color: 'var(--text-muted)' }}>
-                  Active Engine Check: FDA 21 CFR Part 11, EU Annex 11, ISO 13485:2016
+                  Status metrics require an approved model, traceable source data, and validation evidence.
                 </div>
               </div>
 
@@ -2402,9 +1342,7 @@ export default function Home() {
               <div className={styles.card}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
                   <div className={styles.cardTitle} style={{ margin: 0 }}>⚡ What Requires My Attention Today?</div>
-                  <a href="/api/reports/export?module=documents" target="_blank" className={`${styles.btn} ${styles.btnSecondary}`} style={{ fontSize: '12px', padding: '4px 10px' }}>
-                    📥 Export GxP Audit Log (CSV)
-                  </a>
+                  <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Sensitive exports unavailable during recovery</span>
                 </div>
 
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px' }}>
@@ -2421,9 +1359,9 @@ export default function Home() {
                   </div>
 
                   <div style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', padding: '12px', borderRadius: '8px' }}>
-                    <div style={{ fontSize: '11px', color: '#EF4444', fontWeight: '700', textTransform: 'uppercase' }}>Open CAPAs</div>
-                    <div style={{ fontSize: '24px', fontWeight: '800', color: '#FFF', marginTop: '4px' }}>{capas.filter(c => c.status !== 'CLOSED').length}</div>
-                    <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>Active Actions</div>
+                    <div style={{ fontSize: '11px', color: '#EF4444', fontWeight: '700', textTransform: 'uppercase' }}>Quality Events</div>
+                    <div style={{ fontSize: '24px', fontWeight: '800', color: '#FFF', marginTop: '4px' }}>—</div>
+                    <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>Unavailable during recovery</div>
                   </div>
 
                   <div style={{ background: 'rgba(168,85,247,0.08)', border: '1px solid rgba(168,85,247,0.2)', padding: '12px', borderRadius: '8px' }}>
@@ -2452,17 +1390,6 @@ export default function Home() {
                 <div className={styles.statVal}>{statPendingApprovals}</div>
                 <div className={styles.statLabel}>Requires sign-off approval to release</div>
               </div>
-            </div>
-
-            {/* Analytics Charts */}
-            <div style={{ marginTop: '24px' }}>
-              <DashboardAnalytics
-                documents={documents}
-                deviations={deviations}
-                capas={capas}
-                trainings={trainings}
-                equipment={equipmentList}
-              />
             </div>
 
             <div className={styles.grid2} style={{ marginTop: '24px' }}>
@@ -2500,120 +1427,15 @@ export default function Home() {
                 </div>
               </div>
 
-              {/* Persona Guide Info */}
+              {/* Authorization boundary notice */}
               <div className={styles.card}>
-                <div className={styles.cardTitle}>Active Persona Context</div>
+                <div className={styles.cardTitle}>Current Session</div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                  <p>You are logged in as <strong>{currentUser?.fullName}</strong> with role <strong>{currentUser?.role}</strong>.</p>
+                  <p>You are signed in as <strong>{currentUser?.fullName}</strong>.</p>
                   <div className="glass" style={{ padding: '12px', background: 'rgba(255,255,255,0.02)', fontSize: '13px' }}>
-                    <strong>Capabilities for your role:</strong>
-                    <ul style={{ paddingLeft: '20px', marginTop: '6px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                      {currentUser?.role === 'ADMIN' && (
-                        <>
-                          <li>Create, edit, delete, and approve all documents</li>
-                          <li>Access full compliance audit trail and CSV exports</li>
-                          <li>View entire training matrix</li>
-                        </>
-                      )}
-                      {currentUser?.role === 'OWNER' && (
-                        <>
-                          <li>Upload new document drafts and update metadata</li>
-                          <li>View documents (with restricted ABAC clearance checking)</li>
-                          <li>View training matrix</li>
-                        </>
-                      )}
-                      {currentUser?.role === 'APPROVER' && (
-                        <>
-                          <li>Approve & sign release manifests (e-signature)</li>
-                          <li>View documents and download content</li>
-                        </>
-                      )}
-                      {currentUser?.role === 'EMPLOYEE' && (
-                        <>
-                          <li>View released effective documents</li>
-                          <li>Complete assigned training tasks and quizzes</li>
-                        </>
-                      )}
-                      {currentUser?.role === 'AUDITOR' && (
-                        <>
-                          <li>View effective documents (read-only audit portal)</li>
-                          <li>Export full chronological audit logs</li>
-                        </>
-                      )}
-                    </ul>
+                    Effective access is determined by the active IAM membership and persisted permission assignments on every server request. The operational role shown in profile data is descriptive and does not grant capabilities.
                   </div>
-                  <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Use the top right selector to switch personas and test different access limits.</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Quality Actions / CAPA Checklist Row */}
-            <div className={styles.grid2} style={{ marginTop: '24px' }}>
-              <div className={styles.card}>
-                <div className={styles.cardTitle}>My Assigned Open CAPAs</div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '12px' }}>
-                  {capas.filter(c => c.assignedToId === currentUser?.id && c.status !== 'CLOSED').length > 0 ? (
-                    capas.filter(c => c.assignedToId === currentUser?.id && c.status !== 'CLOSED').map((c) => (
-                      <div key={c.id} className="glass" style={{ padding: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <div>
-                          <strong style={{ fontSize: '14px', color: '#fff' }}>{c.title}</strong>
-                          <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '4px' }}>
-                            Due: {new Date(c.dueDate).toLocaleDateString()} | Related Dev: {c.deviation?.title || 'None'}
-                          </div>
-                        </div>
-                        <button 
-                          className={`${styles.btn} ${styles.btnPrimary}`}
-                          style={{ fontSize: '12px', padding: '6px 12px' }}
-                          onClick={() => {
-                            setSelectedCapaId(c.id);
-                            setShowCapaSignModal(true);
-                          }}
-                        >
-                          E-Sign & Complete
-                        </button>
-                      </div>
-                    ))
-                  ) : (
-                    <div style={{ padding: '16px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '13px' }}>
-                      ✓ No pending CAPA assignments.
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              <div className={styles.card}>
-                <div className={styles.cardTitle}>Recent Quality Deviations</div>
-                <div className={styles.tableWrapper} style={{ marginTop: '12px' }}>
-                  <table className={styles.table}>
-                    <thead>
-                      <tr>
-                        <th>ID/Title</th>
-                        <th>Classification</th>
-                        <th>Status</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {deviations.slice(0, 3).map((d) => (
-                        <tr key={d.id} className={styles.tableRow}>
-                          <td style={{ fontWeight: '600' }}>{d.title.split(':')[0]}</td>
-                          <td>
-                            <strong style={{ 
-                              color: d.classification === 'CRITICAL' ? 'var(--danger)' : 
-                                     d.classification === 'MAJOR' ? 'var(--warning)' : '#10B981',
-                              fontSize: '12px'
-                            }}>{d.classification}</strong>
-                          </td>
-                          <td>
-                            <span className={`${styles.badge} ${
-                              d.status === 'CLOSED' ? styles.badgeEffective : styles.badgeReview
-                            }`}>
-                              {d.status}
-                            </span>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                  <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Sign out or complete a new authenticated sign-in to change identity.</span>
                 </div>
               </div>
             </div>
@@ -2627,7 +1449,7 @@ export default function Home() {
             <div>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
                 <h2>eQMS Document Repository</h2>
-                {(currentUser?.role === 'ADMIN' || currentUser?.role === 'OWNER') && (
+                {canAuthorDocuments && (
                   <button className={`${styles.btn} ${styles.btnPrimary}`} onClick={() => setShowCreateModal(true)}>
                     + New Document Draft
                   </button>
@@ -2645,9 +1467,14 @@ export default function Home() {
                     <div className={styles.docLeft}>
                       <span className={styles.docTitle}>{doc.title}</span>
                       <div className={styles.docMeta}>
+                        <span>{doc.documentNumber || 'LEGACY'}</span>
+                        <span>{doc.documentType}</span>
                         <span>Owner: {doc.owner.fullName}</span>
                         <span>Ver: {doc.currentVersionNumber}.0</span>
                         <span>Scope: {doc.classification}</span>
+                        {doc.versions.find((version) => version.versionNumber === doc.currentVersionNumber)?.effectiveDate && (
+                          <span>Effective: {new Date(doc.versions.find((version) => version.versionNumber === doc.currentVersionNumber)!.effectiveDate!).toLocaleDateString()}</span>
+                        )}
                       </div>
                     </div>
                     <div className={styles.docRight}>
@@ -2655,7 +1482,7 @@ export default function Home() {
                         doc.status === 'EFFECTIVE' ? styles.badgeEffective :
                         doc.status === 'DRAFT' ? styles.badgeDraft : styles.badgeReview
                       }`}>
-                        {doc.status}
+                        {doc.status.replaceAll('_', ' ')}
                       </span>
                     </div>
                   </div>
@@ -2674,7 +1501,7 @@ export default function Home() {
                       selectedDoc.status === 'EFFECTIVE' ? styles.badgeEffective :
                       selectedDoc.status === 'DRAFT' ? styles.badgeDraft : styles.badgeReview
                     }`}>
-                      {selectedDoc.status}
+                      {selectedDoc.status.replaceAll('_', ' ')}
                     </span>
                   </div>
                   
@@ -2686,12 +1513,12 @@ export default function Home() {
 
                     <div className={styles.grid3} style={{ margin: 0, gap: '12px' }}>
                       <div>
-                        <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Owner</span>
-                        <div style={{ fontWeight: '600' }}>{selectedDoc.owner.fullName}</div>
+                        <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Document Number</span>
+                        <div style={{ fontWeight: '600' }}>{selectedDoc.documentNumber || 'LEGACY'}</div>
                       </div>
                       <div>
-                        <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Classification</span>
-                        <div style={{ fontWeight: '600' }}>{selectedDoc.classification}</div>
+                        <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Type / Classification</span>
+                        <div style={{ fontWeight: '600' }}>{selectedDoc.documentType} / {selectedDoc.classification}</div>
                       </div>
                       <div>
                         <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Current Version</span>
@@ -2709,102 +1536,80 @@ export default function Home() {
                       </div>
                     )}
 
-                    {/* Version History & Signature Manifests */}
+                    {/* Immutable version history and workflow assignments */}
                     <div>
-                      <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Version History & Signatures</span>
+                      <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Version History & Workflow</span>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '8px' }}>
                         {selectedDoc.versions.map((ver) => (
                           <div key={ver.id} className="glass" style={{ padding: '12px', fontSize: '13px', background: 'rgba(0,0,0,0.1)' }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: '600' }}>
-                              <span>Version {ver.versionNumber}.0</span>
+                              <span>Version {ver.versionNumber}.0 · {ver.status.replaceAll('_', ' ')}</span>
                               <span style={{ color: 'var(--text-muted)', fontSize: '11px' }}>{new Date(ver.createdAt).toLocaleDateString()}</span>
                             </div>
                             <div style={{ color: 'var(--text-muted)', fontSize: '12px', marginTop: '2px' }}>
                               Integrity Hash: <span style={{ fontFamily: 'var(--font-mono)', fontSize: '10px' }}>{ver.hash.substring(0, 16)}...</span>
                             </div>
-                            {ver.signatureManifest ? (
-                              <div style={{ marginTop: '8px', padding: '6px 8px', background: 'rgba(16, 185, 129, 0.08)', borderRadius: '4px', border: '1px solid rgba(16, 185, 129, 0.2)' }}>
-                                <div style={{ color: '#34D399', fontWeight: '600', fontSize: '11px' }}>E-SIGNED COMPLIANT (21 CFR Part 11)</div>
-                                <div style={{ fontSize: '12px' }}>
-                                  Signed by: {ver.signatureManifest.signer.fullName} ({ver.signatureManifest.signer.role})
-                                </div>
-                                <div style={{ color: 'var(--text-muted)', fontSize: '11px' }}>
-                                  Meaning: {ver.signatureManifest.meaning} | IP: {ver.signatureManifest.ipAddress}
-                                </div>
+                            {ver.effectiveDate && <div style={{ fontSize: '11px' }}>Effective: {new Date(ver.effectiveDate).toLocaleString()}</div>}
+                            {ver.changeSummary && <div style={{ fontSize: '11px' }}>Change: {ver.changeSummary}</div>}
+                            {ver.approvalRoutes?.[0]?.steps?.map((step) => (
+                              <div key={step.id} style={{ fontSize: '11px', marginTop: '4px' }}>
+                                {step.stepType}: {step.approver.fullName} — {step.status}
                               </div>
-                            ) : (
-                              <div style={{ marginTop: '8px', color: 'var(--warning)', fontSize: '11px', fontWeight: '600' }}>
-                                PENDING E-SIGNATURE APPROVAL
-                              </div>
-                            )}
+                            ))}
+                            <a href={`/api/documents/${selectedDoc.id}/pdf?raw=true&version=${ver.versionNumber}`} target="_blank" rel="noreferrer" style={{ fontSize: '11px' }}>
+                              Download retained version
+                            </a>
                           </div>
                         ))}
                       </div>
                     </div>
 
                     {/* Action buttons */}
-                    <div style={{ display: 'flex', gap: '12px', marginTop: '8px' }}>
-                      {(selectedDoc.status === 'DRAFT' || selectedDoc.status === 'IN_REVIEW') && 
-                       (currentUser?.role === 'OWNER' || currentUser?.role === 'APPROVER' || currentUser?.role === 'ADMIN') && (
-                        <button className={`${styles.btn} ${styles.btnPrimary}`} onClick={() => setShowApproveModal(true)}>
-                          Execute E-Sign & Release
-                        </button>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', marginTop: '8px' }}>
+                      {selectedDoc.status === 'DRAFT' && canAuthorDocuments && (
+                        <>
+                          <button className={`${styles.btn} ${styles.btnSecondary}`} onClick={() => handleReplaceDraftFile(selectedDoc.id)}>Replace Draft File</button>
+                          <button className={`${styles.btn} ${styles.btnPrimary}`} onClick={handleSubmitForReview}>Submit for Review</button>
+                        </>
                       )}
-                      
-                      {selectedDoc.status === 'EFFECTIVE' && (
-                        <a 
-                          href={`/api/documents/${selectedDoc.id}/pdf`} 
-                          target="_blank" 
-                          rel="noreferrer"
-                          className={`${styles.btn} ${styles.btnSecondary}`}
-                        >
-                          View Watermarked PDF
-                        </a>
+                      {selectedDoc.status === 'IN_REVIEW' && isAssignedReviewer && (
+                        <>
+                          <button className={`${styles.btn} ${styles.btnSecondary}`} onClick={() => handleReviewDocument('COMPLETE')}>Complete Assigned Review</button>
+                          <button className={`${styles.btn} ${styles.btnSecondary}`} onClick={() => handleReviewDocument('RETURN')}>Return for Changes</button>
+                        </>
                       )}
+                      {selectedDoc.status === 'IN_REVIEW' && isAssignedApprover && assignedReviewStep?.status === 'COMPLETED' && (
+                        <button className={`${styles.btn} ${styles.btnPrimary}`} onClick={() => setShowApproveModal(true)}>Record Assigned Approval</button>
+                      )}
+                      {selectedDoc.status === 'APPROVED' && (
+                        <span style={{ fontSize: '12px', color: 'var(--warning)' }}>
+                          Release unavailable pending distinct release authority.
+                        </span>
+                      )}
+                      {canObsoleteDocuments && ['DRAFT', 'APPROVED', 'EFFECTIVE'].includes(selectedDoc.status) && (
+                        <button className={`${styles.btn} ${styles.btnSecondary}`} onClick={handleObsoleteDocument}>Mark Obsolete</button>
+                      )}
+                      <a href={`/api/documents/${selectedDoc.id}/pdf`} target="_blank" rel="noreferrer" className={`${styles.btn} ${styles.btnSecondary}`}>
+                        View Controlled Copy
+                      </a>
                     </div>
 
-                    {selectedDoc.status === 'EFFECTIVE' && (
+                    {selectedDoc.status === 'EFFECTIVE' && canAuthorDocuments && (
                       <div className="glass" style={{ padding: '16px', background: 'rgba(255, 255, 255, 0.02)', marginTop: '12px', borderStyle: 'dashed' }}>
-                        <h4 style={{ marginBottom: '8px', color: 'var(--primary)' }}>SOP Revision Lock (GxP)</h4>
-                        {changeRequests.some(cr => cr.status === 'APPROVED' && cr.documents.some(d => d.documentId === selectedDoc.id)) ? (
-                          <div>
-                            <p style={{ fontSize: '13px', color: '#34D399', marginBottom: '12px', fontWeight: '500' }}>
-                              ✓ Approved Change Request detected. Revision lock opened.
-                            </p>
-                            <button 
-                              className={`${styles.btn} ${styles.btnPrimary}`}
-                              onClick={() => handleUploadNewVersion(selectedDoc.id)}
-                            >
-                              Draft Revision v{selectedDoc.currentVersionNumber + 1}.0
-                            </button>
-                          </div>
-                        ) : (
-                          <div>
-                            <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '12px' }}>
-                              ⚠ Revisions locked. A Change Request must be created and approved by QA before you can draft a new version.
-                            </p>
-                            {(currentUser?.role === 'ADMIN' || currentUser?.role === 'OWNER') && (
-                              <button 
-                                className={`${styles.btn} ${styles.btnSecondary}`}
-                                onClick={() => {
-                                  setNewCRDocIds([selectedDoc.id]);
-                                  setNewCRTitle(`CR: Revise ${selectedDoc.title.split(':')[0]}`);
-                                  setActiveTab('change-control');
-                                  setShowCreateCRModal(true);
-                                }}
-                              >
-                                Initiate Change Request
-                              </button>
-                            )}
-                          </div>
-                        )}
+                        <h4 style={{ marginBottom: '8px', color: 'var(--primary)' }}>Controlled Revision</h4>
+                        <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '12px' }}>
+                          Create a new draft with a required reason and replacement source file. The effective version remains immutable and available until the new revision completes the lifecycle.
+                        </p>
+                        <button className={`${styles.btn} ${styles.btnPrimary}`} onClick={() => handleUploadNewVersion(selectedDoc.id)}>
+                          Create Draft Revision v{selectedDoc.currentVersionNumber + 1}.0
+                        </button>
                       </div>
                     )}
                   </div>
                 </div>
               ) : (
                 <div className="glass" style={{ padding: '32px', textAlign: 'center', color: 'var(--text-muted)', marginTop: '16px' }}>
-                  Select a document from the repository to view metadata, version history, e-signatures, and access options.
+                  Select a document to view its controlled metadata, retained version history, assignments, and permitted lifecycle actions.
                 </div>
               )}
             </div>
@@ -2842,18 +1647,12 @@ export default function Home() {
                         </span>
                         
                         {tr.status === 'ASSIGNED' ? (
-                          <button 
-                            className={`${styles.btn} ${styles.btnPrimary}`}
-                            onClick={() => {
-                              setSelectedTrainingId(tr.id);
-                              setShowTrainingModal(true);
-                            }}
-                          >
-                            Open Reader & Take Quiz
-                          </button>
+                          <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+                            Quiz and sign-off unavailable during recovery
+                          </span>
                         ) : (
                           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#10B981', fontWeight: '600', fontSize: '13px' }}>
-                            ✓ Quiz Passed ({tr.quizResult?.score ?? 100}%)
+                            {tr.quizResult ? `Recorded quiz result (${tr.quizResult.score}%)` : 'Completion previously recorded'}
                           </div>
                         )}
                       </div>
@@ -2872,7 +1671,7 @@ export default function Home() {
               <h2>eQMS Training Compliance Matrix</h2>
               <div className={styles.card} style={{ marginTop: '16px' }}>
                 <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '16px' }}>
-                  Complete list of all active assignments in the tenant, ensuring compliance audits are training-complete.
+                  Tenant assignment status view. Completeness and regulatory suitability have not been independently validated.
                 </div>
 
                 <div className={styles.tableWrapper}>
@@ -2912,437 +1711,6 @@ export default function Home() {
                   </table>
                 </div>
               </div>
-            </div>
-          </div>
-        )}
-
-        {/* TAB 5: CHANGE CONTROL */}
-        {activeTab === 'change-control' && (
-          <div className={styles.grid2}>
-            {/* Change Requests List */}
-            <div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-                <h2>Quality Change Control</h2>
-                {(currentUser?.role === 'ADMIN' || currentUser?.role === 'OWNER') && (
-                  <button 
-                    className={`${styles.btn} ${styles.btnPrimary}`} 
-                    onClick={() => setShowCreateCRModal(true)}
-                  >
-                    + New Change Request
-                  </button>
-                )}
-              </div>
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                {changeRequests.map((cr) => (
-                  <div 
-                    key={cr.id} 
-                    className={styles.card}
-                    onClick={() => setSelectedCRId(cr.id)}
-                    style={{ cursor: 'pointer', borderColor: selectedCRId === cr.id ? 'var(--primary)' : 'rgba(255,255,255,0.06)' }}
-                  >
-                    <div className={styles.cardTitle}>
-                      <span>{cr.title}</span>
-                      <span className={`${styles.badge} ${
-                        cr.status === 'CLOSED' ? styles.badgeEffective :
-                        cr.status === 'APPROVED' ? styles.badgeReview : styles.badgeDraft
-                      }`}>
-                        {cr.status}
-                      </span>
-                    </div>
-                    <p style={{ fontSize: '13px', color: 'var(--text-muted)' }}>
-                      Risk Level: <strong style={{ 
-                        color: cr.riskLevel === 'HIGH' ? 'var(--danger)' : 
-                               cr.riskLevel === 'MEDIUM' ? 'var(--warning)' : '#10B981' 
-                      }}>{cr.riskLevel}</strong>
-                    </p>
-                    <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '8px' }}>
-                      Linked Docs: {cr.documents.map(d => (d.document?.title || 'Document').split(':')[0]).join(', ')}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Change Request Detail Panel */}
-            <div>
-              <h2>Change Request Details</h2>
-              {selectedCRId && changeRequests.find(c => c.id === selectedCRId) ? (
-                (() => {
-                  const cr = changeRequests.find(c => c.id === selectedCRId)!;
-                  return (
-                    <div className={styles.card} style={{ marginTop: '16px' }}>
-                      <div className={styles.cardTitle}>
-                        <span>{cr.title}</span>
-                        <span className={`${styles.badge} ${
-                          cr.status === 'CLOSED' ? styles.badgeEffective :
-                          cr.status === 'APPROVED' ? styles.badgeReview : styles.badgeDraft
-                        }`}>
-                          {cr.status}
-                        </span>
-                      </div>
-                      
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                        <div>
-                          <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Reason for Change</span>
-                          <p style={{ marginTop: '4px', fontSize: '14px' }}>{cr.reason}</p>
-                        </div>
-
-                        <div className={styles.grid3} style={{ margin: 0, gap: '12px' }}>
-                          <div>
-                            <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Risk Level</span>
-                            <div style={{ fontWeight: '600', color: cr.riskLevel === 'HIGH' ? 'var(--danger)' : cr.riskLevel === 'MEDIUM' ? 'var(--warning)' : '#10B981' }}>{cr.riskLevel}</div>
-                          </div>
-                          <div>
-                            <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Created</span>
-                            <div style={{ fontWeight: '600' }}>{new Date(cr.createdAt).toLocaleDateString()}</div>
-                          </div>
-                        </div>
-
-                        {cr.riskLevel === 'HIGH' && (
-                          <div className="glass" style={{ padding: '12px', borderColor: 'var(--danger)', background: 'rgba(239, 68, 68, 0.03)', color: '#F87171', fontSize: '13px' }}>
-                            <strong>HIGH RISK ASSESSMENT:</strong> Formal training, reading logs, and passing quiz verification scores are mandatory upon release.
-                          </div>
-                        )}
-
-                        <div>
-                          <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Impacted Documents</span>
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '6px' }}>
-                            {cr.documents.map((d) => (
-                              <div key={d.documentId} className="glass" style={{ padding: '10px 12px', fontSize: '13px', background: 'rgba(0,0,0,0.15)' }}>
-                                <div style={{ fontWeight: '600' }}>{d.document?.title || 'Document'}</div>
-                                <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
-                                  Current Status: <span style={{ color: d.document?.status === 'EFFECTIVE' ? '#10B981' : 'var(--warning)' }}>{d.document?.status || 'DRAFT'}</span>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-
-                        {/* Sign-off buttons */}
-                        <div style={{ display: 'flex', gap: '12px', marginTop: '8px' }}>
-                          {cr.status === 'UNDER_REVIEW' && (currentUser?.role === 'APPROVER' || currentUser?.role === 'ADMIN') && (
-                            <button 
-                              className={`${styles.btn} ${styles.btnPrimary}`}
-                              onClick={() => {
-                                setEsignCRAction('APPROVE');
-                                setShowCRSignModal(true);
-                              }}
-                            >
-                              Sign-off Approval (Unlock Edit)
-                            </button>
-                          )}
-                          {cr.status === 'APPROVED' && (currentUser?.role === 'APPROVER' || currentUser?.role === 'ADMIN') && (
-                            <button 
-                              className={`${styles.btn} ${styles.btnPrimary}`}
-                              onClick={() => {
-                                setEsignCRAction('CLOSE');
-                                setShowCRSignModal(true);
-                              }}
-                              style={{ background: 'var(--secondary)' }}
-                            >
-                              Sign-off Closure
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })()
-              ) : (
-                <div className="glass" style={{ padding: '32px', textAlign: 'center', color: 'var(--text-muted)', marginTop: '16px' }}>
-                  Select a Change Request from the list to review risk mitigation, linked SOPs, and QA approval options.
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* TAB 6: QUALITY EVENTS (DEVIATIONS & CAPA) */}
-        {activeTab === 'quality-events' && (
-          <div className={styles.grid2}>
-            {/* Column 1: Lists of Deviations & CAPAs */}
-            <div>
-              {/* Deviations Panel */}
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-                <h2>Quality Deviations</h2>
-                <button 
-                  className={`${styles.btn} ${styles.btnPrimary}`} 
-                  onClick={() => setShowCreateDeviationModal(true)}
-                >
-                  + Log Deviation
-                </button>
-              </div>
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '24px' }}>
-                {deviations.length > 0 ? (
-                  deviations.map((d) => (
-                    <div 
-                      key={d.id} 
-                      className={styles.card}
-                      onClick={() => {
-                        setSelectedDeviationId(d.id);
-                        setSelectedCapaId(null);
-                      }}
-                      style={{ cursor: 'pointer', borderColor: selectedDeviationId === d.id ? 'var(--primary)' : 'rgba(255,255,255,0.06)' }}
-                    >
-                      <div className={styles.cardTitle}>
-                        <span>{d.title}</span>
-                        <span className={`${styles.badge} ${
-                          d.status === 'CLOSED' ? styles.badgeEffective : styles.badgeDraft
-                        }`}>
-                          {d.status}
-                        </span>
-                      </div>
-                      <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '4px' }}>
-                        Classification: <strong style={{ 
-                          color: d.classification === 'CRITICAL' ? 'var(--danger)' : 
-                                 d.classification === 'MAJOR' ? 'var(--warning)' : '#10B981' 
-                        }}>{d.classification}</strong>
-                      </p>
-                      <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '8px' }}>
-                        Logged by: {d.detectedBy?.fullName} | Date: {new Date(d.createdAt).toLocaleDateString()}
-                      </div>
-                    </div>
-                  ))
-                ) : (
-                  <div className="glass" style={{ padding: '20px', textAlign: 'center', color: 'var(--text-muted)' }}>
-                    No deviations logged in this tenant.
-                  </div>
-                )}
-              </div>
-
-              {/* CAPAs Panel */}
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-                <h2>CAPA Actions</h2>
-                {(currentUser?.role === 'ADMIN' || currentUser?.role === 'OWNER') && (
-                  <button 
-                    className={`${styles.btn} ${styles.btnSecondary}`} 
-                    onClick={() => {
-                      setNewCapaDeviationId(null);
-                      setShowCreateCapaModal(true);
-                    }}
-                  >
-                    + New CAPA
-                  </button>
-                )}
-              </div>
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                {capas.length > 0 ? (
-                  capas.map((c) => (
-                    <div 
-                      key={c.id} 
-                      className={styles.card}
-                      onClick={() => {
-                        setSelectedCapaId(c.id);
-                        setSelectedDeviationId(null);
-                      }}
-                      style={{ cursor: 'pointer', borderColor: selectedCapaId === c.id ? 'var(--secondary)' : 'rgba(255,255,255,0.06)' }}
-                    >
-                      <div className={styles.cardTitle}>
-                        <span>{c.title}</span>
-                        <span className={`${styles.badge} ${
-                          c.status === 'CLOSED' ? styles.badgeEffective : styles.badgeReview
-                        }`}>
-                          {c.status}
-                        </span>
-                      </div>
-                      <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '4px' }}>
-                        Assignee: <strong>{c.assignedTo?.fullName}</strong>
-                      </p>
-                      <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '8px' }}>
-                        Due: {new Date(c.dueDate).toLocaleDateString()} {c.deviation && `| Dev ID: ${c.deviation.title.split(':')[0]}`}
-                      </div>
-                    </div>
-                  ))
-                ) : (
-                  <div className="glass" style={{ padding: '20px', textAlign: 'center', color: 'var(--text-muted)' }}>
-                    No CAPA tasks logged in this tenant.
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Column 2: Selected Item Detail panel */}
-            <div>
-              {selectedDeviationId && deviations.find(d => d.id === selectedDeviationId) && (
-                (() => {
-                  const d = deviations.find(d => d.id === selectedDeviationId)!;
-                  return (
-                    <div>
-                      <h2>Deviation Details</h2>
-                      <div className={styles.card} style={{ marginTop: '16px' }}>
-                        <div className={styles.cardTitle}>
-                          <span>{d.title}</span>
-                          <span className={`${styles.badge} ${
-                            d.status === 'CLOSED' ? styles.badgeEffective : styles.badgeDraft
-                          }`}>
-                            {d.status}
-                          </span>
-                        </div>
-
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginTop: '16px' }}>
-                          <div>
-                            <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Event Description</span>
-                            <p style={{ marginTop: '4px', fontSize: '14px' }}>{d.description}</p>
-                          </div>
-
-                          <div className={styles.grid3} style={{ margin: 0, gap: '12px' }}>
-                            <div>
-                              <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Classification</span>
-                              <div style={{ fontWeight: '600', color: d.classification === 'CRITICAL' ? 'var(--danger)' : d.classification === 'MAJOR' ? 'var(--warning)' : '#10B981' }}>
-                                {d.classification}
-                              </div>
-                            </div>
-                            <div>
-                              <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Logged By</span>
-                              <div style={{ fontWeight: '600' }}>{d.detectedBy?.fullName}</div>
-                            </div>
-                            <div>
-                              <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Date Logged</span>
-                              <div style={{ fontWeight: '600' }}>{new Date(d.createdAt).toLocaleDateString()}</div>
-                            </div>
-                          </div>
-
-                          <div className="glass" style={{ padding: '16px', background: 'rgba(0,0,0,0.15)' }}>
-                            <span style={{ fontSize: '12px', color: 'var(--text-muted)', display: 'block', marginBottom: '6px' }}>Root Cause & Investigation Details</span>
-                            {d.investigationNotes ? (
-                              <p style={{ fontSize: '13px' }}>{d.investigationNotes}</p>
-                            ) : (
-                              <p style={{ fontSize: '13px', color: 'var(--text-muted)', fontStyle: 'italic' }}>No investigation notes logged yet.</p>
-                            )}
-                            {d.investigator && (
-                              <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '8px' }}>
-                                Assigned Investigator: <strong>{d.investigator.fullName}</strong>
-                              </div>
-                            )}
-                          </div>
-
-                          {/* Linked CAPAs list */}
-                          <div>
-                            <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Linked CAPA Actions</span>
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '6px' }}>
-                              {d.capas && d.capas.length > 0 ? (
-                                d.capas.map((c) => (
-                                  <div key={c.id} className="glass" style={{ padding: '8px 12px', fontSize: '13px', background: 'rgba(255,255,255,0.02)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                    <div>
-                                      <span>{c.title}</span>
-                                      <span style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'block' }}>Assignee: {c.assignedTo?.fullName}</span>
-                                    </div>
-                                    <span className={`${styles.badge} ${c.status === 'CLOSED' ? styles.badgeEffective : styles.badgeReview}`} style={{ fontSize: '10px' }}>
-                                      {c.status}
-                                    </span>
-                                  </div>
-                                ))
-                              ) : (
-                                <div style={{ fontSize: '12px', color: 'var(--text-muted)', fontStyle: 'italic' }}>No preventive actions linked.</div>
-                              )}
-                            </div>
-                          </div>
-
-                          {/* Investigation and CAPA actions buttons */}
-                          <div style={{ display: 'flex', gap: '12px', marginTop: '8px' }}>
-                            {currentUser?.role !== 'EMPLOYEE' && (
-                              <button 
-                                className={`${styles.btn} ${styles.btnPrimary}`}
-                                onClick={() => {
-                                  setInvestigationNotes(d.investigationNotes || '');
-                                  setInvestigationStatus(d.status);
-                                  setInvestigationInvestigatorId(d.investigatorId || '');
-                                  setShowDeviationInvestigateModal(true);
-                                }}
-                              >
-                                Investigate & Log Root Cause
-                              </button>
-                            )}
-                            {d.status !== 'CLOSED' && (currentUser?.role === 'ADMIN' || currentUser?.role === 'OWNER') && (
-                              <button 
-                                className={`${styles.btn} ${styles.btnSecondary}`}
-                                onClick={() => {
-                                  setNewCapaDeviationId(d.id);
-                                  setNewCapaTitle(`CAPA: Prevent recurrence of DEV-${d.title.split(':')[0]}`);
-                                  setShowCreateCapaModal(true);
-                                }}
-                              >
-                                + Link CAPA
-                              </button>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })()
-              )}
-
-              {selectedCapaId && capas.find(c => c.id === selectedCapaId) && (
-                (() => {
-                  const c = capas.find(c => c.id === selectedCapaId)!;
-                  return (
-                    <div>
-                      <h2>CAPA Details</h2>
-                      <div className={styles.card} style={{ marginTop: '16px' }}>
-                        <div className={styles.cardTitle}>
-                          <span>{c.title}</span>
-                          <span className={`${styles.badge} ${
-                            c.status === 'CLOSED' ? styles.badgeEffective : styles.badgeReview
-                          }`}>
-                            {c.status}
-                          </span>
-                        </div>
-
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginTop: '16px' }}>
-                          <div>
-                            <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Action Plan Details</span>
-                            <p style={{ marginTop: '4px', fontSize: '14px' }}>{c.actionPlan}</p>
-                          </div>
-
-                          <div className={styles.grid2} style={{ margin: 0, gap: '12px' }}>
-                            <div>
-                              <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Assigned To</span>
-                              <div style={{ fontWeight: '600' }}>{c.assignedTo?.fullName} ({c.assignedTo?.department})</div>
-                            </div>
-                            <div>
-                              <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Due Date</span>
-                              <div style={{ fontWeight: '600', color: new Date(c.dueDate) < new Date() && c.status !== 'CLOSED' ? 'var(--danger)' : '#fff' }}>
-                                {new Date(c.dueDate).toLocaleDateString()} {new Date(c.dueDate) < new Date() && c.status !== 'CLOSED' && ' (OVERDUE)'}
-                              </div>
-                            </div>
-                          </div>
-
-                          {c.deviation && (
-                            <div className="glass" style={{ padding: '12px', background: 'rgba(0,0,0,0.1)' }}>
-                              <span style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'block' }}>Triggered by Deviation</span>
-                              <strong style={{ fontSize: '13px', display: 'block', marginTop: '4px' }}>{c.deviation.title}</strong>
-                            </div>
-                          )}
-
-                          {c.status !== 'CLOSED' && (currentUser?.role === 'ADMIN' || currentUser?.id === c.assignedToId) && (
-                            <div style={{ marginTop: '8px' }}>
-                              <button 
-                                className={`${styles.btn} ${styles.btnPrimary}`}
-                                onClick={() => {
-                                  setEsignCapaPassword('');
-                                  setShowCapaSignModal(true);
-                                }}
-                              >
-                                Sign-off & Close CAPA (E-Sign)
-                              </button>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })()
-              )}
-
-              {!selectedDeviationId && !selectedCapaId && (
-                <div className="glass" style={{ padding: '32px', textAlign: 'center', color: 'var(--text-muted)', marginTop: '16px' }}>
-                  Select a Deviation or CAPA from the left lists to view investigation logs, root cause analysis, action items, and electronic sign-offs.
-                </div>
-              )}
             </div>
           </div>
         )}
@@ -3462,41 +1830,6 @@ export default function Home() {
                       </div>
                     </div>
 
-                    {/* Action Button */}
-                    {(currentUser?.role === 'ADMIN' || currentUser?.role === 'OWNER') && (
-                      <div>
-                        <button
-                          className={`${styles.btn} ${styles.btnPrimary}`}
-                          onClick={() => setShowLogMaintenanceModal(true)}
-                        >
-                          📋 Log Calibration / Maintenance Activity
-                        </button>
-                      </div>
-                    )}
-
-                    {/* Linked Deviations */}
-                    {selectedEquipment.deviations && selectedEquipment.deviations.length > 0 && (
-                      <div>
-                        <h4 style={{ marginBottom: '8px', color: 'var(--danger)' }}>⚠ Linked Deviations</h4>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                          {selectedEquipment.deviations.map((dev) => (
-                            <div key={dev.id} className="glass" style={{ padding: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                              <div>
-                                <strong style={{ fontSize: '13px' }}>{dev.title}</strong>
-                                <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>
-                                  {dev.classification} | {dev.status} | {new Date(dev.createdAt).toLocaleDateString()}
-                                </div>
-                              </div>
-                              <span className={`${styles.badge} ${
-                                dev.classification === 'CRITICAL' ? styles.badgeObsolete :
-                                dev.classification === 'MAJOR' ? styles.badgeReview : styles.badgeEffective
-                              }`}>{dev.classification}</span>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
                     {/* Maintenance Log History */}
                     <div>
                       <h4 style={{ marginBottom: '8px' }}>Maintenance & Calibration History</h4>
@@ -3567,14 +1900,6 @@ export default function Home() {
                   Manage qualified vendors, audit records, risk classifications, and incoming material inspections (21 CFR 820.50 / ISO 13485).
                 </span>
               </div>
-              {(currentUser?.role === 'ADMIN' || currentUser?.role === 'OWNER' || currentUser?.department === 'QA') && (
-                <button 
-                  className={`${styles.btn} ${styles.btnPrimary}`}
-                  onClick={() => setShowCreateSupplierModal(true)}
-                >
-                  + Register New Supplier
-                </button>
-              )}
             </div>
 
             {/* Split Pane: Left = Supplier List, Right = Supplier Detail */}
@@ -3697,41 +2022,10 @@ export default function Home() {
                         </div>
                       )}
 
-                      {/* Action Buttons */}
-                      <div style={{ display: 'flex', gap: '12px' }}>
-                        {(currentUser?.role === 'ADMIN' || currentUser?.role === 'OWNER' || currentUser?.role === 'AUDITOR') && (
-                          <button
-                            className={`${styles.btn} ${styles.btnPrimary}`}
-                            onClick={() => setShowAuditSupplierModal(true)}
-                          >
-                            📋 Log Supplier Audit (E-Sign)
-                          </button>
-                        )}
-                        <button
-                          className={`${styles.btn} ${styles.btnSecondary}`}
-                          onClick={() => setShowReceiptModal(true)}
-                        >
-                          📦 Log Material Inspection
-                        </button>
-                      </div>
-
                       {/* Attached Documents */}
                       <div>
                         <h4 style={{ marginBottom: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                           <span>Attached Qualification Documents</span>
-                          {(currentUser?.role === 'ADMIN' || currentUser?.role === 'OWNER' || currentUser?.department === 'QA') && (
-                            <label style={{ fontSize: '11px', color: '#A3E635', cursor: 'pointer', fontFamily: 'monospace', fontWeight: '700' }}>
-                              [ + ADD FILE ]
-                              <input
-                                type="file"
-                                style={{ display: 'none' }}
-                                onChange={(e) => {
-                                  const file = e.target.files?.[0];
-                                  if (file) handleAddAttachment(file);
-                                }}
-                              />
-                            </label>
-                          )}
                         </h4>
                         {selectedSupplier.attachments && selectedSupplier.attachments.length > 0 ? (
                           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
@@ -3763,24 +2057,6 @@ export default function Home() {
                                   >
                                     [ DOWNLOAD ]
                                   </a>
-                                  {(currentUser?.role === 'ADMIN' || currentUser?.role === 'OWNER' || currentUser?.department === 'QA') && (
-                                    <button
-                                      type="button"
-                                      onClick={() => handleDeleteAttachment(att.id)}
-                                      style={{
-                                        background: 'transparent',
-                                        border: 'none',
-                                        color: 'var(--danger)',
-                                        cursor: 'pointer',
-                                        fontSize: '11px',
-                                        fontWeight: '700',
-                                        fontFamily: 'monospace',
-                                        padding: 0,
-                                      }}
-                                    >
-                                      [ DELETE ]
-                                    </button>
-                                  )}
                                 </div>
                               </div>
                             ))}
@@ -3904,9 +2180,7 @@ export default function Home() {
           <div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
               <h2>Internal & Supplier Audit Planning (GxP / ISO 13485)</h2>
-              <a href="/api/reports/export?module=capa" target="_blank" className={`${styles.btn} ${styles.btnSecondary}`}>
-                📥 Export Audit Readiness Report (CSV)
-              </a>
+              <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Sensitive exports unavailable during recovery</span>
             </div>
 
             <div className={styles.grid2}>
@@ -3955,21 +2229,14 @@ export default function Home() {
                 </div>
               </div>
 
-              {/* Audit Findings & CAPA Linkages */}
+              {/* Audit-program validation status */}
               <div className={styles.card}>
-                <div className={styles.cardTitle}>Regulatory Audit Findings & Evidence</div>
+                <div className={styles.cardTitle}>Audit Program Status</div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                   <div className="glass" style={{ padding: '16px', borderRadius: '8px', background: 'rgba(16,185,129,0.05)', border: '1px solid rgba(16,185,129,0.2)' }}>
-                    <div style={{ fontWeight: '600', color: '#10B981', fontSize: '13px' }}>✓ EU GMP Annex 11 Clause 4 Readiness Check</div>
+                    <div style={{ fontWeight: '600', color: '#10B981', fontSize: '13px' }}>Automated readiness conclusions unavailable</div>
                     <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px' }}>
-                      All software change control records, document control versioning, and electronic signature manifests are verified and ready for regulatory inspection.
-                    </div>
-                  </div>
-
-                  <div className="glass" style={{ padding: '16px', borderRadius: '8px', background: 'rgba(59,130,246,0.05)', border: '1px solid rgba(59,130,246,0.2)' }}>
-                    <div style={{ fontWeight: '600', color: '#3B82F6', fontSize: '13px' }}>✓ FDA 21 CFR Part 11 Audit Trail Integrity</div>
-                    <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px' }}>
-                      Immutable system audit trail logging active. SHA-256 integrity checksums verified across all document versions and e-signatures.
+                      Audit plans are shown for recovery reference only. Inspection readiness requires approved scope, evidence review, validation, and independent quality assessment.
                     </div>
                   </div>
                 </div>
@@ -3983,18 +2250,12 @@ export default function Home() {
           <div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
               <div>
-                <h2>Organization User Access, RBAC & ABAC Policy Management</h2>
+                <h2>Organization User Roster</h2>
                 <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '4px' }}>
-                  Manage team members, site clearances, 13 default GxP security roles, and Segregation of Duties (SoD) policies.
+                  Read-only recovery view. IAM-bound provisioning, role changes, and deactivation are temporarily unavailable.
                 </p>
               </div>
-              <button
-                className={`${styles.btn} ${styles.btnPrimary}`}
-                onClick={() => setShowInviteUserModal(true)}
-                style={{ background: '#10B981', color: '#000', fontWeight: '700' }}
-              >
-                ➕ Invite Team Member & Assign Role
-              </button>
+              <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>User administration disabled</span>
             </div>
 
             {/* Segregation of Duties (SoD) Compliance Guard Banner */}
@@ -4002,9 +2263,9 @@ export default function Home() {
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                 <span style={{ fontSize: '20px' }}>🛡️</span>
                 <div>
-                  <div style={{ fontWeight: '700', color: '#10B981', fontSize: '14px' }}>Segregation of Duties (SoD) Conflict Guard Active</div>
+                  <div style={{ fontWeight: '700', color: '#10B981', fontSize: '14px' }}>Segregation of Duties recovery status</div>
                   <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '2px' }}>
-                    Veritas automatically enforces EU Annex 11 & 21 CFR Part 11 SoD policies: Authors cannot approve their own SOPs, investigators cannot close their own CAPAs, and deviation logs require independent QA sign-off.
+                    Some workflow restrictions are implemented, but the complete policy set has not been independently validated. Do not rely on this interface as evidence of Annex 11 or Part 11 compliance.
                   </div>
                 </div>
               </div>
@@ -4024,7 +2285,6 @@ export default function Home() {
                       <th>Assigned GxP Role</th>
                       <th>Department</th>
                       <th>Clearance</th>
-                      <th>Actions</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -4046,22 +2306,6 @@ export default function Home() {
                         </td>
                         <td><span className={styles.badge}>{u.department}</span></td>
                         <td><span className={styles.badge}>{u.clearance || 'INTERNAL'}</span></td>
-                        <td>
-                          <div style={{ display: 'flex', gap: '8px' }}>
-                            <button
-                              className={`${styles.btn} ${styles.btnSecondary}`}
-                              style={{ fontSize: '11px', padding: '4px 8px' }}
-                              onClick={() => {
-                                setEditingUser(u);
-                                setEditRole(u.role);
-                                setEditDept(u.department);
-                                setShowEditUserModal(true);
-                              }}
-                            >
-                              ✏️ Reassign Role
-                            </button>
-                          </div>
-                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -4069,52 +2313,15 @@ export default function Home() {
               </div>
             </div>
 
-            {/* Visual Permission Matrix (Roles × Permissions Grid) */}
+            {/* Canonical permission presentation containment */}
             <div className={styles.card}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
-                <div className={styles.cardTitle} style={{ margin: 0 }}>📊 Visual Permission Matrix (13 System Roles × Permissions)</div>
-                <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Configurable by Organization Owners</span>
+                <div className={styles.cardTitle} style={{ margin: 0 }}>Role & Permission Registry</div>
+                <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Unavailable during recovery</span>
               </div>
               <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '20px' }}>
-                Interactive security grid mapping all 13 default GxP system roles against granular permission scopes across Documents, Training, CAPA, Deviations, Audits, and System Administration.
+                Effective access is enforced from persisted IAM role assignments. The policy matrix is hidden until role ownership, tenant visibility, and authorized administration are implemented and validated.
               </p>
-
-              <div className={styles.tableWrapper} style={{ maxHeight: '550px', overflowY: 'auto' }}>
-                <table className={styles.table} style={{ fontSize: '12px' }}>
-                  <thead>
-                    <tr>
-                      <th style={{ position: 'sticky', left: 0, background: '#0B0E14', zIndex: 10, minWidth: '180px' }}>Granular Permission</th>
-                      {DEFAULT_SYSTEM_ROLES.map((r) => (
-                        <th key={r.key} style={{ textAlign: 'center', minWidth: '95px', padding: '8px 4px' }}>
-                          <div style={{ fontSize: '11px', fontWeight: '700', color: '#E2E8F0' }}>{r.name}</div>
-                        </th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {SYSTEM_PERMISSIONS.map((perm) => (
-                      <tr key={perm.key} className={styles.tableRow}>
-                        <td style={{ position: 'sticky', left: 0, background: '#0B0E14', zIndex: 5, fontWeight: '600' }}>
-                          <div>{perm.label}</div>
-                          <div style={{ fontSize: '10px', color: 'var(--text-muted)' }}><code>{perm.key}</code></div>
-                        </td>
-                        {DEFAULT_SYSTEM_ROLES.map((role) => {
-                          const hasPerm = role.permissions.includes(perm.key);
-                          return (
-                            <td key={`${role.key}-${perm.key}`} style={{ textAlign: 'center' }}>
-                              {hasPerm ? (
-                                <span style={{ color: '#10B981', fontWeight: '800', fontSize: '15px' }}>✓</span>
-                              ) : (
-                                <span style={{ color: 'rgba(255,255,255,0.15)', fontSize: '14px' }}>-</span>
-                              )}
-                            </td>
-                          );
-                        })}
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
             </div>
           </div>
         )}
@@ -4124,14 +2331,12 @@ export default function Home() {
           <div className={styles.card}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
               <div>
-                <h2>Chronological GxP Audit Trail (21 CFR Part 11)</h2>
+                <h2>Tenant Audit Event Index</h2>
                 <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '4px' }}>
-                  Immutable chronological ledger of all CUD and READ actions within the tenant.
+                  A bounded operational event view. Append-only storage, completeness, retention, and regulatory validation are not yet evidenced.
                 </p>
               </div>
-              <button className={`${styles.btn} ${styles.btnSecondary}`} onClick={handleExportAudit}>
-                Export Chronological CSV
-              </button>
+              <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>CSV export disabled</span>
             </div>
 
             {/* Filter controls */}
@@ -4177,7 +2382,6 @@ export default function Home() {
                   >
                     <div className={styles.auditHeader}>
                       <div>
-                        <span className={styles.auditUser}>{log.userEmail || 'System'}</span>
                         <span className={styles.currentBadge} style={{ marginLeft: '8px', fontSize: '10px' }}>{log.userRole}</span>
                         <span style={{ marginLeft: '12px' }}>executed</span>
                         <span className={styles.auditAction} style={{ marginLeft: '8px' }}>{log.action}</span>
@@ -4186,12 +2390,8 @@ export default function Home() {
                     </div>
                     
                     <div style={{ color: log.status === 'Success' ? '#10B981' : '#F87171', fontWeight: '600', fontSize: '11px', marginTop: '4px' }}>
-                      STATUS: {log.status} | IP: {log.sourceIp} | EVENT_ID: {log.eventId}
+                      STATUS: {log.status} | EVENT_ID: {log.eventId}
                     </div>
-
-                    <pre className={styles.auditPayload}>
-                      {JSON.stringify(JSON.parse(log.payload), null, 2)}
-                    </pre>
                   </div>
                 ))
               ) : (
@@ -4203,10 +2403,6 @@ export default function Home() {
           </div>
         )}
 
-        {/* TAB 5: REGULATORY INTELLIGENCE ENGINE */}
-        {activeTab === 'intelligence' && (
-          <RegulatoryIntelligenceModule currentUser={currentUser} />
-        )}
       </div>
 
       {/* MODAL 1: CREATE DOCUMENT */}
@@ -4243,9 +2439,20 @@ export default function Home() {
                     </div>
                   ) : (
                     <span style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '4px', display: 'block' }}>
-                      If omitted, a standard 21 CFR Part 11 template PDF will be auto-generated for this document draft.
+                      A source file is required. Its immutable storage key, size, and SHA-256 digest are recorded with the draft.
                     </span>
                   )}
+                </div>
+
+                <div className={styles.formGroup}>
+                  <label className={styles.formLabel}>Document Type</label>
+                  <select className={styles.select} value={newDocumentType} onChange={(e) => setNewDocumentType(e.target.value)}>
+                    <option value="SOP">Standard Operating Procedure</option>
+                    <option value="POLICY">Policy</option>
+                    <option value="WORK_INSTRUCTION">Work Instruction</option>
+                    <option value="FORM">Form</option>
+                    <option value="OTHER">Other</option>
+                  </select>
                 </div>
 
                 <div className={styles.formGroup}>
@@ -4355,7 +2562,7 @@ export default function Home() {
                   Cancel
                 </button>
                 <button type="submit" className={`${styles.btn} ${styles.btnPrimary}`}>
-                  Upload Draft SOP
+                  Create Controlled Draft
                 </button>
               </div>
             </form>
@@ -4363,12 +2570,12 @@ export default function Home() {
         </div>
       )}
 
-      {/* MODAL 2: E-SIGN APPROVAL */}
+      {/* MODAL 2: ASSIGNED WORKFLOW APPROVAL */}
       {showApproveModal && selectedDoc && (
         <div className={styles.modalOverlay}>
           <div className={styles.modalContent} style={{ maxWidth: '500px' }}>
             <div className={styles.modalHeader}>
-              <h3>Execute E-Signature Approval</h3>
+              <h3>Approve Reviewed Document</h3>
               <button style={{ background: 'transparent', border: 'none', color: '#fff', fontSize: '20px', cursor: 'pointer' }} onClick={() => setShowApproveModal(false)}>×</button>
             </div>
             <form onSubmit={handleApproveDocument}>
@@ -4379,20 +2586,7 @@ export default function Home() {
                   </div>
                 )}
                 <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '16px' }}>
-                  You are electronically signing the approval of document: <strong style={{ color: '#fff' }}>{selectedDoc.title}</strong> (Version {selectedDoc.currentVersionNumber}.0).
-                </div>
-
-                <div className={styles.formGroup}>
-                  <label className={styles.formLabel}>Signature Meaning</label>
-                  <select 
-                    className={styles.select}
-                    value={esignMeaning}
-                    onChange={(e) => setEsignMeaning(e.target.value)}
-                  >
-                    <option value="Approval of Document Release">Approval of Document Release (QA Release)</option>
-                    <option value="Authorship Verification">Authorship Verification</option>
-                    <option value="Review Sign-off">Review Sign-off</option>
-                  </select>
+                  You are recording the assigned workflow approval of <strong style={{ color: '#fff' }}>{selectedDoc.title}</strong> (Version {selectedDoc.currentVersionNumber}.0). This approval does not make the document effective and is not represented as an electronic signature.
                 </div>
 
                 <div className={styles.formGroup}>
@@ -4406,29 +2600,13 @@ export default function Home() {
                   />
                 </div>
 
-                <div className={`${styles.formGroup} ${styles.esignHighlight}`}>
-                  <label className={styles.formLabel} style={{ color: 'var(--warning)', fontWeight: '600' }}>
-                    Enter Password to Confirm E-Signature
-                  </label>
-                  <input 
-                    className={styles.input}
-                    type="password" 
-                    placeholder="Enter any password to sign"
-                    value={esignPassword}
-                    onChange={(e) => setEsignPassword(e.target.value)}
-                    required
-                  />
-                  <span style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '4px', display: 'block' }}>
-                    Under 21 CFR Part 11 regulations, this action is the legal equivalent of your handwritten signature.
-                  </span>
-                </div>
               </div>
               <div className={styles.modalFooter}>
                 <button type="button" className={`${styles.btn} ${styles.btnSecondary}`} onClick={() => setShowApproveModal(false)}>
                   Cancel
                 </button>
                 <button type="submit" className={`${styles.btn} ${styles.btnPrimary}`} style={{ background: 'var(--warning)', color: '#000' }}>
-                  Electronically Sign & Release
+                  Record Approval
                 </button>
               </div>
             </form>
@@ -4436,892 +2614,6 @@ export default function Home() {
         </div>
       )}
 
-      {/* MODAL 3: TRAINING READER & QUIZ */}
-      {showTrainingModal && selectedTraining && (
-        <div className={styles.modalOverlay}>
-          <div className={styles.modalContent} style={{ maxWidth: '700px' }}>
-            <div className={styles.modalHeader}>
-              <h3>SOP Training & Verification Portal</h3>
-              <button style={{ background: 'transparent', border: 'none', color: '#fff', fontSize: '20px', cursor: 'pointer' }} onClick={() => setShowTrainingModal(false)}>×</button>
-            </div>
-            <form onSubmit={handleSubmitTraining}>
-              <div className={styles.modalBody}>
-                {/* Simulated Document Reader */}
-                <div className="glass" style={{ padding: '20px', height: '180px', overflowY: 'auto', marginBottom: '20px', background: 'rgba(0,0,0,0.3)', borderStyle: 'dashed' }}>
-                  <h4 style={{ marginBottom: '8px', color: 'var(--primary)' }}>{selectedTraining.requirement.document.title}</h4>
-                  <p style={{ fontSize: '13px', lineHeight: '1.6' }}>
-                    <strong>1. PURPOSE</strong><br />
-                    This procedure outlines the necessary steps required to ensure compliance with document standards, including version formatting, revision audits, change requests, and role-based training assignments. All employees must follow these guidelines strictly to ensure compliance with FDA 21 CFR Part 11 and EU GxP validation metrics.<br /><br />
-                    <strong>2. PROCEDURE</strong><br />
-                    A. Documents must always be created in a DRAFT state.<br />
-                    B. Review routes can include sequential or parallel reviewer steps.<br />
-                    C. Final approval triggers automatic training assignments across mapped roles.<br />
-                    D. Any changes require a Change Request (CR) record and trigger retraining.
-                  </p>
-                </div>
-
-                {/* Quiz section */}
-                {selectedTraining.requirement.requiresQuiz && selectedTraining.requirement.quizQuestions && (
-                  <div>
-                    <h4 style={{ marginBottom: '12px' }}>Knowledge Assessment Quiz</h4>
-                    
-                    {JSON.parse(selectedTraining.requirement.quizQuestions).map((q: QuizQuestion) => (
-                      <div key={q.id} className={styles.quizCard}>
-                        <div className={styles.quizQuestion}>{q.text}</div>
-                        <div className={styles.quizOptionsList}>
-                          {q.options.map((opt: string, optIdx: number) => (
-                            <label key={optIdx} className={styles.quizOptionLabel}>
-                              <input 
-                                className={styles.quizRadio}
-                                type="radio" 
-                                name={`question_${q.id}`} 
-                                checked={quizAnswers[q.id] === optIdx}
-                                onChange={() => {
-                                  const newAnswers = { ...quizAnswers };
-                                  newAnswers[q.id] = optIdx;
-                                  setQuizAnswers(newAnswers);
-                                }}
-                              />
-                              <span className={styles.quizOptionText}>{opt}</span>
-                            </label>
-                          ))}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                {quizError && (
-                  <div style={{ color: '#F87171', padding: '12px', borderRadius: '4px', background: 'rgba(239, 68, 68, 0.08)', border: '1px solid rgba(239, 68, 68, 0.2)', marginBottom: '16px', fontSize: '13px' }}>
-                    ⚠ {quizError}
-                  </div>
-                )}
-
-                {/* E-Signature block */}
-                <div className={styles.esignHighlight}>
-                  <label className={styles.formLabel} style={{ color: 'var(--warning)', fontWeight: '600' }}>
-                    Enter Password to Execute Training Sign-Off
-                  </label>
-                  <input 
-                    className={styles.input}
-                    type="password" 
-                    placeholder="Enter password to sign-off"
-                    value={esignTrainingPassword}
-                    onChange={(e) => setEsignTrainingPassword(e.target.value)}
-                    required
-                  />
-                  <span style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '4px', display: 'block' }}>
-                    By executing this e-signature, you certify that you have read, understood, and successfully completed the required training for {selectedTraining.requirement.document.title}.
-                  </span>
-                </div>
-              </div>
-              <div className={styles.modalFooter}>
-                <button type="button" className={`${styles.btn} ${styles.btnSecondary}`} onClick={() => setShowTrainingModal(false)}>
-                  Cancel
-                </button>
-                <button type="submit" className={`${styles.btn} ${styles.btnPrimary}`}>
-                  Submit Quiz & E-Sign Complete
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* MODAL 4: CREATE CHANGE REQUEST */}
-      {showCreateCRModal && (
-        <div className={styles.modalOverlay}>
-          <div className={styles.modalContent}>
-            <div className={styles.modalHeader}>
-              <h3>Initiate Quality Change Request</h3>
-              <button style={{ background: 'transparent', border: 'none', color: '#fff', fontSize: '20px', cursor: 'pointer' }} onClick={() => setShowCreateCRModal(false)}>×</button>
-            </div>
-            <form onSubmit={handleCreateCR}>
-              <div className={styles.modalBody}>
-                <div className={styles.formGroup}>
-                  <label className={styles.formLabel}>Change Request Title</label>
-                  <input 
-                    className={styles.input}
-                    type="text" 
-                    placeholder="e.g. CR-2026-002: Revision to Clean Room Guidelines"
-                    value={newCRTitle}
-                    onChange={(e) => setNewCRTitle(e.target.value)}
-                    required
-                  />
-                </div>
-
-                <div className={styles.formGroup}>
-                  <label className={styles.formLabel}>Reason for Change & Impact Assessment</label>
-                  <textarea 
-                    className={styles.textarea}
-                    placeholder="Specify the reason why this change is necessary and detail any GxP quality impacts..."
-                    value={newCRReason}
-                    onChange={(e) => setNewCRReason(e.target.value)}
-                    rows={4}
-                    required
-                  />
-                </div>
-
-                <div className={styles.grid2} style={{ margin: 0, gap: '16px' }}>
-                  <div>
-                    <label className={styles.formLabel}>Risk Level</label>
-                    <select 
-                      className={styles.select}
-                      value={newCRRiskLevel}
-                      onChange={(e) => setNewCRRiskLevel(e.target.value)}
-                    >
-                      <option value="LOW">LOW (Typos, Formatting)</option>
-                      <option value="MEDIUM">MEDIUM (Minor Process Updates)</option>
-                      <option value="HIGH">HIGH (Critical GxP Procedure Changes)</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className={styles.formLabel}>Link Impacted Documents</label>
-                    <div style={{ maxHeight: '120px', overflowY: 'auto', background: 'rgba(0,0,0,0.2)', padding: '8px', borderRadius: '4px', border: '1px solid rgba(255,255,255,0.08)' }}>
-                      {documents.map((d) => (
-                        <label key={d.id} style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', margin: '4px 0', cursor: 'pointer' }}>
-                          <input 
-                            type="checkbox"
-                            checked={newCRDocIds.includes(d.id)}
-                            onChange={(e) => {
-                              if (e.target.checked) {
-                                setNewCRDocIds([...newCRDocIds, d.id]);
-                              } else {
-                                setNewCRDocIds(newCRDocIds.filter(id => id !== d.id));
-                              }
-                            }}
-                          />
-                          {d.title.split(':')[0]}
-                        </label>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              </div>
-              <div className={styles.modalFooter}>
-                <button type="button" className={`${styles.btn} ${styles.btnSecondary}`} onClick={() => setShowCreateCRModal(false)}>
-                  Cancel
-                </button>
-                <button type="submit" className={`${styles.btn} ${styles.btnPrimary}`}>
-                  Submit Change Request
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* MODAL 5: CHANGE REQUEST SIGN-OFF */}
-      {showCRSignModal && selectedCRId && changeRequests.find(c => c.id === selectedCRId) && (
-        <div className={styles.modalOverlay}>
-          <div className={styles.modalContent} style={{ maxWidth: '500px' }}>
-            <div className={styles.modalHeader}>
-              <h3>Execute Change Control Sign-Off</h3>
-              <button style={{ background: 'transparent', border: 'none', color: '#fff', fontSize: '20px', cursor: 'pointer' }} onClick={() => setShowCRSignModal(false)}>×</button>
-            </div>
-            <form onSubmit={handleCRSignOff}>
-              <div className={styles.modalBody}>
-                <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '16px' }}>
-                  You are electronically signing the <strong>{esignCRAction}</strong> action for Change Request:<br />
-                  <strong style={{ color: '#fff' }}>{changeRequests.find(c => c.id === selectedCRId)?.title}</strong>
-                </div>
-
-                <div className={styles.formGroup}>
-                  <label className={styles.formLabel}>Sign-off Comment / Review Note</label>
-                  <input 
-                    className={styles.input}
-                    type="text" 
-                    placeholder="Reason for sign-off approval..."
-                    value={esignCRComment}
-                    onChange={(e) => setEsignCRComment(e.target.value)}
-                  />
-                </div>
-
-                <div className={`${styles.formGroup} ${styles.esignHighlight}`}>
-                  <label className={styles.formLabel} style={{ color: 'var(--warning)', fontWeight: '600' }}>
-                    Enter Password to Execute E-Signature
-                  </label>
-                  <input 
-                    className={styles.input}
-                    type="password" 
-                    placeholder="Enter password to sign"
-                    value={esignCRPassword}
-                    onChange={(e) => setEsignCRPassword(e.target.value)}
-                    required
-                  />
-                  <span style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '4px', display: 'block' }}>
-                    Under 21 CFR Part 11 regulations, this action represents your legal authorization of the Quality Change Control event.
-                  </span>
-                </div>
-              </div>
-              <div className={styles.modalFooter}>
-                <button type="button" className={`${styles.btn} ${styles.btnSecondary}`} onClick={() => setShowCRSignModal(false)}>
-                  Cancel
-                </button>
-                <button type="submit" className={`${styles.btn} ${styles.btnPrimary}`} style={{ background: 'var(--warning)', color: '#000' }}>
-                  Sign-off Change Event
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* MODAL 6: LOG DEVIATION */}
-      {showCreateDeviationModal && (
-        <div className={styles.modalOverlay}>
-          <div className={styles.modalContent}>
-            <div className={styles.modalHeader}>
-              <h3>Log GxP Quality Deviation</h3>
-              <button style={{ background: 'transparent', border: 'none', color: '#fff', fontSize: '20px', cursor: 'pointer' }} onClick={() => setShowCreateDeviationModal(false)}>×</button>
-            </div>
-            <form onSubmit={handleCreateDeviation}>
-              <div className={styles.modalBody}>
-                <div className={styles.formGroup}>
-                  <label className={styles.formLabel}>Deviation Title</label>
-                  <input 
-                    className={styles.input}
-                    type="text" 
-                    placeholder="e.g. DEV-2026-002: Cleanroom B Humidity Spike"
-                    value={newDevTitle}
-                    onChange={(e) => setNewDevTitle(e.target.value)}
-                    required
-                  />
-                </div>
-
-                <div className={styles.formGroup}>
-                  <label className={styles.formLabel}>Event Description & Context</label>
-                  <textarea 
-                    className={styles.textarea}
-                    placeholder="Detail the deviation occurrence, date, duration, active batches, and immediate containment steps taken..."
-                    value={newDevDescription}
-                    onChange={(e) => setNewDevDescription(e.target.value)}
-                    rows={4}
-                    required
-                  />
-                </div>
-
-                <div className={styles.formGroup}>
-                  <label className={styles.formLabel}>Initial Classification</label>
-                  <select 
-                    className={styles.select}
-                    value={newDevClassification}
-                    onChange={(e) => setNewDevClassification(e.target.value)}
-                  >
-                    <option value="MINOR">MINOR (No batch/system impact)</option>
-                    <option value="MAJOR">MAJOR (Potential quality impact, containment needed)</option>
-                    <option value="CRITICAL">CRITICAL (Direct product/safety impact, immediate stop)</option>
-                  </select>
-                </div>
-              </div>
-              <div className={styles.modalFooter}>
-                <button type="button" className={`${styles.btn} ${styles.btnSecondary}`} onClick={() => setShowCreateDeviationModal(false)}>
-                  Cancel
-                </button>
-                <button type="submit" className={`${styles.btn} ${styles.btnPrimary}`}>
-                  Log Quality Event
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* MODAL 7: CREATE CAPA */}
-      {showCreateCapaModal && (
-        <div className={styles.modalOverlay}>
-          <div className={styles.modalContent}>
-            <div className={styles.modalHeader}>
-              <h3>Assign Corrective / Preventive Action (CAPA)</h3>
-              <button style={{ background: 'transparent', border: 'none', color: '#fff', fontSize: '20px', cursor: 'pointer' }} onClick={() => setShowCreateCapaModal(false)}>×</button>
-            </div>
-            <form onSubmit={handleCreateCapa}>
-              <div className={styles.modalBody}>
-                <div className={styles.formGroup}>
-                  <label className={styles.formLabel}>CAPA Action Title</label>
-                  <input 
-                    className={styles.input}
-                    type="text" 
-                    placeholder="e.g. CAPA-2026-002: Upgrade HVAC Sensors"
-                    value={newCapaTitle}
-                    onChange={(e) => setNewCapaTitle(e.target.value)}
-                    required
-                  />
-                </div>
-
-                <div className={styles.formGroup}>
-                  <label className={styles.formLabel}>Action Plan & Resolution Tasks</label>
-                  <textarea 
-                    className={styles.textarea}
-                    placeholder="Specify target actions, required changes, and verification procedures..."
-                    value={newCapaActionPlan}
-                    onChange={(e) => setNewCapaActionPlan(e.target.value)}
-                    rows={4}
-                    required
-                  />
-                </div>
-
-                <div className={styles.grid2} style={{ margin: 0, gap: '16px' }}>
-                  <div>
-                    <label className={styles.formLabel}>Assignee</label>
-                    <select 
-                      className={styles.select}
-                      value={newCapaAssignedToId}
-                      onChange={(e) => setNewCapaAssignedToId(e.target.value)}
-                      required
-                    >
-                      <option value="">Select Assignee...</option>
-                      {users.map(u => (
-                        <option key={u.id} value={u.id}>{u.fullName} ({u.role} - {u.department})</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <label className={styles.formLabel}>Due Date</label>
-                    <input 
-                      className={styles.input}
-                      type="date"
-                      value={newCapaDueDate}
-                      onChange={(e) => setNewCapaDueDate(e.target.value)}
-                      required
-                    />
-                  </div>
-                </div>
-              </div>
-              <div className={styles.modalFooter}>
-                <button type="button" className={`${styles.btn} ${styles.btnSecondary}`} onClick={() => setShowCreateCapaModal(false)}>
-                  Cancel
-                </button>
-                <button type="submit" className={`${styles.btn} ${styles.btnPrimary}`}>
-                  Assign CAPA
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* MODAL 8: DEVIATION INVESTIGATION */}
-      {showDeviationInvestigateModal && selectedDeviationId && deviations.find(d => d.id === selectedDeviationId) && (
-        <div className={styles.modalOverlay}>
-          <div className={styles.modalContent}>
-            <div className={styles.modalHeader}>
-              <h3>Log Investigation & Root Cause Analysis</h3>
-              <button style={{ background: 'transparent', border: 'none', color: '#fff', fontSize: '20px', cursor: 'pointer' }} onClick={() => setShowDeviationInvestigateModal(false)}>×</button>
-            </div>
-            <form onSubmit={handleDeviationInvestigate}>
-              <div className={styles.modalBody}>
-                <div className={styles.formGroup}>
-                  <label className={styles.formLabel}>Root Cause Analysis & Investigation Notes</label>
-                  <textarea 
-                    className={styles.textarea}
-                    placeholder="Enter detailed investigation findings, identified root cause, and product quality impact analysis..."
-                    value={investigationNotes}
-                    onChange={(e) => setInvestigationNotes(e.target.value)}
-                    rows={5}
-                    required
-                  />
-                </div>
-
-                <div className={styles.grid2} style={{ margin: 0, gap: '16px' }}>
-                  <div>
-                    <label className={styles.formLabel}>Assigned QA Investigator</label>
-                    <select 
-                      className={styles.select}
-                      value={investigationInvestigatorId}
-                      onChange={(e) => setInvestigationInvestigatorId(e.target.value)}
-                    >
-                      <option value="">Select Investigator...</option>
-                      {users.filter(u => u.role !== 'EMPLOYEE').map(u => (
-                        <option key={u.id} value={u.id}>{u.fullName} ({u.role})</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <label className={styles.formLabel}>Investigation Status</label>
-                    <select 
-                      className={styles.select}
-                      value={investigationStatus}
-                      onChange={(e) => setInvestigationStatus(e.target.value)}
-                    >
-                      <option value="LOGGED">LOGGED (Initial state)</option>
-                      <option value="UNDER_INVESTIGATION">UNDER INVESTIGATION</option>
-                      <option value="QA_REVIEW">QA REVIEW</option>
-                      <option value="CLOSED">CLOSED (Resolved)</option>
-                    </select>
-                  </div>
-                </div>
-              </div>
-              <div className={styles.modalFooter}>
-                <button type="button" className={`${styles.btn} ${styles.btnSecondary}`} onClick={() => setShowDeviationInvestigateModal(false)}>
-                  Cancel
-                </button>
-                <button type="submit" className={`${styles.btn} ${styles.btnPrimary}`}>
-                  Save Investigation Log
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* MODAL 9: CAPA SIGN-OFF CLOSURE */}
-      {showCapaSignModal && selectedCapaId && capas.find(c => c.id === selectedCapaId) && (
-        <div className={styles.modalOverlay}>
-          <div className={styles.modalContent} style={{ maxWidth: '500px' }}>
-            <div className={styles.modalHeader}>
-              <h3>Execute CAPA E-Sign Closure</h3>
-              <button style={{ background: 'transparent', border: 'none', color: '#fff', fontSize: '20px', cursor: 'pointer' }} onClick={() => setShowCapaSignModal(false)}>×</button>
-            </div>
-            <form onSubmit={handleCapaSignOff}>
-              <div className={styles.modalBody}>
-                <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '16px' }}>
-                  You are electronically signing off the completion of CAPA task:<br />
-                  <strong style={{ color: '#fff' }}>{capas.find(c => c.id === selectedCapaId)?.title}</strong>
-                </div>
-
-                <div className={`${styles.formGroup} ${styles.esignHighlight}`}>
-                  <label className={styles.formLabel} style={{ color: 'var(--warning)', fontWeight: '600' }}>
-                    Enter Password to Execute E-Signature
-                  </label>
-                  <input 
-                    className={styles.input}
-                    type="password" 
-                    placeholder="Enter password to sign"
-                    value={esignCapaPassword}
-                    onChange={(e) => setEsignCapaPassword(e.target.value)}
-                    required
-                  />
-                  <span style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '4px', display: 'block' }}>
-                    Under 21 CFR Part 11 rules, this action represents your legal certification that the action plan has been executed completely.
-                  </span>
-                </div>
-              </div>
-              <div className={styles.modalFooter}>
-                <button type="button" className={`${styles.btn} ${styles.btnSecondary}`} onClick={() => setShowCapaSignModal(false)}>
-                  Cancel
-                </button>
-                <button type="submit" className={`${styles.btn} ${styles.btnPrimary}`} style={{ background: 'var(--warning)', color: '#000' }}>
-                  Execute E-Sign & Close CAPA
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* MODAL 10: EQUIPMENT MAINTENANCE LOG */}
-      {showLogMaintenanceModal && selectedEquipmentId && selectedEquipment && (
-        <div className={styles.modalOverlay}>
-          <div className={styles.modalContent} style={{ maxWidth: '600px' }}>
-            <div className={styles.modalHeader}>
-              <h3>Log Calibration / Maintenance Activity</h3>
-              <button style={{ background: 'transparent', border: 'none', color: '#fff', fontSize: '20px', cursor: 'pointer' }} onClick={() => setShowLogMaintenanceModal(false)}>×</button>
-            </div>
-            <form onSubmit={handleLogMaintenance}>
-              <div className={styles.modalBody}>
-                <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '16px' }}>
-                  Recording activity for: <strong style={{ color: '#fff' }}>{selectedEquipment.name}</strong>
-                  <br />
-                  <span style={{ fontSize: '11px' }}>Location: {selectedEquipment.location} | S/N: {selectedEquipment.serialNumber || 'N/A'}</span>
-                </div>
-
-                <div className={styles.formGroup}>
-                  <label className={styles.formLabel}>Activity Type</label>
-                  <select
-                    className={styles.input}
-                    value={eqLogActivityType}
-                    onChange={(e) => setEqLogActivityType(e.target.value)}
-                  >
-                    <option value="CALIBRATION">Calibration</option>
-                    <option value="PREVENTATIVE_MAINTENANCE">Preventative Maintenance</option>
-                    <option value="REPAIR">Repair</option>
-                  </select>
-                </div>
-
-                <div className={styles.formGroup}>
-                  <label className={styles.formLabel}>Result</label>
-                  <select
-                    className={styles.input}
-                    value={eqLogResult}
-                    onChange={(e) => setEqLogResult(e.target.value)}
-                  >
-                    <option value="PASS">PASS ✓</option>
-                    <option value="FAIL">FAIL ✗ (triggers auto-deviation)</option>
-                  </select>
-                  {eqLogResult === 'FAIL' && (
-                    <span style={{ fontSize: '11px', color: 'var(--danger)', marginTop: '4px', display: 'block' }}>
-                      ⚠ A FAIL result will auto-create a MAJOR Deviation and take the equipment OUT_OF_SERVICE.
-                    </span>
-                  )}
-                </div>
-
-                <div className={styles.formGroup}>
-                  <label className={styles.formLabel}>Activity Notes / Observations</label>
-                  <textarea
-                    className={styles.input}
-                    rows={4}
-                    placeholder="Describe the calibration/maintenance performed, observations, measurements..."
-                    value={eqLogNotes}
-                    onChange={(e) => setEqLogNotes(e.target.value)}
-                    required
-                    style={{ resize: 'vertical', minHeight: '80px' }}
-                  />
-                </div>
-
-                <div className={`${styles.formGroup} ${styles.esignHighlight}`}>
-                  <label className={styles.formLabel} style={{ color: 'var(--warning)', fontWeight: '600' }}>
-                    21 CFR Part 11 Electronic Signature
-                  </label>
-                  <input
-                    className={styles.input}
-                    type="password"
-                    placeholder="Enter password to E-Sign this record"
-                    value={eqLogPassword}
-                    onChange={(e) => setEqLogPassword(e.target.value)}
-                    required
-                  />
-                  <span style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '4px', display: 'block' }}>
-                    Your electronic signature certifies the accuracy and completeness of this maintenance record per 21 CFR Part 11.
-                  </span>
-                </div>
-              </div>
-              <div className={styles.modalFooter}>
-                <button type="button" className={`${styles.btn} ${styles.btnSecondary}`} onClick={() => setShowLogMaintenanceModal(false)}>
-                  Cancel
-                </button>
-                <button type="submit" className={`${styles.btn} ${styles.btnPrimary}`}>
-                  Submit E-Signed Record
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* MODAL 11: REGISTER SUPPLIER */}
-      {showCreateSupplierModal && (
-        <div className={styles.modalOverlay}>
-          <div className={styles.modalContent} style={{ maxWidth: '600px' }}>
-            <div className={styles.modalHeader}>
-              <h3>Register New Supplier / Vendor</h3>
-              <button style={{ background: 'transparent', border: 'none', color: '#fff', fontSize: '20px', cursor: 'pointer' }} onClick={() => setShowCreateSupplierModal(false)}>×</button>
-            </div>
-            <form onSubmit={handleCreateSupplier}>
-              <div className={styles.modalBody}>
-                <div className={styles.formGroup}>
-                  <label className={styles.formLabel}>Supplier / Vendor Name</label>
-                  <input
-                    className={styles.input}
-                    type="text"
-                    placeholder="e.g. BioChem Solutions Inc."
-                    value={newSupName}
-                    onChange={(e) => setNewSupName(e.target.value)}
-                    required
-                  />
-                </div>
-
-                <div className={styles.grid2} style={{ margin: 0, gap: '12px' }}>
-                  <div className={styles.formGroup}>
-                    <label className={styles.formLabel}>Supplier Category</label>
-                    <select
-                      className={styles.input}
-                      value={newSupCategory}
-                      onChange={(e) => setNewSupCategory(e.target.value)}
-                    >
-                      <option value="RAW_MATERIAL">Raw Material Supplier</option>
-                      <option value="PACKAGING">Packaging Vendor</option>
-                      <option value="CONTRACT_LAB">Contract Testing Lab</option>
-                      <option value="SOFTWARE">Software / SaaS Vendor</option>
-                    </select>
-                  </div>
-
-                  <div className={styles.formGroup}>
-                    <label className={styles.formLabel}>Risk Classification</label>
-                    <select
-                      className={styles.input}
-                      value={newSupRisk}
-                      onChange={(e) => setNewSupRisk(e.target.value)}
-                    >
-                      <option value="CRITICAL">CRITICAL (High Impact)</option>
-                      <option value="MAJOR">MAJOR (Medium Impact)</option>
-                      <option value="MINOR">MINOR (Low Impact)</option>
-                    </select>
-                  </div>
-                </div>
-
-                <div className={styles.grid2} style={{ margin: 0, gap: '12px' }}>
-                  <div className={styles.formGroup}>
-                    <label className={styles.formLabel}>Contact Email</label>
-                    <input
-                      className={styles.input}
-                      type="email"
-                      placeholder="qa@supplier.com"
-                      value={newSupEmail}
-                      onChange={(e) => setNewSupEmail(e.target.value)}
-                    />
-                  </div>
-
-                  <div className={styles.formGroup}>
-                    <label className={styles.formLabel}>Contact Phone</label>
-                    <input
-                      className={styles.input}
-                      type="text"
-                      placeholder="+1 (555) 000-0000"
-                      value={newSupPhone}
-                      onChange={(e) => setNewSupPhone(e.target.value)}
-                    />
-                  </div>
-                </div>
-
-                <div className={styles.formGroup}>
-                  <label className={styles.formLabel}>Re-Evaluation Interval (Days)</label>
-                  <input
-                    className={styles.input}
-                    type="number"
-                    value={newSupInterval}
-                    onChange={(e) => setNewSupInterval(e.target.value)}
-                    required
-                  />
-                </div>
-
-                <div className={styles.formGroup}>
-                  <label className={styles.formLabel}>Vendor Quality Notes</label>
-                  <textarea
-                    className={styles.input}
-                    rows={3}
-                    placeholder="Quality agreement details, scope of supply, initial notes..."
-                    value={newSupNotes}
-                    onChange={(e) => setNewSupNotes(e.target.value)}
-                    style={{ resize: 'vertical' }}
-                  />
-                </div>
-
-                <div className={styles.formGroup}>
-                  <label className={styles.formLabel}>Attach Qualification Documents (.pdf, .txt, .png)</label>
-                  <input
-                    className={styles.input}
-                    type="file"
-                    multiple
-                    accept=".pdf,.txt,.png,.jpg,.jpeg"
-                    onChange={handleSupplierFilesChange}
-                    style={{ background: 'rgba(10,14,23,0.5)', border: '1px solid rgba(255,255,255,0.12)', color: '#FBFBFA', padding: '8px' }}
-                  />
-                  {newSupAttachments.length > 0 && (
-                    <div style={{ marginTop: '8px', fontSize: '11px', color: '#10B981', fontFamily: 'monospace' }}>
-                      📎 {newSupAttachments.length} file(s) ready to upload:
-                      <ul style={{ margin: '4px 0 0 12px', padding: 0, listStyleType: 'disc' }}>
-                        {newSupAttachments.map((att, i) => (
-                          <li key={i}>{att.fileName}</li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-                </div>
-              </div>
-              <div className={styles.modalFooter}>
-                <button type="button" className={`${styles.btn} ${styles.btnSecondary}`} onClick={() => setShowCreateSupplierModal(false)}>
-                  Cancel
-                </button>
-                <button type="submit" className={`${styles.btn} ${styles.btnPrimary}`}>
-                  Register Supplier
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* MODAL 12: LOG SUPPLIER AUDIT (E-SIGNED) */}
-      {showAuditSupplierModal && selectedSupplierId && selectedSupplier && (
-        <div className={styles.modalOverlay}>
-          <div className={styles.modalContent} style={{ maxWidth: '600px' }}>
-            <div className={styles.modalHeader}>
-              <h3>Log Supplier Quality Audit</h3>
-              <button style={{ background: 'transparent', border: 'none', color: '#fff', fontSize: '20px', cursor: 'pointer' }} onClick={() => setShowAuditSupplierModal(false)}>×</button>
-            </div>
-            <form onSubmit={handleAuditSupplier}>
-              <div className={styles.modalBody}>
-                <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '16px' }}>
-                  Auditing Supplier: <strong style={{ color: '#fff' }}>{selectedSupplier.name}</strong> ({selectedSupplier.id})
-                </div>
-
-                <div className={styles.grid2} style={{ margin: 0, gap: '12px' }}>
-                  <div className={styles.formGroup}>
-                    <label className={styles.formLabel}>Audit Type</label>
-                    <select
-                      className={styles.input}
-                      value={auditType}
-                      onChange={(e) => setAuditType(e.target.value)}
-                    >
-                      <option value="ROUTINE_ANNUAL">Routine Annual Audit</option>
-                      <option value="INITIAL_QUALIFICATION">Initial Qualification Audit</option>
-                      <option value="FOR_CAUSE">For-Cause Audit</option>
-                    </select>
-                  </div>
-
-                  <div className={styles.formGroup}>
-                    <label className={styles.formLabel}>Audit Result</label>
-                    <select
-                      className={styles.input}
-                      value={auditResult}
-                      onChange={(e) => setAuditResult(e.target.value)}
-                    >
-                      <option value="PASS">PASS ✓ (Updates status to APPROVED)</option>
-                      <option value="CONDITIONAL_PASS">CONDITIONAL PASS ⚠ (CONDITIONALLY APPROVED)</option>
-                      <option value="FAIL">FAIL ✗ (DISQUALIFIED)</option>
-                    </select>
-                  </div>
-                </div>
-
-                <div className={styles.formGroup}>
-                  <label className={styles.formLabel}>Audit Findings & Summary</label>
-                  <textarea
-                    className={styles.input}
-                    rows={4}
-                    placeholder="Document audit scope, findings, major/minor observations, CAPA requirements..."
-                    value={auditFindings}
-                    onChange={(e) => setAuditFindings(e.target.value)}
-                    required
-                    style={{ resize: 'vertical', minHeight: '80px' }}
-                  />
-                </div>
-
-                <div className={`${styles.formGroup} ${styles.esignHighlight}`}>
-                  <label className={styles.formLabel} style={{ color: 'var(--warning)', fontWeight: '600' }}>
-                    21 CFR Part 11 Electronic Signature
-                  </label>
-                  <input
-                    className={styles.input}
-                    type="password"
-                    placeholder="Enter password to sign audit report"
-                    value={auditPassword}
-                    onChange={(e) => setAuditPassword(e.target.value)}
-                    required
-                  />
-                  <span style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '4px', display: 'block' }}>
-                    Signing certifies that this supplier audit was conducted according to GxP vendor qualification procedures.
-                  </span>
-                </div>
-              </div>
-              <div className={styles.modalFooter}>
-                <button type="button" className={`${styles.btn} ${styles.btnSecondary}`} onClick={() => setShowAuditSupplierModal(false)}>
-                  Cancel
-                </button>
-                <button type="submit" className={`${styles.btn} ${styles.btnPrimary}`}>
-                  Submit E-Signed Audit
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* MODAL 13: LOG MATERIAL INSPECTION */}
-      {showReceiptModal && selectedSupplierId && selectedSupplier && (
-        <div className={styles.modalOverlay}>
-          <div className={styles.modalContent} style={{ maxWidth: '600px' }}>
-            <div className={styles.modalHeader}>
-              <h3>Log Incoming Material Inspection</h3>
-              <button style={{ background: 'transparent', border: 'none', color: '#fff', fontSize: '20px', cursor: 'pointer' }} onClick={() => setShowReceiptModal(false)}>×</button>
-            </div>
-            <form onSubmit={handleMaterialReceipt}>
-              <div className={styles.modalBody}>
-                <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '16px' }}>
-                  Material Source: <strong style={{ color: '#fff' }}>{selectedSupplier.name}</strong>
-                </div>
-
-                <div className={styles.formGroup}>
-                  <label className={styles.formLabel}>Material Name / Description</label>
-                  <input
-                    className={styles.input}
-                    type="text"
-                    placeholder="e.g. DMEM High Glucose Media (500mL)"
-                    value={recMaterialName}
-                    onChange={(e) => setRecMaterialName(e.target.value)}
-                    required
-                  />
-                </div>
-
-                <div className={styles.grid3} style={{ margin: 0, gap: '12px' }}>
-                  <div className={styles.formGroup}>
-                    <label className={styles.formLabel}>Lot / Batch Number</label>
-                    <input
-                      className={styles.input}
-                      type="text"
-                      placeholder="LOT-2026-X"
-                      value={recLotNumber}
-                      onChange={(e) => setRecLotNumber(e.target.value)}
-                      required
-                    />
-                  </div>
-
-                  <div className={styles.formGroup}>
-                    <label className={styles.formLabel}>Quantity</label>
-                    <input
-                      className={styles.input}
-                      type="number"
-                      value={recQty}
-                      onChange={(e) => setRecQty(e.target.value)}
-                      required
-                    />
-                  </div>
-
-                  <div className={styles.formGroup}>
-                    <label className={styles.formLabel}>Unit</label>
-                    <input
-                      className={styles.input}
-                      type="text"
-                      placeholder="kg, L, bottles, units"
-                      value={recUnit}
-                      onChange={(e) => setRecUnit(e.target.value)}
-                      required
-                    />
-                  </div>
-                </div>
-
-                <div className={styles.formGroup}>
-                  <label className={styles.formLabel}>QC Inspection Result</label>
-                  <select
-                    className={styles.input}
-                    value={recInspectionStatus}
-                    onChange={(e) => setRecInspectionStatus(e.target.value)}
-                  >
-                    <option value="PASSED">PASSED ✓ (Released to Inventory)</option>
-                    <option value="QUARANTINE">QUARANTINE ⚠ (Pending Testing)</option>
-                    <option value="REJECTED">REJECTED ✗ (Auto-triggers Deviation)</option>
-                  </select>
-                  {recInspectionStatus === 'REJECTED' && (
-                    <span style={{ fontSize: '11px', color: 'var(--danger)', marginTop: '4px', display: 'block' }}>
-                      ⚠ Rejecting an incoming material batch will auto-create a Quality Deviation.
-                    </span>
-                  )}
-                </div>
-
-                <div className={styles.formGroup}>
-                  <label className={styles.formLabel}>QC Inspection Notes / CoA Verification</label>
-                  <textarea
-                    className={styles.input}
-                    rows={3}
-                    placeholder="CoA verification notes, physical inspection observations..."
-                    value={recNotes}
-                    onChange={(e) => setRecNotes(e.target.value)}
-                    style={{ resize: 'vertical' }}
-                  />
-                </div>
-              </div>
-              <div className={styles.modalFooter}>
-                <button type="button" className={`${styles.btn} ${styles.btnSecondary}`} onClick={() => setShowReceiptModal(false)}>
-                  Cancel
-                </button>
-                <button type="submit" className={`${styles.btn} ${styles.btnPrimary}`}>
-                  Log Inspection Receipt
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
       {/* MODAL 14: PERSONA SWITCHER / LOGIN */}
       {showLoginModal && (
         <div className={styles.modalOverlay}>
@@ -5331,52 +2623,9 @@ export default function Home() {
               <button style={{ background: 'transparent', border: 'none', color: '#fff', fontSize: '20px', cursor: 'pointer' }} onClick={() => setShowLoginModal(false)}>×</button>
             </div>
             <div className={styles.modalBody}>
-              {/* Enterprise SSO Buttons */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '20px' }}>
-                <a
-                  href={IAM_URL}
-                  className={styles.btn}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: '10px',
-                    padding: '12px',
-                    fontSize: '13px',
-                    background: '#059669',
-                    color: '#fff',
-                    textDecoration: 'none',
-                    fontWeight: '700',
-                    border: 'none',
-                  }}
-                >
-                  🔐 Sign in with Simpleafied Identity (IAM)
-                </a>
-                <button
-                  type="button"
-                  className={`${styles.btn} ${styles.btnSecondary}`}
-                  style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', padding: '12px', fontSize: '13px', background: 'rgba(255,255,255,0.04)' }}
-                  onClick={() => setSsoNotice('Microsoft 365 Azure AD SSO integration is active. Please authenticate using your Work Email Address below or configure AZURE_AD_CLIENT_ID in Vercel settings.')}
-                >
-                  <svg width="18" height="18" viewBox="0 0 23 23"><path fill="#f35325" d="M1 1h10v10H1z"/><path fill="#81bc06" d="M12 1h10v10H12z"/><path fill="#05a6f0" d="M1 12h10v10H1z"/><path fill="#ffba08" d="M12 12h10v10H12z"/></svg>
-                  Sign in with Microsoft 365 (Azure AD)
-                </button>
-                <button
-                  type="button"
-                  className={`${styles.btn} ${styles.btnSecondary}`}
-                  style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', padding: '12px', fontSize: '13px', background: 'rgba(255,255,255,0.04)' }}
-                  onClick={() => setSsoNotice('Google Workspace Cloud Identity SSO initiated. Contact your QA Administrator or sign in using your Work Email Address below.')}
-                >
-                  <svg width="18" height="18" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/></svg>
-                  Sign in with Google Workspace
-                </button>
-              </div>
-
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', margin: '20px 0', color: 'var(--text-muted)', fontSize: '12px' }}>
-                <div style={{ flex: 1, height: '1px', background: 'rgba(255,255,255,0.08)' }} />
-                <span>OR SIGN IN WITH EMAIL</span>
-                <div style={{ flex: 1, height: '1px', background: 'rgba(255,255,255,0.08)' }} />
-              </div>
+              <p style={{ margin: '0 0 20px', color: 'var(--text-muted)', fontSize: '13px', lineHeight: '1.6' }}>
+                Single sign-on is unavailable during controlled recovery. Sign in with your work email and password.
+              </p>
 
               {/* Standard Email Authentication Form */}
               <form onSubmit={async (e) => { e.preventDefault(); if (loginEmail && loginPassword) { const ok = await handleLoginUser(loginEmail, loginPassword); if (ok) setViewMode('app'); } }}>
@@ -5393,7 +2642,7 @@ export default function Home() {
                 </div>
 
                 <div className={styles.formGroup}>
-                  <label className={styles.formLabel}>Password / MFA Code</label>
+                  <label className={styles.formLabel}>Password</label>
                   <input
                     className={styles.input}
                     type="password"
@@ -5405,7 +2654,7 @@ export default function Home() {
                 </div>
 
                 <button type="submit" className={`${styles.btn} ${styles.btnPrimary}`} style={{ width: '100%', marginTop: '8px', padding: '12px', background: '#10B981', color: '#000', fontWeight: '700' }}>
-                  🔒 Secure Sign In (21 CFR Part 11)
+                  Secure Sign In
                 </button>
               </form>
             </div>
@@ -5418,270 +2667,6 @@ export default function Home() {
         </div>
       )}
 
-      {/* MODAL 15: ORGANIZATION REGISTRATION & ONBOARDING */}
-      {showRegisterModal && (
-        <div className={styles.modalOverlay}>
-          <div className={styles.modalContent} style={{ maxWidth: '650px' }}>
-            <div className={styles.modalHeader}>
-              <h3>Onboard New Organization & Quality Owner</h3>
-              <button style={{ background: 'transparent', border: 'none', color: '#fff', fontSize: '20px', cursor: 'pointer' }} onClick={() => setShowRegisterModal(false)}>×</button>
-            </div>
-            <form onSubmit={handleRegisterCompany}>
-              <div className={styles.modalBody}>
-                <div style={{ padding: '12px 16px', background: 'rgba(16,185,129,0.08)', borderRadius: '8px', border: '1px solid rgba(16,185,129,0.2)', marginBottom: '20px' }}>
-                  <div style={{ fontWeight: '600', color: '#10B981', fontSize: '14px' }}>✨ Instant GxP Workspace Provisioning</div>
-                  <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px' }}>
-                    Registering creates your tenant organization and auto-generates your starter SOP library compliant with 21 CFR Part 11 and ISO 13485.
-                  </div>
-                </div>
-
-                <div className={styles.formGroup}>
-                  <label className={styles.formLabel}>Company / Organization Name</label>
-                  <input
-                    className={styles.input}
-                    type="text"
-                    placeholder="e.g. Helios BioPharma Inc."
-                    value={regCompanyName}
-                    onChange={(e) => setRegCompanyName(e.target.value)}
-                    required
-                  />
-                </div>
-
-                <div className={styles.grid2} style={{ margin: 0, gap: '12px' }}>
-                  <div className={styles.formGroup}>
-                    <label className={styles.formLabel}>Quality Owner Full Name</label>
-                    <input
-                      className={styles.input}
-                      type="text"
-                      placeholder="e.g. Dr. Eleanor Vance"
-                      value={regFullName}
-                      onChange={(e) => setRegFullName(e.target.value)}
-                      required
-                    />
-                  </div>
-
-                  <div className={styles.formGroup}>
-                    <label className={styles.formLabel}>Work Email</label>
-                    <input
-                      className={styles.input}
-                      type="email"
-                      placeholder="eleanor@heliosbio.com"
-                      value={regEmail}
-                      onChange={(e) => setRegEmail(e.target.value)}
-                      required
-                    />
-                  </div>
-                </div>
-
-                <div className={styles.grid3} style={{ margin: 0, gap: '12px' }}>
-                  <div className={styles.formGroup}>
-                    <label className={styles.formLabel}>Department</label>
-                    <select
-                      className={styles.input}
-                      value={regDepartment}
-                      onChange={(e) => setRegDepartment(e.target.value)}
-                    >
-                      <option value="QA">Quality Assurance (QA)</option>
-                      <option value="QC">Quality Control (QC)</option>
-                      <option value="PRODUCTION">Manufacturing</option>
-                      <option value="REGULATORY">Regulatory Affairs</option>
-                    </select>
-                  </div>
-
-                  <div className={styles.formGroup}>
-                    <label className={styles.formLabel}>User Role</label>
-                    <select
-                      className={styles.input}
-                      value={regRole}
-                      onChange={(e) => setRegRole(e.target.value)}
-                    >
-                      <option value="OWNER">System Owner (Full Admin)</option>
-                      <option value="ADMIN">QA Administrator</option>
-                      <option value="AUDITOR">Auditor</option>
-                    </select>
-                  </div>
-
-                  <div className={styles.formGroup}>
-                    <label className={styles.formLabel}>Primary Standard</label>
-                    <select
-                      className={styles.input}
-                      value={regGxPStandard}
-                      onChange={(e) => setRegGxPStandard(e.target.value)}
-                    >
-                      <option value="21 CFR Part 11 / ISO 13485">21 CFR Part 11 & ISO 13485</option>
-                      <option value="EU Annex 11 / GMP">EU Annex 11 & GMP</option>
-                      <option value="ISO 9001 / GAMP 5">ISO 9001 & GAMP 5</option>
-                    </select>
-                  </div>
-                </div>
-              </div>
-              <div className={styles.modalFooter}>
-                <button type="button" className={`${styles.btn} ${styles.btnSecondary}`} onClick={() => setShowRegisterModal(false)}>
-                  Cancel
-                </button>
-                <button type="submit" className={`${styles.btn} ${styles.btnPrimary}`}>
-                  Provision GxP Organization
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-        {/* MODAL 16: INVITE TEAM MEMBER */}
-        {showInviteUserModal && (
-          <div className={styles.modalOverlay}>
-            <div className={styles.modalContent} style={{ maxWidth: '600px' }}>
-              <div className={styles.modalHeader}>
-                <h3>Invite New Employee & Assign Role</h3>
-                <button style={{ background: 'transparent', border: 'none', color: '#fff', fontSize: '20px', cursor: 'pointer' }} onClick={() => setShowInviteUserModal(false)}>×</button>
-              </div>
-              <form onSubmit={handleInviteUser}>
-                <div className={styles.modalBody}>
-                  <div className={styles.formGroup}>
-                    <label className={styles.formLabel}>Full Name</label>
-                    <input
-                      className={styles.input}
-                      type="text"
-                      placeholder="e.g. Dr. Alex Mercer"
-                      value={inviteFullName}
-                      onChange={(e) => setInviteFullName(e.target.value)}
-                      required
-                    />
-                  </div>
-
-                  <div className={styles.formGroup}>
-                    <label className={styles.formLabel}>Work Email</label>
-                    <input
-                      className={styles.input}
-                      type="email"
-                      placeholder="alex.mercer@biotech.com"
-                      value={inviteEmail}
-                      onChange={(e) => setInviteEmail(e.target.value)}
-                      required
-                    />
-                  </div>
-
-                  <div className={styles.grid2} style={{ margin: 0, gap: '12px' }}>
-                    <div className={styles.formGroup}>
-                      <label className={styles.formLabel}>Assigned GxP Role</label>
-                      <select
-                        className={styles.input}
-                        value={inviteRole}
-                        onChange={(e) => setInviteRole(e.target.value)}
-                      >
-                        <option value="EMPLOYEE">Employee (Standard User)</option>
-                        <option value="QUALITY_MANAGER">Quality Manager (QMS Owner)</option>
-                        <option value="QA_REVIEWER">QA Reviewer (Independent Review)</option>
-                        <option value="DOCUMENT_OWNER">Document Owner (Author)</option>
-                        <option value="DEPARTMENT_MANAGER">Department Manager</option>
-                        <option value="TRAINING_COORDINATOR">Training Coordinator</option>
-                        <option value="INVESTIGATOR">Investigator (Deviation / CAPA)</option>
-                        <option value="APPROVER">Approver (21 CFR Part 11 Signatory)</option>
-                        <option value="ADMIN">QA Administrator</option>
-                        <option value="OWNER">Organization Owner</option>
-                        <option value="EXTERNAL_AUDITOR">External Auditor (Temporary Read-Only)</option>
-                        <option value="SUPPLIER">Supplier (External Vendor Portal)</option>
-                        <option value="CONSULTANT">Consultant (Temporary Scope)</option>
-                      </select>
-                    </div>
-
-                    <div className={styles.formGroup}>
-                      <label className={styles.formLabel}>Department</label>
-                      <select
-                        className={styles.input}
-                        value={inviteDept}
-                        onChange={(e) => setInviteDept(e.target.value)}
-                      >
-                        <option value="QA">Quality Assurance (QA)</option>
-                        <option value="QC">Quality Control (QC)</option>
-                        <option value="PRODUCTION">Manufacturing</option>
-                        <option value="REGULATORY">Regulatory Affairs</option>
-                        <option value="ENGINEERING">Engineering & Calibration</option>
-                      </select>
-                    </div>
-                  </div>
-                </div>
-                <div className={styles.modalFooter}>
-                  <button type="button" className={`${styles.btn} ${styles.btnSecondary}`} onClick={() => setShowInviteUserModal(false)}>
-                    Cancel
-                  </button>
-                  <button type="submit" className={`${styles.btn} ${styles.btnPrimary}`} style={{ background: '#10B981', color: '#000', fontWeight: '700' }}>
-                    ➕ Send Invitation & Assign Role
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
-        )}
-
-        {/* MODAL 17: REASSIGN USER ROLE */}
-        {showEditUserModal && editingUser && (
-          <div className={styles.modalOverlay}>
-            <div className={styles.modalContent} style={{ maxWidth: '550px' }}>
-              <div className={styles.modalHeader}>
-                <h3>Reassign GxP Role: {editingUser.fullName}</h3>
-                <button style={{ background: 'transparent', border: 'none', color: '#fff', fontSize: '20px', cursor: 'pointer' }} onClick={() => setShowEditUserModal(false)}>×</button>
-              </div>
-              <form onSubmit={handleUpdateUserRole}>
-                <div className={styles.modalBody}>
-                  <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '16px' }}>
-                    Target Email: <strong>{editingUser.email}</strong>
-                  </div>
-
-                  <div className={styles.formGroup}>
-                    <label className={styles.formLabel}>Assigned Role</label>
-                    <select
-                      className={styles.input}
-                      value={editRole}
-                      onChange={(e) => setEditRole(e.target.value)}
-                    >
-                      <option value="EMPLOYEE">Employee (Document Consumer / Trainee)</option>
-                      <option value="APPROVER">Approver (Signatory)</option>
-                      <option value="QUALITY_MANAGER">Quality Manager</option>
-                      <option value="ADMIN">QA Administrator</option>
-                      <option value="AUDITOR">Auditor (Read-Only Compliance)</option>
-                      <option value="OWNER">Organization Owner</option>
-                    </select>
-                  </div>
-
-                  <div className={styles.formGroup}>
-                    <label className={styles.formLabel}>Department</label>
-                    <select
-                      className={styles.input}
-                      value={editDept}
-                      onChange={(e) => setEditDept(e.target.value)}
-                    >
-                      <option value="QA">Quality Assurance (QA)</option>
-                      <option value="QC">Quality Control (QC)</option>
-                      <option value="PRODUCTION">Manufacturing</option>
-                      <option value="REGULATORY">Regulatory Affairs</option>
-                      <option value="ENGINEERING">Engineering & Calibration</option>
-                    </select>
-                  </div>
-                </div>
-                <div className={styles.modalFooter}>
-                  <button type="button" className={`${styles.btn} ${styles.btnSecondary}`} onClick={() => setShowEditUserModal(false)}>
-                    Cancel
-                  </button>
-                  <button type="submit" className={`${styles.btn} ${styles.btnPrimary}`}>
-                    💾 Save Role Assignment
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
-        )}
-
-        {showOnboardingWizard && (
-          <OnboardingWizardModal
-            onClose={() => setShowOnboardingWizard(false)}
-            onComplete={async (email) => {
-              setShowOnboardingWizard(false);
-              window.location.reload();
-            }}
-          />
-        )}
       </AppShell>
     );
   }

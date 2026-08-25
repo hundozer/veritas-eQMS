@@ -22,6 +22,10 @@ const organization = { id: 'organization-1', tenantId: 'tenant-1', status: 'ACTI
 const operationalUser = {
   id: 'user-1',
   email: 'different-qms-email@example.com',
+  fullName: 'Quality User',
+  role: 'EMPLOYEE',
+  department: 'QA',
+  clearance: 'INTERNAL',
   tenantId: organization.tenantId,
   accountStatus: 'ACTIVE',
   expiresAt: null,
@@ -78,6 +82,19 @@ describe('POST /api/auth/login', () => {
     expect(setCookie.toLowerCase()).toContain('httponly');
     expect(setCookie.toLowerCase()).toContain('samesite=lax');
     expect(setCookie).not.toContain(iamUser.email);
+    expect(response.headers.get('cache-control')).toBe('no-store');
+    await expect(response.json()).resolves.toEqual({
+      user: {
+        id: operationalUser.id,
+        email: operationalUser.email,
+        fullName: operationalUser.fullName,
+        role: operationalUser.role,
+        department: operationalUser.department,
+        clearance: operationalUser.clearance,
+        tenantId: operationalUser.tenantId,
+        tenantName: operationalUser.tenant.name,
+      },
+    });
   });
 
   it('LOGIN-T002: a wrong password fails generically without a session', async () => {
@@ -85,6 +102,7 @@ describe('POST /api/auth/login', () => {
     const response = await POST(request({ email: iamUser.email, password: 'wrong' }));
 
     expect(response.status).toBe(401);
+    expect(response.headers.get('cache-control')).toBe('no-store');
     expect(sessionMock.createIamSession).not.toHaveBeenCalled();
   });
 

@@ -4,6 +4,7 @@ import { writeMandatoryAudit } from './audit';
 
 const context: UserContext = {
   iamUserId: 'iam-1', membershipId: 'membership-1', roleId: 'role-1', membershipRole: 'QUALITY_MANAGER',
+  permissions: ['audit.read'],
   id: 'operational-1', email: 'historical@example.invalid', fullName: 'Actor', role: 'EMPLOYEE', department: 'QA',
   clearance: 'INTERNAL', tenantId: 'tenant-1', tenantName: 'Tenant',
 };

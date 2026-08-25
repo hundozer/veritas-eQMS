@@ -1,139 +1,56 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/db';
-import { getContext, logAuditEvent } from '@/lib/auth';
+import { getContext } from '@/lib/auth';
 import { hasPermission } from '@/lib/rbac';
 import { writeMandatoryAudit } from '@/lib/audit';
+import { assertTransition, lifecycleErrorResponse, verifyLifecycleIntegrity } from '@/lib/document-lifecycle';
+import { reportServerError } from '../../../../../lib/server-errors';
 
-
-
-// POST /api/documents/[id]/approve - Approves and signs a document, triggering training assignments on release
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
     const user = await getContext(req);
-    if (!user) {
-      return NextResponse.json({ error: { code: 'Unauthorized', message: 'User context not found' } }, { status: 401 });
+    if (!user) return NextResponse.json({ error: { code: 'Unauthorized', message: 'Authentication required' } }, { status: 401 });
+    if (!hasPermission(user, 'documents.approve')) return NextResponse.json({ error: { code: 'Forbidden', message: 'Document-approval permission is required' } }, { status: 403 });
+    const body = await req.json().catch(() => ({}));
+    const comment = typeof body.comment === 'string' ? body.comment.trim() : '';
+
+    const document = await prisma.document.findFirst({ where: { id, tenantId: user.tenantId } });
+    if (!document) return NextResponse.json({ error: { code: 'NotFound', message: 'Document not found' } }, { status: 404 });
+    const version = await prisma.documentVersion.findUnique({ where: { documentId_versionNumber: { documentId: id, versionNumber: document.currentVersionNumber } } });
+    if (!version) return NextResponse.json({ error: { code: 'Conflict', message: 'Current document version is missing' } }, { status: 409 });
+    assertTransition(version.status, 'APPROVED');
+    if (user.id === (version.authoredById || document.ownerId)) {
+      return NextResponse.json({ error: { code: 'SegregationOfDuties', message: 'The document author cannot approve their own version' } }, { status: 409 });
     }
-
-    // Check permissions - OWNER, ADMIN, or APPROVER
-    if (!hasPermission(user, 'documents.approve')) {
-      return NextResponse.json({ error: { code: 'Forbidden', message: 'Only authorized Approvers, System Owners, or QA Admins can execute approvals' } }, { status: 403 });
-    }
-
-    const body = await req.json();
-    const { password, meaning, comment } = body;
-
-    // Simulate 2-Factor Authentication (confirm password)
-    // For local mock verification, any non-empty password is fine, but in GxP it validates credentials.
-    if (!password || password.trim() === '') {
-      return NextResponse.json({ error: { code: 'ValidationFailed', message: 'E-signature requires password verification' } }, { status: 400 });
-    }
-
-    const document = await prisma.document.findUnique({
-      where: { id },
-      include: {
-        versions: {
-          orderBy: { versionNumber: 'desc' },
-        },
-        trainingRequirement: true,
-      },
+    const route = await prisma.approvalRoute.findFirst({
+      where: { documentVersionId: version.id, status: 'REVIEWED' }, orderBy: { createdAt: 'desc' }, include: { steps: true },
     });
+    const reviewStep = route?.steps.find((step) => step.stepType === 'REVIEW');
+    const approvalStep = route?.steps.find((step) => step.stepType === 'APPROVAL');
+    if (!route || !reviewStep || reviewStep.status !== 'COMPLETED') return NextResponse.json({ error: { code: 'ReviewIncomplete', message: 'Assigned review must be completed before approval' } }, { status: 409 });
+    if (!approvalStep || approvalStep.approverId !== user.id) return NextResponse.json({ error: { code: 'NotAssignedApprover', message: 'Only the assigned approver may approve this version' } }, { status: 403 });
+    if (approvalStep.status !== 'PENDING') return NextResponse.json({ error: { code: 'StaleWorkflowAction', message: 'This approval has already been completed' } }, { status: 409 });
+    await verifyLifecycleIntegrity(version);
 
-    if (!document || document.tenantId !== user.tenantId) {
-      return NextResponse.json({ error: { code: 'NotFound', message: 'Document not found' } }, { status: 404 });
-    }
-
-    if (document.status !== 'DRAFT' && document.status !== 'IN_REVIEW') {
-      return NextResponse.json({ error: { code: 'Conflict', message: 'Document is not in a state that can be approved' } }, { status: 409 });
-    }
-
-    const latestVersion = document.versions[0];
-    if (!latestVersion) {
-      return NextResponse.json({ error: { code: 'Conflict', message: 'Document has no files uploaded to approve' } }, { status: 409 });
-    }
-
-    // Execute approval workflow transaction
-    const result = await prisma.$transaction(async (tx: any) => {
-      // 1. Update Document Status to EFFECTIVE (making it active in the system)
-      const updatedDoc = await tx.document.update({
-        where: { id },
-        data: { status: 'EFFECTIVE' },
-      });
-
-      // 2. Create or Update E-Signature Manifest (21 CFR Part 11 record)
-      const manifest = await tx.signatureManifest.upsert({
-        where: { documentVersionId: latestVersion.id },
-        update: {
-          signer: { connect: { id: user.id } },
-          meaning: meaning || 'Approval of Document Release',
-          hashSigned: `${latestVersion.hash}-${user.fullName.toUpperCase()}-APPROVED`,
-          ipAddress: req.headers.get('x-forwarded-for') || '127.0.0.1',
-          signedAt: new Date(),
-        },
-        create: {
-          documentVersionId: latestVersion.id,
-          signedBy: user.id,
-          meaning: meaning || 'Approval of Document Release',
-          hashSigned: `${latestVersion.hash}-${user.fullName.toUpperCase()}-APPROVED`,
-          ipAddress: req.headers.get('x-forwarded-for') || '127.0.0.1',
-        },
-      });
-
-      // 3. Auto-Trigger Training Assignments if requirements exist
-      let assignmentsCreated = 0;
-      if (document.trainingRequirement) {
-        const requiredRoles = document.trainingRequirement.requiredForRoles.split(',');
-
-        // Find all users in the tenant who match these roles/departments
-        const targetUsers = await tx.user.findMany({
-          where: {
-            tenantId: user.tenantId,
-            OR: [
-              { role: { in: requiredRoles } },
-              { department: { in: requiredRoles } },
-            ],
-            // Exclude user who just approved it if they are also the author (authors are usually self-trained or assigned separately, but let's assign them anyway. Let's not exclude unless requested.)
-          },
-        });
-
-        for (const targetUser of targetUsers) {
-          // Check if assignment already exists for this requirement and user
-          const existing = await tx.trainingAssignment.findFirst({
-            where: {
-              requirementId: document.trainingRequirement.id,
-              userId: targetUser.id,
-            },
-          });
-
-          if (!existing) {
-            await tx.trainingAssignment.create({
-              data: {
-                requirementId: document.trainingRequirement.id,
-                userId: targetUser.id,
-                status: 'ASSIGNED',
-              },
-            });
-            assignmentsCreated++;
-          }
-        }
-      }
-
+    await prisma.$transaction(async (tx) => {
+      const stepUpdate = await tx.approvalRouteStep.updateMany({ where: { id: approvalStep.id, status: 'PENDING' }, data: { status: 'COMPLETED', completedAt: new Date(), comment: comment || null } });
+      const versionUpdate = await tx.documentVersion.updateMany({ where: { id: version.id, status: 'IN_REVIEW' }, data: { status: 'APPROVED' } });
+      const documentUpdate = await tx.document.updateMany({ where: { id, tenantId: user.tenantId, currentVersionNumber: version.versionNumber, status: 'IN_REVIEW' }, data: { status: 'APPROVED' } });
+      if (stepUpdate.count !== 1 || versionUpdate.count !== 1 || documentUpdate.count !== 1) throw new Error('STALE_APPROVAL');
+      await tx.approvalRoute.update({ where: { id: route.id }, data: { status: 'APPROVED' } });
       await writeMandatoryAudit(tx, {
-        context: user, action: 'Document.Approve', objectType: 'Document', objectId: id,
-        payload: { previousStatus: document.status, status: updatedDoc.status, version: latestVersion.versionNumber, assignmentsCreated },
-        sourceIp: req.headers.get('x-forwarded-for') ?? undefined, requestUrl: req.nextUrl.pathname,
+        context: user, action: 'DOCUMENT_APPROVED', objectType: 'DocumentVersion', objectId: version.id,
+        payload: { documentId: id, version: version.versionNumber, before: 'IN_REVIEW', after: 'APPROVED', comment: comment || undefined },
+        requestUrl: req.nextUrl.pathname,
       });
-      return { updatedDoc, manifest, assignmentsCreated };
     });
-
-    return NextResponse.json({
-      success: true,
-      document: result.updatedDoc,
-      signature: result.manifest,
-      trainingAssignmentsCreated: result.assignmentsCreated,
-    });
-  } catch (error: any) {
-    console.error('Approve document error:', error);
-    return NextResponse.json({ error: { code: 'InternalError', message: error.message } }, { status: 500 });
+    return NextResponse.json({ success: true, status: 'APPROVED', version: version.versionNumber });
+  } catch (error) {
+    const lifecycle = lifecycleErrorResponse(error);
+    if (lifecycle) return NextResponse.json({ error: { code: lifecycle.code, message: lifecycle.message } }, { status: lifecycle.status });
+    if ((error as Error).message === 'STALE_APPROVAL') return NextResponse.json({ error: { code: 'StaleWorkflowAction', message: 'Document state changed; refresh and try again' } }, { status: 409 });
+    reportServerError('document.approve');
+    return NextResponse.json({ error: { code: 'InternalError', message: 'Unable to approve document' } }, { status: 500 });
   }
 }

@@ -4,12 +4,14 @@ import { getContext, logAuditEvent } from '@/lib/auth';
 import { hasPermission } from '@/lib/rbac';
 import { writeMandatoryAudit } from '@/lib/audit';
 import { randomUUID } from 'node:crypto';
+import { unexpectedErrorResponse } from '../../../lib/server-errors';
 import {
   cleanupUncontrolledObject,
   createControlledObjectKey,
   decodeControlledUpload,
   vercelBlobStorage,
 } from '@/lib/controlled-storage';
+import { generateDocumentNumber, normalizeDocumentType } from '@/lib/document-lifecycle';
 
 // GET /api/documents - List documents with tenant-scoping and ABAC filtering
 export async function GET(req: NextRequest) {
@@ -27,19 +29,50 @@ export async function GET(req: NextRequest) {
       where: {
         tenantId: user.tenantId,
       },
-      include: {
-        owner: true,
+      select: {
+        id: true,
+        documentNumber: true,
+        documentType: true,
+        title: true,
+        description: true,
+        classification: true,
+        status: true,
+        ownerId: true,
+        currentVersionNumber: true,
+        createdAt: true,
+        updatedAt: true,
+        owner: { select: { id: true, fullName: true } },
         versions: {
           orderBy: { versionNumber: 'desc' },
           select: {
             id: true,
             versionNumber: true,
+            status: true,
+            effectiveDate: true,
+            changeSummary: true,
             hash: true,
             originalFileName: true,
             mimeType: true,
             sizeBytes: true,
             createdAt: true,
             createdBy: true,
+            approvalRoutes: {
+              orderBy: { createdAt: 'desc' },
+              take: 1,
+              select: {
+                id: true,
+                status: true,
+                steps: {
+                  orderBy: { sequence: 'asc' },
+                  select: {
+                    id: true,
+                    stepType: true,
+                    status: true,
+                    approver: { select: { id: true, fullName: true } },
+                  },
+                },
+              },
+            },
           },
         },
       },
@@ -51,7 +84,7 @@ export async function GET(req: NextRequest) {
       tenantId: user.tenantId,
       userId: user.id,
       userEmail: user.email,
-      userRole: user.role,
+      userRole: user.membershipRole,
       action: 'Document.List',
       objectType: 'Document',
       payload: { countReturned: dbDocs.length, queryParams: Object.fromEntries(req.nextUrl.searchParams) },
@@ -59,10 +92,12 @@ export async function GET(req: NextRequest) {
       requestUrl: req.nextUrl.pathname,
     });
 
-    return NextResponse.json({ documents: dbDocs });
+    return NextResponse.json(
+      { documents: dbDocs },
+      { headers: { 'Cache-Control': 'no-store' } },
+    );
   } catch (error: any) {
-    console.error('List documents error:', error);
-    return NextResponse.json({ error: { code: 'InternalError', message: error.message } }, { status: 500 });
+    return unexpectedErrorResponse('document.list');
   }
 }
 
@@ -81,11 +116,18 @@ export async function POST(req: NextRequest) {
     // Any authenticated tenant user can author document drafts
 
     const body = await req.json();
-    const { title, description, classification, contentBase64, fileName, mimeType, requiredRoles, requiresQuiz, quizQuestions } = body;
+    const { title, description, classification, documentType: requestedType, contentBase64, fileName, mimeType, requiredRoles, requiresQuiz, quizQuestions } = body;
 
     if (!title || !classification) {
       return NextResponse.json({ error: { code: 'ValidationFailed', message: 'Title and classification are required' } }, { status: 400 });
     }
+    let documentType;
+    try {
+      documentType = normalizeDocumentType(requestedType);
+    } catch (error) {
+      return NextResponse.json({ error: { code: 'ValidationFailed', message: (error as Error).message } }, { status: 400 });
+    }
+    const documentNumber = generateDocumentNumber(documentType);
 
     let upload;
     try {
@@ -104,6 +146,8 @@ export async function POST(req: NextRequest) {
       const document = await tx.document.create({
         data: {
           id: documentId,
+          documentNumber,
+          documentType,
           title,
           description: description || '',
           classification,
@@ -119,6 +163,7 @@ export async function POST(req: NextRequest) {
         data: {
           documentId: document.id,
           versionNumber: 1,
+          status: 'DRAFT',
           filePath: uploadedKey,
           fileData: null,
           storageKey: uploadedKey,
@@ -127,6 +172,7 @@ export async function POST(req: NextRequest) {
           sizeBytes: upload.bytes.byteLength,
           hash: upload.hash,
           createdBy: user.fullName,
+          authoredById: user.id,
         },
       });
 
@@ -144,10 +190,10 @@ export async function POST(req: NextRequest) {
 
       await writeMandatoryAudit(tx, {
         context: user,
-        action: 'Document.Create',
+        action: 'DOCUMENT_CREATED',
         objectType: 'Document',
         objectId: document.id,
-        payload: { title: document.title, classification: document.classification, status: document.status, version: 1, hash: upload.hash, requiredRoles },
+        payload: { documentNumber, documentType, title: document.title, classification: document.classification, status: document.status, version: 1, hash: upload.hash, requiredRoles },
         requestUrl: req.nextUrl.pathname,
       });
 
@@ -158,7 +204,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ document: result }, { status: 201 });
   } catch (error: any) {
     if (uploadedKey) await cleanupUncontrolledObject(vercelBlobStorage, uploadedKey);
-    console.error('Create document error:', error);
-    return NextResponse.json({ error: { code: 'InternalError', message: error.message } }, { status: 500 });
+    return unexpectedErrorResponse('document.create');
   }
 }

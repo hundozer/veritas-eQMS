@@ -28,51 +28,54 @@ model Tenant {
 }
 
 model User {
-  id                      String                        @id @default(uuid())
-  email                   String                        @unique
-  fullName                String
-  firstName               String?
-  lastName                String?
-  phone                   String?
-  profilePicture          String?
-  mfaEnabled              Boolean                       @default(false)
-  accountStatus           String                        @default("ACTIVE") // ACTIVE, INACTIVE, SUSPENDED, PENDING_INVITATION
-  role                    String // e.g. "ADMIN", "OWNER", "QUALITY_MANAGER", "QA_REVIEWER", "DOCUMENT_OWNER", "DEPARTMENT_MANAGER", "TRAINING_COORDINATOR", "INVESTIGATOR", "APPROVER", "EMPLOYEE", "EXTERNAL_AUDITOR", "SUPPLIER", "CONSULTANT"
-  department              String // e.g. "QA", "QC", "PRODUCTION", "REGULATORY", "ENGINEERING"
-  businessUnit            String?
-  site                    String                        @default("Main Facility") // e.g. "Dublin Lab A", "Frankfurt Plant 2"
-  location                String?
-  country                 String?                       @default("Germany")
-  employmentType          String                        @default("EMPLOYEE") // EMPLOYEE, CONTRACTOR, CONSULTANT, EXTERNAL_AUDITOR, SUPPLIER
-  trainingStatus          String                        @default("QUALIFIED")
-  digitalSignatureEnabled Boolean                       @default(true)
-  signatureAuthorityLevel String                        @default("LEVEL_1")
-  approvalAuthorityLevel  String                        @default("LEVEL_1")
-  clearance               String                        @default("INTERNAL") // e.g. "INTERNAL", "RESTRICTED"
-  expiresAt               DateTime? // For temporary Consultant / External Auditor access
-  tenantId                String
-  tenant                  Tenant                        @relation(fields: [tenantId], references: [id])
-  documentOwner           Document[]                    @relation("DocumentOwner")
-  approvals               ApprovalRouteStep[]
-  signatures              SignatureManifest[]
-  trainingAssignments     TrainingAssignment[]
-  quizResults             QuizResult[]
-  deviationsDetected      Deviation[]                   @relation("DetectedBy")
-  deviationsInvestigated  Deviation[]                   @relation("Investigator")
-  capasAssigned           CAPA[]                        @relation("CapaAssigned")
-  maintenanceLogs         MaintenanceLog[]              @relation("PerformedMaintenance")
-  supplierAudits          SupplierAudit[]               @relation("AuditedSupplier")
-  materialInspections     MaterialReceipt[]             @relation("InspectedMaterial")
-  auditsLead              AuditPlan[]                   @relation("LeadAuditor")
-  notifications           Notification[]
-  requirementAssessments  TenantRequirementAssessment[] @relation("RequirementOwner")
-  iamMembership           IamMembership?
+  id                       String                        @id @default(uuid())
+  email                    String                        @unique
+  fullName                 String
+  firstName                String?
+  lastName                 String?
+  phone                    String?
+  profilePicture           String?
+  mfaEnabled               Boolean                       @default(false)
+  accountStatus            String                        @default("ACTIVE") // ACTIVE, INACTIVE, SUSPENDED, PENDING_INVITATION
+  role                     String // e.g. "ADMIN", "OWNER", "QUALITY_MANAGER", "QA_REVIEWER", "DOCUMENT_OWNER", "DEPARTMENT_MANAGER", "TRAINING_COORDINATOR", "INVESTIGATOR", "APPROVER", "EMPLOYEE", "EXTERNAL_AUDITOR", "SUPPLIER", "CONSULTANT"
+  department               String // e.g. "QA", "QC", "PRODUCTION", "REGULATORY", "ENGINEERING"
+  businessUnit             String?
+  site                     String                        @default("Main Facility") // e.g. "Dublin Lab A", "Frankfurt Plant 2"
+  location                 String?
+  country                  String?                       @default("Germany")
+  employmentType           String                        @default("EMPLOYEE") // EMPLOYEE, CONTRACTOR, CONSULTANT, EXTERNAL_AUDITOR, SUPPLIER
+  trainingStatus           String                        @default("QUALIFIED")
+  digitalSignatureEnabled  Boolean                       @default(true)
+  signatureAuthorityLevel  String                        @default("LEVEL_1")
+  approvalAuthorityLevel   String                        @default("LEVEL_1")
+  clearance                String                        @default("INTERNAL") // e.g. "INTERNAL", "RESTRICTED"
+  expiresAt                DateTime? // For temporary Consultant / External Auditor access
+  tenantId                 String
+  tenant                   Tenant                        @relation(fields: [tenantId], references: [id])
+  documentOwner            Document[]                    @relation("DocumentOwner")
+  authoredDocumentVersions DocumentVersion[]             @relation("DocumentVersionAuthor")
+  approvals                ApprovalRouteStep[]
+  signatures               SignatureManifest[]
+  trainingAssignments      TrainingAssignment[]
+  quizResults              QuizResult[]
+  deviationsDetected       Deviation[]                   @relation("DetectedBy")
+  deviationsInvestigated   Deviation[]                   @relation("Investigator")
+  capasAssigned            CAPA[]                        @relation("CapaAssigned")
+  maintenanceLogs          MaintenanceLog[]              @relation("PerformedMaintenance")
+  supplierAudits           SupplierAudit[]               @relation("AuditedSupplier")
+  materialInspections      MaterialReceipt[]             @relation("InspectedMaterial")
+  auditsLead               AuditPlan[]                   @relation("LeadAuditor")
+  notifications            Notification[]
+  requirementAssessments   TenantRequirementAssessment[] @relation("RequirementOwner")
+  iamMembership            IamMembership?
 
   @@unique([id, tenantId])
 }
 
 model Document {
   id                   String                  @id @default(uuid())
+  documentNumber       String?
+  documentType         String                  @default("OTHER")
   title                String
   description          String
   classification       String // e.g. "CONTROLLED", "INTERNAL", "HIGHLY_RESTRICTED"
@@ -87,6 +90,8 @@ model Document {
   updatedAt            DateTime                @updatedAt
   trainingRequirement  TrainingRequirement?
   changeRequests       ChangeRequestDocument[]
+
+  @@unique([tenantId, documentNumber])
 }
 
 model DocumentVersion {
@@ -94,6 +99,9 @@ model DocumentVersion {
   documentId        String
   document          Document           @relation(fields: [documentId], references: [id], onDelete: Restrict)
   versionNumber     Int
+  status            String             @default("DRAFT")
+  effectiveDate     DateTime?
+  changeSummary     String?
   filePath          String // Legacy filesystem path; retained for inherited records
   fileData          String? // Legacy Base64 content; new versions use private object storage
   storageKey        String?            @unique
@@ -103,6 +111,8 @@ model DocumentVersion {
   hash              String // SHA-256 content-integrity evidence
   createdAt         DateTime           @default(now())
   createdBy         String
+  authoredById      String?
+  authoredBy        User?              @relation("DocumentVersionAuthor", fields: [authoredById], references: [id], onDelete: Restrict)
   signatureManifest SignatureManifest?
   approvalRoutes    ApprovalRoute[]
 
@@ -125,8 +135,10 @@ model ApprovalRouteStep {
   approverId      String
   approver        User          @relation(fields: [approverId], references: [id])
   sequence        Int
+  stepType        String        @default("APPROVAL")
   status          String // e.g. "PENDING", "APPROVED", "REJECTED"
   signedAt        DateTime?
+  completedAt     DateTime?
   comment         String?
 }
 
