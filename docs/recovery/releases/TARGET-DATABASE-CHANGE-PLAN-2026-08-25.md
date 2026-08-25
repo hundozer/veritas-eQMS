@@ -47,8 +47,8 @@ Stop if any checksum, migration name, ordering, reviewed commit, or target basel
 ## IAM disposition
 
 1. Do **not** add `System Administrator` to any migration alias and do not assign it canonical tenant permissions. A platform role must not become tenant authority by name inference.
-2. Before preview authentication, an accountable owner must attest that the sole active member is authorized for a tenant role.
-3. Recommended recovery disposition, if that user is the organization owner: reassign the existing membership to the existing recognized tenant-administrator role in one controlled transaction. If the attestation differs, use the least-privileged existing recognized family matching the person's actual duties.
+2. **Attested 2026-08-25:** the accountable product owner confirmed that the sole active member is authorized for the existing `Organization Owner` tenant role. Evidence: `IAM-OWNER-ATTESTATION-2026-08-25.md`.
+3. Reassign the existing membership to the existing `Organization Owner` role in one controlled transaction. No other target role is authorized by this attestation.
 4. Record old/new role identifiers only in restricted change evidence. Do not store user identity or database identifiers in this repository.
 5. Revoke existing sessions in the same transaction. The current inventory shows zero sessions, but the execution must recheck under lock.
 6. Do not delete the platform role or its legacy grants in this release. Quarantine and redesign global/platform role ownership separately.
@@ -107,7 +107,7 @@ Do not manually drop the new columns/indexes or delete permission rows as an eme
 ## Current gate status
 
 - Artifact definition and preconditions: **complete**.
-- IAM disposition policy: **complete**, but owner attestation is pending.
+- IAM disposition policy and owner attestation: **complete**.
 - Verified backup/PITR restore: **pending**.
 - Reviewed recovery commit: **pending**.
 - Isolated migrated preview and authorization evidence: **pending**.

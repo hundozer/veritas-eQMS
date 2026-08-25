@@ -57,7 +57,8 @@ and explicit approval. Retain the previous production deployment identifier for
 
 ## Remaining blockers
 
-- Accountable-owner attestation for the membership's least-privileged tenant role.
+- Accountable-owner attestation: **completed 2026-08-25** for the existing
+  `Organization Owner` tenant role.
 - Fresh live recovery checkpoint after writer quiescence.
 - Production database migration and attested membership transaction.
 - Staged Production-environment deployment and protected smoke tests.

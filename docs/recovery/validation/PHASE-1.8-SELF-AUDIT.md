@@ -36,10 +36,10 @@ authorization remains blocked.
 
 ## Residual blockers
 
-Owner role attestation, fresh recovery checkpoint, live database execution,
-staged Production-environment verification, and explicit release approval remain
-open. The public pre-containment deployment continues to return a production
-login HTTP 500.
+Owner role attestation was completed immediately after this rehearsal. Fresh
+recovery checkpoint, live database execution, staged Production-environment
+verification, and explicit release approval remain open. The public
+pre-containment deployment continues to return a production login HTTP 500.
 
 Closure status: **closed for isolated production cutover rehearsal only**.
 Production remains **NO-GO**.
