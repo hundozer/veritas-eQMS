@@ -31,7 +31,10 @@ rollback-checkpoint, remote-build, and containment smoke gates are evidenced in
 `PRODUCTION-CUTOVER-2026-08-26.md`. The following still block regulated or
 general-availability release:
 
-1. Complete independent verification of deployed session, cookie, proxy, CDN/cache, object-storage, database-role, network, secret, backup/restore, rollback, and tenant-isolation controls.
+1. Remediate and independently verify the failed object-storage, database-role,
+   network, secret-scope, runtime, header, monitoring, backup/restore, rollback,
+   session/cookie, proxy/CDN/cache, and tenant-isolation controls recorded in
+   `PRODUCTION-INFRASTRUCTURE-AUDIT-2026-08-26.md`.
 2. Implement and evidence distributed login abuse controls, MFA policy, alerting, session revocation/concurrency policy, and penetration testing.
 3. Implement and approve `OBS-001`–`OBS-012`, including transport, access, retention/deletion, processor/location, monitoring, and historical-log disposition.
 4. Inventory and assess historical records created before containment: identities/memberships, signatures, approvals/releases, training completions, change requests, deviations/CAPAs, equipment/supplier actions, audit events/exports, public files, caches, and third-party processor histories.

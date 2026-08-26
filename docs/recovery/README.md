@@ -63,6 +63,12 @@ controlled migration, IAM, rollback, remote-build, and smoke gates passed. See
 `releases/PRODUCTION-CUTOVER-2026-08-26.md` and
 `validation/PHASE-1.10-SELF-AUDIT.md`.
 
+Phase 1.11's read-only production infrastructure audit is complete and its
+release gate failed. The highest-priority defect is unavailable controlled-file
+storage; least-privileged database access, environment isolation, browser
+headers, runtime consistency, and observability also remain open. See
+`releases/PRODUCTION-INFRASTRUCTURE-AUDIT-2026-08-26.md`.
+
 Regulated customer use, a customer pilot, general availability, and compliance
 claims remain **NO-GO** until the checklist's historical-review,
 infrastructure, legal/privacy, security, validation, operational, and
