@@ -58,7 +58,12 @@ Phase 0 repository containment is complete as of 2026-08-25. See
 `validation/PHASE-0.38-SELF-AUDIT.md` and
 `releases/CONTAINMENT-EXIT-CHECKLIST.md`.
 
-Production and regulated-customer use remain **NO-GO** until the checklist's
-deployment, migration, historical-review, infrastructure, legal/privacy,
-security, validation, operational, and independent-approval gates have
-objective evidence.
+The containment candidate was deployed to production on 2026-08-26 after the
+controlled migration, IAM, rollback, remote-build, and smoke gates passed. See
+`releases/PRODUCTION-CUTOVER-2026-08-26.md` and
+`validation/PHASE-1.10-SELF-AUDIT.md`.
+
+Regulated customer use, a customer pilot, general availability, and compliance
+claims remain **NO-GO** until the checklist's historical-review,
+infrastructure, legal/privacy, security, validation, operational, and
+independent-approval gates have objective evidence.
