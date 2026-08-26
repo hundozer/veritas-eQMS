@@ -29,15 +29,20 @@ export interface ControlledStorageBackend {
   deleteObject(key: string): Promise<void>;
 }
 
-function requireStorageToken() {
-  if (!process.env.BLOB_READ_WRITE_TOKEN?.trim()) {
+function requireStorageCredentials() {
+  const hasReadWriteToken = Boolean(process.env.BLOB_READ_WRITE_TOKEN?.trim());
+  const hasOidcCredentials = Boolean(
+    process.env.VERCEL_OIDC_TOKEN?.trim() && process.env.BLOB_STORE_ID?.trim(),
+  );
+
+  if (!hasReadWriteToken && !hasOidcCredentials) {
     throw new Error('Controlled-record storage is unavailable');
   }
 }
 
 export const vercelBlobStorage: ControlledStorageBackend = {
   async putObject(key, bytes, contentType) {
-    requireStorageToken();
+    requireStorageCredentials();
     await put(key, Buffer.from(bytes), {
       access: 'private',
       addRandomSuffix: false,
@@ -48,7 +53,7 @@ export const vercelBlobStorage: ControlledStorageBackend = {
   },
 
   async getObject(key) {
-    requireStorageToken();
+    requireStorageCredentials();
     const result = await get(key, { access: 'private' });
     if (!result || result.statusCode !== 200 || !result.stream) return null;
     const bytes = new Uint8Array(await new Response(result.stream).arrayBuffer());
@@ -62,7 +67,7 @@ export const vercelBlobStorage: ControlledStorageBackend = {
   },
 
   async headObject(key) {
-    requireStorageToken();
+    requireStorageCredentials();
     try {
       const result = await head(key);
       return { key, contentType: result.contentType, size: result.size, etag: result.etag };
@@ -72,7 +77,7 @@ export const vercelBlobStorage: ControlledStorageBackend = {
   },
 
   async deleteObject(key) {
-    requireStorageToken();
+    requireStorageCredentials();
     await del(key);
   },
 };

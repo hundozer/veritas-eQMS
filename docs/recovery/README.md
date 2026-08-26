@@ -70,9 +70,14 @@ headers, runtime consistency, and observability also remain open. See
 `releases/PRODUCTION-INFRASTRUCTURE-AUDIT-2026-08-26.md`.
 
 Phase 1.12 established a zero-billing path to restore controlled storage: reuse
-the existing empty private Blob store on Hobby through Vercel OIDC. The required
-adapter repair and production connection are not yet implemented. See
+the existing empty private Blob store on Hobby through Vercel OIDC. At that
+preflight exit, the adapter repair and production connection were still open. See
 `releases/BLOB-COST-AND-CONNECTION-PREFLIGHT-2026-08-26.md`.
+
+Phase 1.13 implemented and verified the OIDC-compatible storage adapter. The
+candidate has not been deployed; the existing store still requires a controlled
+Production OIDC connection and synthetic end-to-end verification. See
+`releases/BLOB-OIDC-ADAPTER-CANDIDATE-2026-08-26.md`.
 
 Regulated customer use, a customer pilot, general availability, and compliance
 claims remain **NO-GO** until the checklist's historical-review,

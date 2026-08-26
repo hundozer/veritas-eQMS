@@ -39,6 +39,8 @@ describe('controlled-record storage', () => {
   afterEach(() => {
     vi.clearAllMocks();
     delete process.env.BLOB_READ_WRITE_TOKEN;
+    delete process.env.BLOB_STORE_ID;
+    delete process.env.VERCEL_OIDC_TOKEN;
   });
 
   it('computes SHA-256 from uploaded bytes and sanitizes display filenames', () => {
@@ -75,6 +77,40 @@ describe('controlled-record storage', () => {
     expect(blobMock.put).toHaveBeenCalledWith(expect.any(String), expect.any(Uint8Array), expect.objectContaining({
       access: 'private', addRandomSuffix: false, allowOverwrite: false,
     }));
+  });
+
+  it('accepts a complete Vercel OIDC store identity without a long-lived token', async () => {
+    process.env.VERCEL_OIDC_TOKEN = 'synthetic-oidc-token';
+    process.env.BLOB_STORE_ID = 'store_synthetic';
+    blobMock.put.mockResolvedValue({});
+
+    await vercelBlobStorage.putObject(
+      'tenants/t/documents/d/versions/1/oidc-id',
+      new Uint8Array([1]),
+      'application/pdf',
+    );
+
+    expect(blobMock.put).toHaveBeenCalledOnce();
+  });
+
+  it.each([
+    { VERCEL_OIDC_TOKEN: 'synthetic-oidc-token', BLOB_STORE_ID: undefined },
+    { VERCEL_OIDC_TOKEN: undefined, BLOB_STORE_ID: 'store_synthetic' },
+    { VERCEL_OIDC_TOKEN: undefined, BLOB_STORE_ID: undefined },
+  ])('fails closed for incomplete storage credentials: %o', async (credentials) => {
+    if (credentials.VERCEL_OIDC_TOKEN) {
+      process.env.VERCEL_OIDC_TOKEN = credentials.VERCEL_OIDC_TOKEN;
+    }
+    if (credentials.BLOB_STORE_ID) {
+      process.env.BLOB_STORE_ID = credentials.BLOB_STORE_ID;
+    }
+
+    await expect(vercelBlobStorage.putObject(
+      'tenants/t/documents/d/versions/1/rejected-id',
+      new Uint8Array([1]),
+      'application/pdf',
+    )).rejects.toThrow('Controlled-record storage is unavailable');
+    expect(blobMock.put).not.toHaveBeenCalled();
   });
 
   it('returns identical bytes only when persisted SHA-256 matches', async () => {
