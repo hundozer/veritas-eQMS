@@ -19,7 +19,7 @@ Full audit and rationale: "Veritas eQMS — Code Audit & Roadmap" (5 Oct 2026).
       UPDATE/DELETE rejected by trigger.
 - [ ] Confirm whether `prisma/seed.js` ever ran against production (it writes a
       fabricated signature manifest); seed refuses to run in production.
-- [ ] Security headers in `next.config.ts`; Node version pinned in `engines`.
+- [x] Security headers in `next.config.ts`; Node version pinned in `engines`.
 - [ ] Delete suppliers, equipment, regulatory intelligence, platform admin,
       Microsoft SSO, audit planning, and their containment tests.
 - [ ] Postgres-backed test harness seeded with two tenants.
