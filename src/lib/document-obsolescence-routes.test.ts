@@ -116,4 +116,42 @@ describe('document obsolescence route', () => {
     expect(response.status).toBe(400);
     expect(prismaMock.document.findFirst).not.toHaveBeenCalled();
   });
+
+  it('OBSOLETE-T005 refuses without documents.obsolete before reading input or records', async () => {
+    rbacMock.hasPermission.mockReturnValue(false);
+    const req = request({ reason: 'not allowed' });
+
+    const { DELETE } = await import('../app/api/documents/[id]/route');
+    const response = await DELETE(req, { params: Promise.resolve({ id: 'doc-1' }) });
+
+    expect(response.status).toBe(403);
+    expect(rbacMock.hasPermission).toHaveBeenCalledWith(context, 'documents.obsolete');
+    expect((req as unknown as { json: ReturnType<typeof vi.fn> }).json).not.toHaveBeenCalled();
+    expect(prismaMock.document.findFirst).not.toHaveBeenCalled();
+  });
+
+  it('OBSOLETE-T006 treats another tenant\'s document as not found', async () => {
+    prismaMock.document.findFirst.mockResolvedValue(null);
+
+    const { DELETE } = await import('../app/api/documents/[id]/route');
+    const response = await DELETE(request({ reason: 'cross-tenant' }), { params: Promise.resolve({ id: 'doc-other-tenant' }) });
+
+    expect(response.status).toBe(404);
+    expect(prismaMock.document.findFirst).toHaveBeenCalledWith({ where: { id: 'doc-other-tenant', tenantId: 'tenant-a' } });
+    expect(prismaMock.$transaction).not.toHaveBeenCalled();
+  });
+
+  it('OBSOLETE-T007 reports a stale action when the version changed under the request', async () => {
+    prismaMock.document.findFirst.mockResolvedValue({ id: 'doc-1', tenantId: 'tenant-a', status: 'EFFECTIVE', currentVersionNumber: 1 });
+    prismaMock.documentVersion.findUnique.mockResolvedValue({ id: 'v1', versionNumber: 1, status: 'EFFECTIVE' });
+    prismaMock.documentVersion.findMany.mockResolvedValue([]);
+    transactionWith({ version: 0, effective: 0, document: 1 });
+
+    const { DELETE } = await import('../app/api/documents/[id]/route');
+    const response = await DELETE(request({ reason: 'race' }), { params: Promise.resolve({ id: 'doc-1' }) });
+
+    expect(response.status).toBe(409);
+    await expect(response.json()).resolves.toMatchObject({ error: { code: 'StaleWorkflowAction' } });
+    expect(auditMock.writeMandatoryAudit).not.toHaveBeenCalled();
+  });
 });
