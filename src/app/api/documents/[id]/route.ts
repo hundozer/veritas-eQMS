@@ -248,6 +248,16 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
       select: { id: true, versionNumber: true },
     });
 
+    // An open revision (draft, in review or approved) sits on top of a live effective
+    // version. Obsoleting it here would also retire the SOP people are working to.
+    // Withdrawing a revision is a separate lifecycle action and is not available yet.
+    if (version.status !== 'EFFECTIVE' && effectiveVersions.length > 0) {
+      return NextResponse.json(
+        { error: { code: 'RevisionInProgress', message: 'This document has an open revision; the effective version cannot be obsoleted until the revision is resolved' } },
+        { status: 409 },
+      );
+    }
+
     const archivedDoc = await prisma.$transaction(async (tx) => {
       const versionUpdate = await tx.documentVersion.updateMany({ where: { id: version.id, status: version.status }, data: { status: 'OBSOLETE' } });
       const effectiveUpdate = await tx.documentVersion.updateMany({
