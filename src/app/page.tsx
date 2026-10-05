@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import styles from './page.module.css';
 import { AppShell, useThemeMode } from '@/ui';
 import type { NavGroup } from '@/ui';
+import { LoginErrorNotice } from '@/ui/components/LoginErrorNotice';
 import {
   Dashboard as DashboardIcon,
   Description as DescriptionIcon,
@@ -1240,6 +1241,8 @@ export default function Home() {
                 <p style={{ margin: '0 0 24px', color: '#64748B', fontSize: '13px', lineHeight: '1.6' }}>
                   Single sign-on is unavailable during controlled recovery. Existing members can sign in with their work email and password.
                 </p>
+
+                <LoginErrorNotice message={errorMessage} />
 
                 {/* Standard Email Authentication Form */}
                 <form onSubmit={async (e) => { e.preventDefault(); if (loginEmail && loginPassword) { const ok = await handleLoginUser(loginEmail, loginPassword); if (ok) setViewMode('app'); } }}>
@@ -2626,6 +2629,8 @@ export default function Home() {
               <p style={{ margin: '0 0 20px', color: 'var(--text-muted)', fontSize: '13px', lineHeight: '1.6' }}>
                 Single sign-on is unavailable during controlled recovery. Sign in with your work email and password.
               </p>
+
+              <LoginErrorNotice message={errorMessage} />
 
               {/* Standard Email Authentication Form */}
               <form onSubmit={async (e) => { e.preventDefault(); if (loginEmail && loginPassword) { const ok = await handleLoginUser(loginEmail, loginPassword); if (ok) setViewMode('app'); } }}>
