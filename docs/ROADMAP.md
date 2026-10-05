@@ -1,7 +1,7 @@
 # Veritas Roadmap
 
 Product: document and training control for small EU GMP life-sciences companies.
-Development: Claude writes, Codex reviews (see `docs/REVIEW.md`), the product owner
+Development: Claude writes and self-reviews (see `docs/REVIEW.md`), the product owner
 merges and signs each gate. Phases run in order; a phase starts only when the
 previous gate has passed.
 
@@ -13,7 +13,8 @@ Full audit and rationale: "Veritas eQMS — Code Audit & Roadmap" (5 Oct 2026).
 
 - [x] Obsoleting a document no longer retires the effective version while a
       revision is open.
-- [ ] Paid Vercel and Neon plans (owner decision); Blob connected in Production.
+- [ ] Stay on free Vercel and Neon plans (owner decision, 5 Oct 2026); Blob
+      connected in Production.
 - [ ] Least-privilege application database role; audit tables INSERT/SELECT only,
       UPDATE/DELETE rejected by trigger.
 - [ ] Confirm whether `prisma/seed.js` ever ran against production (it writes a

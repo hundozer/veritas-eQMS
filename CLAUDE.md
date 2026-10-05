@@ -3,8 +3,9 @@
 # Working on Veritas
 
 Veritas is a multi-tenant document and training control system for EU GMP
-companies. Claude develops it, Codex reviews pull requests, and the product owner
-merges. Regulated customers will rely on this code, so correctness beats speed.
+companies. Claude develops it and reviews its own pull requests against
+`docs/REVIEW.md`; the product owner approves and merges. Regulated customers
+will rely on this code, so correctness beats speed.
 
 ## Start of every session
 

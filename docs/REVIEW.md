@@ -1,17 +1,17 @@
 # Pull Request Review Checklist
 
-Veritas is developed by Claude and reviewed by Codex. A human owner merges every
-pull request and signs off every phase gate. AI review is a quality tool; it is
-not independent GxP review and does not replace the qualified human reviewer of
-record.
+Veritas is developed and self-reviewed by Claude. The product owner approves and
+merges every pull request and signs off every phase gate. Claude reviewing its own
+work is a quality tool; it is not independent GxP review and does not replace the
+qualified human reviewer of record.
 
 ## Roles
 
 | Role | Who | Responsibility |
 | --- | --- | --- |
 | Author | Claude | Spec, implementation, tests, PR description |
-| Reviewer | Codex | Review against this checklist; write negative tests where asked |
-| Approver | Product owner | Resolve disagreements, merge, sign phase gates |
+| Reviewer | Claude | Review its own diff against this checklist before asking for approval |
+| Approver | Product owner | Approve, merge, sign phase gates |
 | Independent review | External CSV/QA consultant, pentester | Before the first customer pilot |
 
 ## How to review
@@ -23,8 +23,8 @@ record.
    **blocker**, **should fix**, or **nit**.
 3. Do not add self-audit documents, containment stubs, or new process files.
    Findings go in PR comments only.
-4. If you disagree with the author after one round, say so in two lines and
-   leave the decision to the product owner.
+4. Fix every blocker and should-fix before asking the product owner to merge.
+   Anything left open goes in the PR description for the owner to decide.
 
 ## Checklist
 
