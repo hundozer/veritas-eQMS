@@ -4,21 +4,40 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const prismaMock = vi.hoisted(() => ({
   iamUser: { findUnique: vi.fn() },
   iamMembership: { findUnique: vi.fn() },
-  iamSession: { create: vi.fn(), upsert: vi.fn() },
+  iamSession: {
+    create: vi.fn(),
+    findUnique: vi.fn(),
+    updateMany: vi.fn(),
+    upsert: vi.fn(),
+  },
 }));
 
 vi.mock('server-only', () => ({}));
 vi.mock('../db', () => ({ default: prismaMock }));
 
-import { createIamSession, IamSessionCreationError } from './session';
+import {
+  createIamSession,
+  IamSessionCreationError,
+  revokeIamSession,
+  validateIamSession,
+} from './session';
 
 const activeUser = { id: 'iam-user-1', accountStatus: 'ACTIVE' };
 const activeMembership = {
   id: 'membership-1',
   userId: activeUser.id,
+  organizationId: 'organization-1',
+  tenantId: 'tenant-1',
+  operationalUserId: 'user-1',
   status: 'ACTIVE',
-  organization: { id: 'organization-1', status: 'ACTIVE' },
-  role: { id: 'role-1', name: 'Employee' },
+  organization: { id: 'organization-1', tenantId: 'tenant-1', status: 'ACTIVE' },
+  role: {
+    id: 'role-1',
+    name: 'Employee',
+    permissions: [
+      { permissionId: 'permission-1', permission: { id: 'permission-1', name: 'documents.read' } },
+    ],
+  },
 };
 
 function sha256(value: string): string {
@@ -79,7 +98,7 @@ describe('createIamSession', () => {
   it('SESSION-T005: rejects an inactive organization', async () => {
     prismaMock.iamMembership.findUnique.mockResolvedValue({
       ...activeMembership,
-      organization: { id: 'organization-1', status: 'SUSPENDED' },
+      organization: { id: 'organization-1', tenantId: 'tenant-1', status: 'SUSPENDED' },
     });
 
     await expect(createIamSession({ userId: activeUser.id, membershipId: activeMembership.id }))
@@ -160,5 +179,113 @@ describe('createIamSession', () => {
       .rejects.toBeInstanceOf(IamSessionCreationError);
     expect(prismaMock.iamSession.create).toHaveBeenCalledTimes(3);
     expect(prismaMock.iamSession.upsert).not.toHaveBeenCalled();
+  });
+});
+
+describe('validateIamSession and revokeIamSession', () => {
+  const token = 'A'.repeat(43);
+  const storedSession = {
+    id: 'session-1',
+    userId: activeUser.id,
+    membershipId: activeMembership.id,
+    expiresAt: new Date(Date.now() + 60_000),
+    revokedAt: null,
+    user: { ...activeUser, email: 'existing-user@example.com' },
+    membership: activeMembership,
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    prismaMock.iamSession.findUnique.mockResolvedValue(storedSession);
+    prismaMock.iamSession.updateMany.mockResolvedValue({ count: 1 });
+  });
+
+  it('SESSION-T011: validates a live opaque session by its hash', async () => {
+    const result = await validateIamSession(token);
+
+    expect(result).toMatchObject({
+      sessionId: storedSession.id,
+      userEmail: storedSession.user.email,
+      membershipId: activeMembership.id,
+      organizationId: activeMembership.organization.id,
+      permissions: ['documents.read'],
+    });
+    expect(prismaMock.iamSession.findUnique).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { tokenHash: sha256(token) },
+        include: expect.objectContaining({
+          membership: expect.objectContaining({
+            include: expect.objectContaining({
+              role: { include: { permissions: { include: { permission: true } } } },
+            }),
+          }),
+        }),
+      }),
+    );
+  });
+
+  it('SESSION-T012: rejects malformed and nonexistent tokens', async () => {
+    await expect(validateIamSession('malformed')).resolves.toBeNull();
+    expect(prismaMock.iamSession.findUnique).not.toHaveBeenCalled();
+
+    prismaMock.iamSession.findUnique.mockResolvedValue(null);
+    await expect(validateIamSession(token)).resolves.toBeNull();
+  });
+
+  it('SESSION-T013: rejects a revoked session', async () => {
+    prismaMock.iamSession.findUnique.mockResolvedValue({
+      ...storedSession,
+      revokedAt: new Date(),
+    });
+    await expect(validateIamSession(token)).resolves.toBeNull();
+  });
+
+  it('SESSION-T014: rejects an expired session', async () => {
+    prismaMock.iamSession.findUnique.mockResolvedValue({
+      ...storedSession,
+      expiresAt: new Date(Date.now() - 1),
+    });
+    await expect(validateIamSession(token)).resolves.toBeNull();
+  });
+
+  it('SESSION-T015: rejects a session after its user becomes inactive', async () => {
+    prismaMock.iamSession.findUnique.mockResolvedValue({
+      ...storedSession,
+      user: { ...storedSession.user, accountStatus: 'SUSPENDED' },
+    });
+    await expect(validateIamSession(token)).resolves.toBeNull();
+  });
+
+  it('SESSION-T016: rejects a session after its membership becomes inactive', async () => {
+    prismaMock.iamSession.findUnique.mockResolvedValue({
+      ...storedSession,
+      membership: { ...activeMembership, status: 'SUSPENDED' },
+    });
+    await expect(validateIamSession(token)).resolves.toBeNull();
+  });
+
+  it('SESSION-T017: rejects a session after its organization becomes inactive', async () => {
+    prismaMock.iamSession.findUnique.mockResolvedValue({
+      ...storedSession,
+      membership: {
+        ...activeMembership,
+        organization: { ...activeMembership.organization, status: 'SUSPENDED' },
+      },
+    });
+    await expect(validateIamSession(token)).resolves.toBeNull();
+  });
+
+  it('SESSION-T018: revokes a session by hash without persisting plaintext', async () => {
+    await expect(revokeIamSession(token)).resolves.toBe(true);
+    const write = prismaMock.iamSession.updateMany.mock.calls[0][0];
+
+    expect(write.where.tokenHash).toBe(sha256(token));
+    expect(JSON.stringify(write)).not.toContain(token);
+    expect(write.data.revokedAt).toBeInstanceOf(Date);
+  });
+
+  it('SESSION-T019: malformed tokens cannot trigger a revocation write', async () => {
+    await expect(revokeIamSession('malformed')).resolves.toBe(false);
+    expect(prismaMock.iamSession.updateMany).not.toHaveBeenCalled();
   });
 });

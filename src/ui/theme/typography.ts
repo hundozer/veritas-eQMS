@@ -1,7 +1,7 @@
 import { ThemeOptions } from '@mui/material';
 
 export const typography: ThemeOptions['typography'] = {
-  fontFamily: '"Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+  fontFamily: 'Arial, Helvetica, system-ui, sans-serif',
   h1: {
     fontSize: '2rem',
     fontWeight: 700,

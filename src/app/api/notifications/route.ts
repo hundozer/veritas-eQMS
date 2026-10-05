@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 import { getContext } from '@/lib/auth';
+import { hasPermission } from '../../../lib/rbac';
+import { unexpectedErrorResponse } from '../../../lib/server-errors';
 
 // GET /api/notifications - List user notifications
 export async function GET(req: NextRequest) {
@@ -9,16 +11,21 @@ export async function GET(req: NextRequest) {
     if (!user) {
       return NextResponse.json({ error: { code: 'Unauthorized', message: 'User context not found' } }, { status: 401 });
     }
+    if (!hasPermission(user, 'notification.read_own')) {
+      return NextResponse.json(
+        { error: { code: 'Forbidden', message: 'Notification self-read permission is required' } },
+        { status: 403 },
+      );
+    }
 
     const notifications = await prisma.notification.findMany({
-      where: { userId: user.id },
+      where: { userId: user.id, tenantId: user.tenantId },
       orderBy: { createdAt: 'desc' },
       take: 20,
     });
 
     return NextResponse.json({ notifications });
   } catch (error: any) {
-    console.error('List notifications error:', error);
-    return NextResponse.json({ error: { code: 'InternalError', message: error.message } }, { status: 500 });
+    return unexpectedErrorResponse('notification.list');
   }
 }

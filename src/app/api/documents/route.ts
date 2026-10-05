@@ -1,9 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/db';
-import { getContext, logAuditEvent, checkAbac } from '@/lib/auth';
-import * as fs from 'fs';
-
-import * as path from 'path';
+import { getContext, logAuditEvent } from '@/lib/auth';
+import { hasPermission } from '@/lib/rbac';
+import { writeMandatoryAudit } from '@/lib/audit';
+import { randomUUID } from 'node:crypto';
+import { unexpectedErrorResponse } from '../../../lib/server-errors';
+import {
+  cleanupUncontrolledObject,
+  createControlledObjectKey,
+  decodeControlledUpload,
+  vercelBlobStorage,
+} from '@/lib/controlled-storage';
+import { generateDocumentNumber, normalizeDocumentType } from '@/lib/document-lifecycle';
 
 // GET /api/documents - List documents with tenant-scoping and ABAC filtering
 export async function GET(req: NextRequest) {
@@ -12,24 +20,63 @@ export async function GET(req: NextRequest) {
     if (!user) {
       return NextResponse.json({ error: { code: 'Unauthorized', message: 'User context not found' } }, { status: 401 });
     }
+    if (!hasPermission(user, 'documents.read')) {
+      return NextResponse.json({ error: { code: 'Forbidden', message: 'Insufficient permission' } }, { status: 403 });
+    }
 
     // Tenant isolation
     const dbDocs = await prisma.document.findMany({
       where: {
         tenantId: user.tenantId,
       },
-      include: {
-        owner: true,
+      select: {
+        id: true,
+        documentNumber: true,
+        documentType: true,
+        title: true,
+        description: true,
+        classification: true,
+        status: true,
+        ownerId: true,
+        currentVersionNumber: true,
+        createdAt: true,
+        updatedAt: true,
+        owner: { select: { id: true, fullName: true } },
         versions: {
           orderBy: { versionNumber: 'desc' },
+          select: {
+            id: true,
+            versionNumber: true,
+            status: true,
+            effectiveDate: true,
+            changeSummary: true,
+            hash: true,
+            originalFileName: true,
+            mimeType: true,
+            sizeBytes: true,
+            createdAt: true,
+            createdBy: true,
+            approvalRoutes: {
+              orderBy: { createdAt: 'desc' },
+              take: 1,
+              select: {
+                id: true,
+                status: true,
+                steps: {
+                  orderBy: { sequence: 'asc' },
+                  select: {
+                    id: true,
+                    stepType: true,
+                    status: true,
+                    approver: { select: { id: true, fullName: true } },
+                  },
+                },
+              },
+            },
+          },
         },
       },
       orderBy: { updatedAt: 'desc' },
-    });
-
-    // Post-evaluate ABAC for each document (e.g., clearance checks)
-    const filteredDocs = dbDocs.filter((doc: any) => {
-      return checkAbac(user, { classification: doc.classification, ownerId: doc.ownerId }, 'view');
     });
 
     // Log the read action asynchronously
@@ -37,78 +84,70 @@ export async function GET(req: NextRequest) {
       tenantId: user.tenantId,
       userId: user.id,
       userEmail: user.email,
-      userRole: user.role,
+      userRole: user.membershipRole,
       action: 'Document.List',
       objectType: 'Document',
-      payload: { countReturned: filteredDocs.length, queryParams: Object.fromEntries(req.nextUrl.searchParams) },
+      payload: { countReturned: dbDocs.length, queryParams: Object.fromEntries(req.nextUrl.searchParams) },
       status: 'Success',
       requestUrl: req.nextUrl.pathname,
     });
 
-    return NextResponse.json({ documents: filteredDocs });
+    return NextResponse.json(
+      { documents: dbDocs },
+      { headers: { 'Cache-Control': 'no-store' } },
+    );
   } catch (error: any) {
-    console.error('List documents error:', error);
-    return NextResponse.json({ error: { code: 'InternalError', message: error.message } }, { status: 500 });
+    return unexpectedErrorResponse('document.list');
   }
 }
 
 // POST /api/documents - Create a new document draft
 export async function POST(req: NextRequest) {
+  let uploadedKey: string | null = null;
   try {
     const user = await getContext(req);
     if (!user) {
       return NextResponse.json({ error: { code: 'Unauthorized', message: 'User context not found' } }, { status: 401 });
     }
+    if (!hasPermission(user, 'documents.create')) {
+      return NextResponse.json({ error: { code: 'Forbidden', message: 'Insufficient permission' } }, { status: 403 });
+    }
 
     // Any authenticated tenant user can author document drafts
 
     const body = await req.json();
-    const { title, description, classification, contentBase64, requiredRoles, requiresQuiz, quizQuestions } = body;
+    const { title, description, classification, documentType: requestedType, contentBase64, fileName, mimeType, requiredRoles, requiresQuiz, quizQuestions } = body;
 
     if (!title || !classification) {
       return NextResponse.json({ error: { code: 'ValidationFailed', message: 'Title and classification are required' } }, { status: 400 });
     }
-
-    // 1. Save uploaded file content if provided
-    let filePath = '';
-    let hash = 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855'; // empty hash fallback
-
-    if (contentBase64) {
-      const crypto = await import('crypto');
-      const buffer = Buffer.from(contentBase64, 'base64');
-      hash = crypto.createHash('sha256').update(buffer).digest('hex');
-      
-      const fileName = `${Date.now()}-${title.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.pdf`;
-      filePath = `uploads/${fileName}`;
-
-      try {
-        const uploadDir = path.join(process.cwd(), 'public', 'uploads');
-        if (!fs.existsSync(uploadDir)) {
-          fs.mkdirSync(uploadDir, { recursive: true });
-        }
-        fs.writeFileSync(path.join(process.cwd(), 'public', filePath), buffer);
-      } catch (fsErr) {
-        // Fallback for Vercel serverless environment (read-only filesystem)
-        try {
-          const tmpDir = path.join('/tmp', 'uploads');
-          if (!fs.existsSync(tmpDir)) {
-            fs.mkdirSync(tmpDir, { recursive: true });
-          }
-          fs.writeFileSync(path.join('/tmp', fileName), buffer);
-          filePath = `/tmp/uploads/${fileName}`;
-        } catch (tmpErr) {
-          console.warn('Serverless read-only filesystem detected, storing metadata and SHA-256 hash in database');
-        }
-      }
-    } else {
-      filePath = 'drafts/placeholder.pdf';
+    let documentType;
+    try {
+      documentType = normalizeDocumentType(requestedType);
+    } catch (error) {
+      return NextResponse.json({ error: { code: 'ValidationFailed', message: (error as Error).message } }, { status: 400 });
     }
+    const documentNumber = generateDocumentNumber(documentType);
+
+    let upload;
+    try {
+      upload = decodeControlledUpload({ contentBase64, fileName, mimeType });
+    } catch (error) {
+      return NextResponse.json({ error: { code: 'ValidationFailed', message: (error as Error).message } }, { status: 400 });
+    }
+
+    const documentId = randomUUID();
+    uploadedKey = createControlledObjectKey({ tenantId: user.tenantId, documentId, versionNumber: 1 });
+    await vercelBlobStorage.putObject(uploadedKey, upload.bytes, upload.mimeType);
 
     // 2. Database transaction (Outbox-equivalent in prisma: save doc + version + training config in one txn)
     const result = await prisma.$transaction(async (tx: any) => {
       // Create Document
       const document = await tx.document.create({
         data: {
+          id: documentId,
+          documentNumber,
+          documentType,
           title,
           description: description || '',
           classification,
@@ -124,10 +163,16 @@ export async function POST(req: NextRequest) {
         data: {
           documentId: document.id,
           versionNumber: 1,
-          filePath,
-          fileData: contentBase64 || null,
-          hash,
+          status: 'DRAFT',
+          filePath: uploadedKey,
+          fileData: null,
+          storageKey: uploadedKey,
+          originalFileName: upload.fileName,
+          mimeType: upload.mimeType,
+          sizeBytes: upload.bytes.byteLength,
+          hash: upload.hash,
           createdBy: user.fullName,
+          authoredById: user.id,
         },
       });
 
@@ -143,33 +188,22 @@ export async function POST(req: NextRequest) {
         });
       }
 
+      await writeMandatoryAudit(tx, {
+        context: user,
+        action: 'DOCUMENT_CREATED',
+        objectType: 'Document',
+        objectId: document.id,
+        payload: { documentNumber, documentType, title: document.title, classification: document.classification, status: document.status, version: 1, hash: upload.hash, requiredRoles },
+        requestUrl: req.nextUrl.pathname,
+      });
+
       return document;
     });
 
-    // 3. Log GxP transactional audit event
-    await logAuditEvent({
-      tenantId: user.tenantId,
-      userId: user.id,
-      userEmail: user.email,
-      userRole: user.role,
-      action: 'Document.Create',
-      objectType: 'Document',
-      objectId: result.id,
-      payload: {
-        title: result.title,
-        classification: result.classification,
-        status: result.status,
-        version: 1,
-        hash,
-        requiredRoles,
-      },
-      status: 'Success',
-      requestUrl: req.nextUrl.pathname,
-    });
-
+    uploadedKey = null;
     return NextResponse.json({ document: result }, { status: 201 });
   } catch (error: any) {
-    console.error('Create document error:', error);
-    return NextResponse.json({ error: { code: 'InternalError', message: error.message } }, { status: 500 });
+    if (uploadedKey) await cleanupUncontrolledObject(vercelBlobStorage, uploadedKey);
+    return unexpectedErrorResponse('document.create');
   }
 }

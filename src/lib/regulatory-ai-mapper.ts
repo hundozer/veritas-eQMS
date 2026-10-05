@@ -1,5 +1,7 @@
+import { reportServerNotice } from './server-errors';
+
 export async function autoMapDeviationAndCreateCapa(deviationId: string, userContext?: any) {
-  console.log("Regulatory Intelligence Engine Rebuild: autoMapDeviationAndCreateCapa stub active.");
+  reportServerNotice('regulatory.autoMapStub');
   return { success: true };
 }
 

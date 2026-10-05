@@ -1,9 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { regulatoryIntelligenceDisabled } from '../../../../../lib/recovery-disabled';
 
-export async function GET(req: NextRequest) {
-  return NextResponse.json({ message: "Regulatory Intelligence Engine Rebuild in progress" });
-}
-
-export async function POST(req: NextRequest) {
-  return NextResponse.json({ message: "Regulatory Intelligence Engine Rebuild in progress" });
-}
+export const GET = regulatoryIntelligenceDisabled;
+export const POST = regulatoryIntelligenceDisabled;

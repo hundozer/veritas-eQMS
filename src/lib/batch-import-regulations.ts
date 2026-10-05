@@ -1,4 +1,6 @@
+import { reportServerNotice } from './server-errors';
+
 export async function batchImportRegulations() {
-  console.log("Regulatory Intelligence Engine Rebuild: batchImportRegulations stub active.");
+  reportServerNotice('regulatory.batchImportStub');
   return { success: true };
 }

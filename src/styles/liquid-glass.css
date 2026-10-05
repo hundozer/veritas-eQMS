@@ -53,7 +53,7 @@
 
 html{font-size:13.5px;scroll-behavior:smooth}
 body{
-  font-family:'Plus Jakarta Sans',system-ui,sans-serif;
+  font-family:var(--font-sans);
   background:linear-gradient(160deg,var(--bg) 0%,var(--bg2) 25%,var(--bg) 45%,var(--bg2) 65%,var(--bg) 85%,var(--bg2) 100%);
   background-attachment:fixed;
   color:var(--t1);
@@ -787,5 +787,4 @@ body{
   .modal-footer{flex-wrap:wrap;gap:8px}
   .modal-footer .card-btn{flex:1}
 }
-
 
