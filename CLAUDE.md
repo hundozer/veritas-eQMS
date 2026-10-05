@@ -11,8 +11,7 @@ will rely on this code, so correctness beats speed.
 
 1. Read `docs/ROADMAP.md` and work only on the current phase's open items.
 2. Read `docs/REVIEW.md`; every pull request must pass it before you open it.
-3. `git fetch` and branch from the current integration branch
-   (`codex/veritas-recovery` until it is merged into `main`).
+3. `git fetch` and branch from `main`.
 
 ## Rules
 
