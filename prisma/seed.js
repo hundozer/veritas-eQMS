@@ -1,3 +1,11 @@
+const { seedRefusal } = require('./seed-guard');
+
+const refusal = seedRefusal(process.env);
+if (refusal) {
+  console.error(refusal);
+  process.exit(1);
+}
+
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 

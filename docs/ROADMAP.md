@@ -17,8 +17,14 @@ Full audit and rationale: "Veritas eQMS — Code Audit & Roadmap" (5 Oct 2026).
       connected in Production.
 - [ ] Least-privilege application database role; audit tables INSERT/SELECT only,
       UPDATE/DELETE rejected by trigger.
-- [ ] Confirm whether `prisma/seed.js` ever ran against production (it writes a
+- [x] Confirm whether `prisma/seed.js` ever ran against production (it writes a
       fabricated signature manifest); seed refuses to run in production.
+      Confirmed 5 Oct 2026: it ran. Production holds the demo tenants "Acme Biotech"
+      and "BioLabs Inc", their demo users, and the fabricated "CHARLIE-APPROVED"
+      signature manifest. The owner's organisation is linked to "Acme Biotech".
+- [ ] Owner decision: how to retire the demo seed data in production (tenants,
+      users, documents, the fabricated signature manifest and the "Company Name"
+      tenant's synthetic-looking signature) without losing audit history.
 - [x] Security headers in `next.config.ts`; Node version pinned in `engines`.
 - [ ] Delete suppliers, equipment, regulatory intelligence, platform admin,
       Microsoft SSO, audit planning, and their containment tests.
