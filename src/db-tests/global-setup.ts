@@ -2,8 +2,7 @@ import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { PrismaClient } from '@prisma/client';
-
-export const APP_ROLE_TEST_PASSWORD = 'db-test-only-password';
+import { APP_ROLE_TEST_PASSWORD, ownerDatabaseUrl } from './connections';
 
 // Splits a psql script into single statements, keeping $$ bodies intact.
 export function sqlStatements(script: string): string[] {
@@ -24,10 +23,7 @@ export function sqlStatements(script: string): string[] {
 }
 
 export default async function setup() {
-  const ownerUrl = process.env.TEST_DATABASE_URL;
-  if (!ownerUrl) {
-    throw new Error('TEST_DATABASE_URL must point at a disposable PostgreSQL database owned by the connecting role.');
-  }
+  const ownerUrl = ownerDatabaseUrl();
   const root = path.resolve(__dirname, '../..');
   execFileSync('npx', ['prisma', 'migrate', 'deploy'], {
     cwd: root,

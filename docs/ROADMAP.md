@@ -35,7 +35,8 @@ Full audit and rationale: "Veritas eQMS — Code Audit & Roadmap" (5 Oct 2026).
       Microsoft SSO, audit planning, and their containment tests. Code removed
       6 Oct 2026; their database tables and permission rows stay until a reviewed
       migration retires them.
-- [ ] Postgres-backed test harness seeded with two tenants.
+- [x] Postgres-backed test harness seeded with two tenants (`npm run test:db`,
+      `src/db-tests/`): real routes, real sessions, application database role.
 
 **Gate:** a synthetic SOP uploads and verifies in production, and the
 application role cannot alter audit rows.
