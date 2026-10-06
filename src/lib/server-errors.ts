@@ -3,7 +3,6 @@ import { NextResponse } from 'next/server';
 export type ServerErrorEvent =
   | 'audit.query'
   | 'audit.writeFailed'
-  | 'auditPlan.list'
   | 'document.create'
   | 'document.approve'
   | 'document.delete'
@@ -15,19 +14,10 @@ export type ServerErrorEvent =
   | 'document.revision'
   | 'document.submitReview'
   | 'document.update'
-  | 'equipment.get'
-  | 'equipment.list'
   | 'notification.list'
-  | 'supplier.get'
-  | 'supplier.list'
   | 'storage.cleanupFailed'
   | 'training.list'
   | 'user.list';
-
-export type ServerNoticeEvent =
-  | 'regulatory.autoMapStub'
-  | 'regulatory.batchImportStub'
-  | 'regulatory.knowledgeBaseStub';
 
 export function reportServerError(event: ServerErrorEvent) {
   const errorId = crypto.randomUUID();
@@ -38,17 +28,6 @@ export function reportServerError(event: ServerErrorEvent) {
     errorId,
   }));
   return errorId;
-}
-
-export function reportServerNotice(event: ServerNoticeEvent) {
-  const eventId = crypto.randomUUID();
-  console.info(JSON.stringify({
-    timestamp: new Date().toISOString(),
-    level: 'info',
-    event,
-    eventId,
-  }));
-  return eventId;
 }
 
 export function unexpectedErrorResponse(

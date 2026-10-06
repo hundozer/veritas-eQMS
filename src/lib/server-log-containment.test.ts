@@ -28,7 +28,7 @@ describe('server log containment', () => {
     expect(violations).toEqual([]);
     const logger = readFileSync(resolve('src/lib/server-errors.ts'), 'utf8');
     expect(logger.match(/console\.error\(/g)).toHaveLength(1);
-    expect(logger.match(/console\.info\(/g)).toHaveLength(1);
+    expect(logger).not.toMatch(/console\.info\(/);
   });
 
   it('LOG-T002 excludes former high-risk identifiers from server log calls', () => {
