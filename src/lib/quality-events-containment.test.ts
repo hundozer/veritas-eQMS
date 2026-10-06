@@ -9,8 +9,6 @@ const routeFiles = [
   'src/app/api/capas/[id]/route.ts',
 ];
 const page = readFileSync(resolve('src/app/page.tsx'), 'utf8');
-const equipmentList = readFileSync(resolve('src/app/api/equipment/route.ts'), 'utf8');
-const equipmentDetail = readFileSync(resolve('src/app/api/equipment/[id]/route.ts'), 'utf8');
 
 describe('quality-event containment', () => {
   it.each([
@@ -46,12 +44,5 @@ describe('quality-event containment', () => {
     ]) expect(page).not.toContain(token);
     expect(page).not.toContain('<DashboardAnalytics');
     expect(page).toContain('Unavailable during recovery');
-  });
-
-  it('QUALITY-T003 prevents equipment reads from re-exposing deviation relations', () => {
-    expect(equipmentList).not.toContain('deviations:');
-    expect(equipmentDetail).not.toContain('deviations:');
-    expect(equipmentList).not.toContain('detectedBy');
-    expect(equipmentDetail).not.toContain('detectedBy');
   });
 });

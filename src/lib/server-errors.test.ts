@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { reportServerError, reportServerNotice, unexpectedErrorResponse } from './server-errors';
+import { reportServerError, unexpectedErrorResponse } from './server-errors';
 
 describe('controlled server errors', () => {
   afterEach(() => {
@@ -21,7 +21,7 @@ describe('controlled server errors', () => {
 
   it('ERROR-T004 correlates a non-cacheable safe response with the log event', async () => {
     const log = vi.spyOn(console, 'error').mockImplementation(() => undefined);
-    const response = unexpectedErrorResponse('supplier.get', 'InternalServerError');
+    const response = unexpectedErrorResponse('document.list', 'InternalServerError');
     const body = await response.json();
 
     expect(response.status).toBe(500);
@@ -35,19 +35,9 @@ describe('controlled server errors', () => {
       },
     });
     expect(JSON.parse(String(log.mock.calls[0][0]))).toMatchObject({
-      event: 'supplier.get',
+      event: 'document.list',
       errorId: body.error.errorId,
     });
   });
 
-  it('LOG-T003 emits informational notices through the same minimal boundary', () => {
-    const log = vi.spyOn(console, 'info').mockImplementation(() => undefined);
-    const eventId = reportServerNotice('regulatory.batchImportStub');
-    const event = JSON.parse(String(log.mock.calls[0][0]));
-
-    expect(reportServerNotice).toHaveLength(1);
-    expect(eventId).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i);
-    expect(Object.keys(event).sort()).toEqual(['event', 'eventId', 'level', 'timestamp']);
-    expect(event).toMatchObject({ event: 'regulatory.batchImportStub', eventId, level: 'info' });
-  });
 });

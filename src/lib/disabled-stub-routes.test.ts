@@ -5,35 +5,10 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 type Handler = () => Promise<Response> | Response;
 
 const methods: Array<[string, () => Promise<Handler>]> = [
-  ['GET /api/admin/regulations/import', async () => (await import('../app/api/admin/regulations/import/route')).GET],
-  ['POST /api/admin/regulations/import', async () => (await import('../app/api/admin/regulations/import/route')).POST],
-  ['GET /api/admin/regulations', async () => (await import('../app/api/admin/regulations/route')).GET],
-  ['POST /api/admin/regulations', async () => (await import('../app/api/admin/regulations/route')).POST],
-  ['GET /api/admin/stats', async () => (await import('../app/api/admin/stats/route')).GET],
-  ['GET /api/admin/updates/publish', async () => (await import('../app/api/admin/updates/publish/route')).GET],
-  ['POST /api/admin/updates/publish', async () => (await import('../app/api/admin/updates/publish/route')).POST],
-  ['GET /api/intelligence', async () => (await import('../app/api/intelligence/route')).GET],
-  ['GET /api/intelligence/import', async () => (await import('../app/api/intelligence/import/route')).GET],
-  ['POST /api/intelligence/import', async () => (await import('../app/api/intelligence/import/route')).POST],
-  ['GET /api/intelligence/relationships', async () => (await import('../app/api/intelligence/relationships/route')).GET],
-  ['POST /api/intelligence/relationships', async () => (await import('../app/api/intelligence/relationships/route')).POST],
-  ['GET /api/intelligence/requirements', async () => (await import('../app/api/intelligence/requirements/route')).GET],
-  ['POST /api/intelligence/requirements', async () => (await import('../app/api/intelligence/requirements/route')).POST],
-  ['GET /api/intelligence/updates', async () => (await import('../app/api/intelligence/updates/route')).GET],
-  ['POST /api/intelligence/updates', async () => (await import('../app/api/intelligence/updates/route')).POST],
   ['GET /api/roles', async () => (await import('../app/api/roles/route')).GET],
 ];
 
 const routeFiles = [
-  'src/app/api/admin/regulations/import/route.ts',
-  'src/app/api/admin/regulations/route.ts',
-  'src/app/api/admin/stats/route.ts',
-  'src/app/api/admin/updates/publish/route.ts',
-  'src/app/api/intelligence/route.ts',
-  'src/app/api/intelligence/import/route.ts',
-  'src/app/api/intelligence/relationships/route.ts',
-  'src/app/api/intelligence/requirements/route.ts',
-  'src/app/api/intelligence/updates/route.ts',
   'src/app/api/roles/route.ts',
 ];
 

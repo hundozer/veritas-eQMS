@@ -31,8 +31,10 @@ Full audit and rationale: "Veritas eQMS — Code Audit & Roadmap" (5 Oct 2026).
       Demo tenants, their documents and both synthetic signature manifests stay as
       read-only history; nothing is deleted.
 - [x] Security headers in `next.config.ts`; Node version pinned in `engines`.
-- [ ] Delete suppliers, equipment, regulatory intelligence, platform admin,
-      Microsoft SSO, audit planning, and their containment tests.
+- [x] Delete suppliers, equipment, regulatory intelligence, platform admin,
+      Microsoft SSO, audit planning, and their containment tests. Code removed
+      6 Oct 2026; their database tables and permission rows stay until a reviewed
+      migration retires them.
 - [x] Postgres-backed test harness seeded with two tenants (`npm run test:db`,
       `src/db-tests/`): real routes, real sessions, application database role.
 

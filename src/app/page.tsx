@@ -10,9 +10,6 @@ import {
   Description as DescriptionIcon,
   School as SchoolIcon,
   History as HistoryIcon,
-  Build as BuildIcon,
-  LocalShipping as SupplierIcon,
-  Psychology as PsychologyIcon
 } from '@mui/icons-material';
 
 interface User {
@@ -114,94 +111,12 @@ interface AuditLog {
   requestUrl: string | null;
 }
 
-interface MaintenanceLog {
-  id: string;
-  equipmentId: string;
-  performedById: string;
-  performedBy: { fullName: string };
-  performedAt: string;
-  activityType: string;
-  notes: string;
-  result: string;
-  esignSignatureId: string | null;
-  createdAt: string;
-}
-
-interface Equipment {
-  id: string;
-  name: string;
-  description: string | null;
-  modelNumber: string | null;
-  serialNumber: string | null;
-  location: string;
-  status: string;
-  calibrationIntervalDays: number;
-  lastCalibratedAt: string;
-  nextCalibrationDueDate: string;
-  createdAt: string;
-  maintenanceLogs: MaintenanceLog[];
-}
-
-interface SupplierAudit {
-  id: string;
-  supplierId: string;
-  auditorId: string;
-  auditor: { fullName: string };
-  auditDate: string;
-  auditType: string;
-  findings: string;
-  result: string;
-  esignSignatureId: string | null;
-  createdAt: string;
-}
-
-interface MaterialReceipt {
-  id: string;
-  supplierId: string;
-  materialName: string;
-  lotNumber: string;
-  quantityReceived: number;
-  unit: string;
-  inspectionStatus: string;
-  inspectedById: string;
-  inspectedBy: { fullName: string };
-  notes: string | null;
-  receivedAt: string;
-  createdAt: string;
-}
-
-interface SupplierAttachment {
-  id: string;
-  supplierId: string;
-  fileName: string;
-  fileType: string;
-  fileData: string;
-  uploadedAt: string;
-}
-
-interface Supplier {
-  id: string;
-  name: string;
-  contactEmail: string | null;
-  contactPhone: string | null;
-  category: string;
-  status: string;
-  riskClassification: string;
-  qualificationDate: string;
-  reEvaluationDueDate: string;
-  notes: string | null;
-  createdAt: string;
-  audits: SupplierAudit[];
-  materialReceipts: MaterialReceipt[];
-  attachments?: SupplierAttachment[];
-}
-
 export default function Home() {
   // Mode: Landing Page vs eQMS Workspace App
   const [viewMode, setViewMode] = useState<'landing' | 'app'>('landing');
 
   // Navigation
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'documents' | 'training' | 'audit' | 'audits-management' | 'users-management' | 'equipment' | 'suppliers'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'documents' | 'training' | 'audit' | 'users-management'>('dashboard');
 
   // Users / Personas
   const [users, setUsers] = useState<User[]>([]);
@@ -211,15 +126,10 @@ export default function Home() {
   const [documents, setDocuments] = useState<Document[]>([]);
   const [trainings, setTrainings] = useState<TrainingAssignment[]>([]);
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
-  const [equipmentList, setEquipmentList] = useState<Equipment[]>([]);
-  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
-  const [auditPlans, setAuditPlans] = useState<any[]>([]);
   const [notifications, setNotifications] = useState<any[]>([]);
 
   // Selected Detail views
   const [selectedDocId, setSelectedDocId] = useState<string | null>(null);
-  const [selectedEquipmentId, setSelectedEquipmentId] = useState<string | null>(null);
-  const [selectedSupplierId, setSelectedSupplierId] = useState<string | null>(null);
 
   // Forms / Modals
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -350,21 +260,6 @@ export default function Home() {
         const audData = await audRes.json();
         if (audData.logs) setAuditLogs(audData.logs);
       }
-
-      // Fetch Equipment
-      const eqRes = await fetch('/api/equipment');
-      const eqData = await eqRes.json();
-      if (eqData.equipment) setEquipmentList(eqData.equipment);
-
-      // Fetch Suppliers
-      const supRes = await fetch('/api/suppliers');
-      const supData = await supRes.json();
-      if (supData.suppliers) setSuppliers(supData.suppliers);
-
-      // Fetch Audit Plans
-      const auditPlanRes = await fetch('/api/audits');
-      const auditPlanData = await auditPlanRes.json();
-      if (auditPlanData.auditPlans) setAuditPlans(auditPlanData.auditPlans);
 
       // Fetch Notifications
       const notifRes = await fetch('/api/notifications');
@@ -677,10 +572,6 @@ export default function Home() {
   const statEffectiveDocs = documents.filter((d) => d.status === 'EFFECTIVE').length;
   const statPendingTrainings = trainings.filter((t) => t.status === 'ASSIGNED').length;
   const statPendingApprovals = documents.filter((d) => d.status === 'DRAFT' || d.status === 'IN_REVIEW').length;
-  const statOverdueEquipment = equipmentList.filter((eq) => new Date(eq.nextCalibrationDueDate) < new Date() || eq.status === 'OUT_OF_SERVICE').length;
-  const statTotalEquipment = equipmentList.length;
-  const selectedEquipment = equipmentList.find((eq) => eq.id === selectedEquipmentId) || null;
-  const selectedSupplier = suppliers.find((sup) => sup.id === selectedSupplierId) || null;
 
   const { mode, toggleTheme } = useThemeMode();
 
@@ -691,9 +582,6 @@ export default function Home() {
         { id: 'dashboard', label: 'Dashboard', route: 'dashboard', icon: <DashboardIcon /> },
         { id: 'documents', label: 'Document Control', route: 'documents', icon: <DescriptionIcon /> },
         { id: 'training', label: 'Training Hub', route: 'training', icon: <SchoolIcon /> },
-        { id: 'equipment', label: 'Equipment Cal.', route: 'equipment', icon: <BuildIcon /> },
-        { id: 'suppliers', label: 'Suppliers (AVL)', route: 'suppliers', icon: <SupplierIcon /> },
-        { id: 'audits-management', label: 'GxP Audits', route: 'audits-management', icon: <HistoryIcon /> },
         ...(currentUser?.role && (currentUser.role === 'ADMIN' || currentUser.role === 'OWNER') ? [
           { id: 'users-management', label: 'User Access & ABAC/RBAC', route: 'users-management', icon: <SchoolIcon /> }
         ] : []),
@@ -738,9 +626,6 @@ export default function Home() {
       case 'dashboard': return 'Compliance Dashboard';
       case 'documents': return 'Document Repository';
       case 'training': return 'Training matrix & assignments';
-      case 'equipment': return 'Equipment Calibration & Maintenance';
-      case 'suppliers': return 'Supplier Quality & Approved Vendor List';
-      case 'audits-management': return 'Internal & Supplier Audit Planning';
       case 'users-management': return 'User Access Policy & ABAC/RBAC Roster';
       case 'audit': return 'Tenant Audit Event Index';
       default: return 'Veritas eQMS';
@@ -1348,7 +1233,7 @@ export default function Home() {
                   <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Sensitive exports unavailable during recovery</span>
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px' }}>
                   <div style={{ background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.2)', padding: '12px', borderRadius: '8px' }}>
                     <div style={{ fontSize: '11px', color: '#F59E0B', fontWeight: '700', textTransform: 'uppercase' }}>Documents in Review</div>
                     <div style={{ fontSize: '24px', fontWeight: '800', color: '#FFF', marginTop: '4px' }}>{statPendingApprovals}</div>
@@ -1367,11 +1252,6 @@ export default function Home() {
                     <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>Unavailable during recovery</div>
                   </div>
 
-                  <div style={{ background: 'rgba(168,85,247,0.08)', border: '1px solid rgba(168,85,247,0.2)', padding: '12px', borderRadius: '8px' }}>
-                    <div style={{ fontSize: '11px', color: '#A855F7', fontWeight: '700', textTransform: 'uppercase' }}>Calibrations Due</div>
-                    <div style={{ fontSize: '24px', fontWeight: '800', color: '#FFF', marginTop: '4px' }}>{equipmentList.filter(e => e.status === 'CALIBRATION_DUE').length}</div>
-                    <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>Instruments</div>
-                  </div>
                 </div>
               </div>
             </div>
@@ -1712,536 +1592,6 @@ export default function Home() {
                       )}
                     </tbody>
                   </table>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* TAB 6: EQUIPMENT CALIBRATION & MAINTENANCE */}
-        {activeTab === 'equipment' && (
-          <div className={styles.grid2}>
-            {/* Equipment Registry List */}
-            <div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-                <h2>Equipment Registry</h2>
-                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                  <span className={`${styles.badge} ${statOverdueEquipment > 0 ? styles.badgeObsolete : styles.badgeEffective}`} style={{ fontSize: '11px' }}>
-                    {statOverdueEquipment} Overdue / OOS
-                  </span>
-                  <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{statTotalEquipment} total</span>
-                </div>
-              </div>
-
-              <div className={styles.docGrid}>
-                {equipmentList.map((eq) => {
-                  const isDue = new Date(eq.nextCalibrationDueDate) < new Date();
-                  const isOOS = eq.status === 'OUT_OF_SERVICE';
-                  return (
-                    <div
-                      key={eq.id}
-                      className={`${styles.docItem} ${selectedEquipmentId === eq.id ? 'glass' : ''}`}
-                      onClick={() => setSelectedEquipmentId(eq.id)}
-                      style={{
-                        cursor: 'pointer',
-                        borderColor: selectedEquipmentId === eq.id ? 'var(--primary)' :
-                                     (isDue || isOOS) ? 'rgba(239, 68, 68, 0.3)' : 'rgba(255,255,255,0.06)'
-                      }}
-                    >
-                      <div className={styles.docLeft}>
-                        <span className={styles.docTitle}>{eq.name}</span>
-                        <div className={styles.docMeta}>
-                          <span>{eq.location}</span>
-                          <span>{eq.modelNumber || 'N/A'}</span>
-                          <span>S/N: {eq.serialNumber || 'N/A'}</span>
-                        </div>
-                      </div>
-                      <div className={styles.docRight}>
-                        <span className={`${styles.badge} ${
-                          eq.status === 'ACTIVE' ? styles.badgeEffective :
-                          eq.status === 'OUT_OF_SERVICE' ? styles.badgeObsolete :
-                          eq.status === 'CALIBRATION_DUE' ? styles.badgeReview : styles.badgeDraft
-                        }`}>
-                          {eq.status}
-                        </span>
-                        {isDue && eq.status !== 'OUT_OF_SERVICE' && (
-                          <span style={{ fontSize: '10px', color: 'var(--danger)', marginTop: '4px', display: 'block', fontWeight: 600 }}>⚠ OVERDUE</span>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-                {equipmentList.length === 0 && (
-                  <div className="glass" style={{ padding: '32px', textAlign: 'center', color: 'var(--text-muted)' }}>
-                    No equipment registered. Equipment data will appear after seeding.
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Equipment Detail + Maintenance Logs */}
-            <div>
-              <h2>Equipment Details & Calibration History</h2>
-              {selectedEquipment ? (
-                <div className={styles.card} style={{ marginTop: '16px' }}>
-                  <div className={styles.cardTitle} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span>{selectedEquipment.name}</span>
-                    <span className={`${styles.badge} ${
-                      selectedEquipment.status === 'ACTIVE' ? styles.badgeEffective :
-                      selectedEquipment.status === 'OUT_OF_SERVICE' ? styles.badgeObsolete : styles.badgeReview
-                    }`}>{selectedEquipment.status}</span>
-                  </div>
-
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                    <div style={{ fontSize: '13px', color: 'var(--text-muted)' }}>
-                      {selectedEquipment.description || 'No description available.'}
-                    </div>
-
-                    <div className={styles.grid3} style={{ margin: 0, gap: '12px' }}>
-                      <div>
-                        <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Model</span>
-                        <div style={{ fontWeight: '600' }}>{selectedEquipment.modelNumber || 'N/A'}</div>
-                      </div>
-                      <div>
-                        <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Serial Number</span>
-                        <div style={{ fontWeight: '600' }}>{selectedEquipment.serialNumber || 'N/A'}</div>
-                      </div>
-                      <div>
-                        <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Location</span>
-                        <div style={{ fontWeight: '600' }}>{selectedEquipment.location}</div>
-                      </div>
-                    </div>
-
-                    <div className={styles.grid3} style={{ margin: 0, gap: '12px' }}>
-                      <div>
-                        <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Cal. Interval</span>
-                        <div style={{ fontWeight: '600' }}>{selectedEquipment.calibrationIntervalDays} days</div>
-                      </div>
-                      <div>
-                        <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Last Calibrated</span>
-                        <div style={{ fontWeight: '600' }}>{new Date(selectedEquipment.lastCalibratedAt).toLocaleDateString()}</div>
-                      </div>
-                      <div>
-                        <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Next Due Date</span>
-                        <div style={{
-                          fontWeight: '600',
-                          color: new Date(selectedEquipment.nextCalibrationDueDate) < new Date() ? 'var(--danger)' : '#10B981'
-                        }}>
-                          {new Date(selectedEquipment.nextCalibrationDueDate).toLocaleDateString()}
-                          {new Date(selectedEquipment.nextCalibrationDueDate) < new Date() && ' (OVERDUE)'}
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Maintenance Log History */}
-                    <div>
-                      <h4 style={{ marginBottom: '8px' }}>Maintenance & Calibration History</h4>
-                      {selectedEquipment.maintenanceLogs && selectedEquipment.maintenanceLogs.length > 0 ? (
-                        <div className={styles.tableWrapper}>
-                          <table className={styles.table}>
-                            <thead>
-                              <tr>
-                                <th>Date</th>
-                                <th>Type</th>
-                                <th>Result</th>
-                                <th>Performed By</th>
-                                <th>E-Sign</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {selectedEquipment.maintenanceLogs.map((log) => (
-                                <tr key={log.id} className={styles.tableRow}>
-                                  <td>{new Date(log.performedAt).toLocaleDateString()}</td>
-                                  <td>
-                                    <span className={`${styles.badge} ${styles.badgeDraft}`} style={{ fontSize: '10px' }}>
-                                      {log.activityType}
-                                    </span>
-                                  </td>
-                                  <td>
-                                    <span style={{
-                                      fontWeight: '700',
-                                      color: log.result === 'PASS' ? '#10B981' : 'var(--danger)'
-                                    }}>{log.result}</span>
-                                  </td>
-                                  <td>{log.performedBy?.fullName || 'Unknown'}</td>
-                                  <td>
-                                    {log.esignSignatureId ? (
-                                      <span style={{ color: '#10B981', fontSize: '11px' }}>✓ Signed</span>
-                                    ) : (
-                                      <span style={{ color: 'var(--text-muted)', fontSize: '11px' }}>—</span>
-                                    )}
-                                  </td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
-                        </div>
-                      ) : (
-                        <div className="glass" style={{ padding: '16px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '13px' }}>
-                          No maintenance activities logged yet.
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                <div className="glass" style={{ padding: '32px', textAlign: 'center', color: 'var(--text-muted)', marginTop: '16px' }}>
-                  Select an equipment item from the registry to view calibration details, maintenance logs, and compliance status.
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* TAB 8: SUPPLIERS (APPROVED VENDOR LIST) */}
-        {activeTab === 'suppliers' && (
-          <div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-              <div>
-                <h2>Approved Vendor List (AVL) & Supplier Quality</h2>
-                <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
-                  Manage qualified vendors, audit records, risk classifications, and incoming material inspections (21 CFR 820.50 / ISO 13485).
-                </span>
-              </div>
-            </div>
-
-            {/* Split Pane: Left = Supplier List, Right = Supplier Detail */}
-            <div className={styles.grid2}>
-              {/* Left Column: Supplier List */}
-              <div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                  {suppliers.length > 0 ? (
-                    suppliers.map((sup) => (
-                      <div
-                        key={sup.id}
-                        className={styles.card}
-                        onClick={() => setSelectedSupplierId(sup.id)}
-                        style={{
-                          cursor: 'pointer',
-                          borderColor: selectedSupplierId === sup.id ? 'var(--secondary)' : 'rgba(255,255,255,0.06)'
-                        }}
-                      >
-                        <div className={styles.cardTitle}>
-                          <span>{sup.name}</span>
-                          <span className={`${styles.badge} ${
-                            sup.status === 'APPROVED' ? styles.badgeEffective :
-                            sup.status === 'CONDITIONALLY_APPROVED' ? styles.badgeReview :
-                            sup.status === 'DISQUALIFIED' ? styles.badgeObsolete : styles.badgeDraft
-                          }`}>
-                            {sup.status}
-                          </span>
-                        </div>
-                        <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '4px' }}>
-                          Category: <strong>{sup.category}</strong> | Risk: <strong style={{
-                            color: sup.riskClassification === 'CRITICAL' ? 'var(--danger)' :
-                                   sup.riskClassification === 'MAJOR' ? 'var(--warning)' : '#10B981'
-                          }}>{sup.riskClassification}</strong>
-                        </p>
-                        <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '8px', display: 'flex', justifyContent: 'space-between' }}>
-                          <span>Audits: {sup.audits?.length || 0} | Receipts: {sup.materialReceipts?.length || 0}</span>
-                          <span style={{
-                            color: new Date(sup.reEvaluationDueDate) < new Date() ? 'var(--danger)' : 'var(--text-muted)'
-                          }}>
-                            Re-eval: {new Date(sup.reEvaluationDueDate).toLocaleDateString()}
-                            {new Date(sup.reEvaluationDueDate) < new Date() && ' ⚠ OVERDUE'}
-                          </span>
-                        </div>
-                      </div>
-                    ))
-                  ) : (
-                    <div className="glass" style={{ padding: '24px', textAlign: 'center', color: 'var(--text-muted)' }}>
-                      No suppliers registered yet.
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Right Column: Selected Supplier Detail View */}
-              <div>
-                {selectedSupplier ? (
-                  <div>
-                    <h2>Supplier Detail: {selectedSupplier.name}</h2>
-                    <div className={styles.card} style={{ marginTop: '16px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                      
-                      {/* Header Info */}
-                      <div className={styles.cardTitle}>
-                        <span>{selectedSupplier.id} — {selectedSupplier.name}</span>
-                        <span className={`${styles.badge} ${
-                          selectedSupplier.status === 'APPROVED' ? styles.badgeEffective :
-                          selectedSupplier.status === 'CONDITIONALLY_APPROVED' ? styles.badgeReview :
-                          selectedSupplier.status === 'DISQUALIFIED' ? styles.badgeObsolete : styles.badgeDraft
-                        }`}>
-                          {selectedSupplier.status}
-                        </span>
-                      </div>
-
-                      {/* Metadata Grid */}
-                      <div className={styles.grid3} style={{ margin: 0, gap: '12px' }}>
-                        <div>
-                          <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Category</span>
-                          <div style={{ fontWeight: '600' }}>{selectedSupplier.category}</div>
-                        </div>
-                        <div>
-                          <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Risk Classification</span>
-                          <div style={{
-                            fontWeight: '700',
-                            color: selectedSupplier.riskClassification === 'CRITICAL' ? 'var(--danger)' :
-                                   selectedSupplier.riskClassification === 'MAJOR' ? 'var(--warning)' : '#10B981'
-                          }}>
-                            {selectedSupplier.riskClassification}
-                          </div>
-                        </div>
-                        <div>
-                          <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Contact Email</span>
-                          <div style={{ fontWeight: '600', fontSize: '13px' }}>{selectedSupplier.contactEmail || 'N/A'}</div>
-                        </div>
-                      </div>
-
-                      <div className={styles.grid3} style={{ margin: 0, gap: '12px' }}>
-                        <div>
-                          <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Qualified Date</span>
-                          <div style={{ fontWeight: '600' }}>{new Date(selectedSupplier.qualificationDate).toLocaleDateString()}</div>
-                        </div>
-                        <div>
-                          <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Re-Evaluation Due</span>
-                          <div style={{
-                            fontWeight: '600',
-                            color: new Date(selectedSupplier.reEvaluationDueDate) < new Date() ? 'var(--danger)' : '#10B981'
-                          }}>
-                            {new Date(selectedSupplier.reEvaluationDueDate).toLocaleDateString()}
-                            {new Date(selectedSupplier.reEvaluationDueDate) < new Date() && ' (OVERDUE)'}
-                          </div>
-                        </div>
-                        <div>
-                          <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Contact Phone</span>
-                          <div style={{ fontWeight: '600', fontSize: '13px' }}>{selectedSupplier.contactPhone || 'N/A'}</div>
-                        </div>
-                      </div>
-
-                      {selectedSupplier.notes && (
-                        <div className="glass" style={{ padding: '12px 16px', background: 'rgba(0,0,0,0.15)' }}>
-                          <span style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'block', marginBottom: '4px' }}>Vendor Quality Notes</span>
-                          <p style={{ fontSize: '13px', margin: 0 }}>{selectedSupplier.notes}</p>
-                        </div>
-                      )}
-
-                      {/* Attached Documents */}
-                      <div>
-                        <h4 style={{ marginBottom: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                          <span>Attached Qualification Documents</span>
-                        </h4>
-                        {selectedSupplier.attachments && selectedSupplier.attachments.length > 0 ? (
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                            {selectedSupplier.attachments.map((att: any) => (
-                              <div
-                                key={att.id}
-                                style={{
-                                  display: 'flex',
-                                  justifyContent: 'space-between',
-                                  alignItems: 'center',
-                                  background: 'rgba(255,255,255,0.03)',
-                                  border: '1px solid rgba(255,255,255,0.06)',
-                                  padding: '10px 14px',
-                                  fontSize: '13px',
-                                }}
-                              >
-                                <span style={{ fontWeight: '500' }}>📎 {att.fileName}</span>
-                                <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-                                  <a
-                                    href={`data:${att.fileType};base64,${att.fileData}`}
-                                    download={att.fileName}
-                                    style={{
-                                      color: '#A3E635',
-                                      textDecoration: 'none',
-                                      fontWeight: '700',
-                                      fontSize: '11px',
-                                      fontFamily: 'monospace',
-                                    }}
-                                  >
-                                    [ DOWNLOAD ]
-                                  </a>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        ) : (
-                          <div className="glass" style={{ padding: '16px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '13px' }}>
-                            No qualification files attached.
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Audit Log History */}
-                      <div>
-                        <h4 style={{ marginBottom: '8px' }}>Supplier Audit History</h4>
-                        {selectedSupplier.audits && selectedSupplier.audits.length > 0 ? (
-                          <div className={styles.tableWrapper}>
-                            <table className={styles.table}>
-                              <thead>
-                                <tr>
-                                  <th>Audit Date</th>
-                                  <th>Type</th>
-                                  <th>Result</th>
-                                  <th>Auditor</th>
-                                  <th>E-Sign</th>
-                                </tr>
-                              </thead>
-                              <tbody>
-                                {selectedSupplier.audits.map((a) => (
-                                  <tr key={a.id} className={styles.tableRow}>
-                                    <td>{new Date(a.auditDate).toLocaleDateString()}</td>
-                                    <td>
-                                      <span className={`${styles.badge} ${styles.badgeDraft}`} style={{ fontSize: '10px' }}>
-                                        {a.auditType}
-                                      </span>
-                                    </td>
-                                    <td>
-                                      <span style={{
-                                        fontWeight: '700',
-                                        color: a.result === 'PASS' ? '#10B981' :
-                                               a.result === 'CONDITIONAL_PASS' ? 'var(--warning)' : 'var(--danger)'
-                                      }}>{a.result}</span>
-                                    </td>
-                                    <td>{a.auditor?.fullName || 'Unknown'}</td>
-                                    <td>
-                                      {a.esignSignatureId ? (
-                                        <span style={{ color: '#10B981', fontSize: '11px' }}>✓ Signed</span>
-                                      ) : (
-                                        <span style={{ color: 'var(--text-muted)', fontSize: '11px' }}>—</span>
-                                      )}
-                                    </td>
-                                  </tr>
-                                ))}
-                              </tbody>
-                            </table>
-                          </div>
-                        ) : (
-                          <div className="glass" style={{ padding: '16px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '13px' }}>
-                            No audits logged yet for this supplier.
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Material Inspection Receipts */}
-                      <div>
-                        <h4 style={{ marginBottom: '8px' }}>Incoming Material Inspection Log</h4>
-                        {selectedSupplier.materialReceipts && selectedSupplier.materialReceipts.length > 0 ? (
-                          <div className={styles.tableWrapper}>
-                            <table className={styles.table}>
-                              <thead>
-                                <tr>
-                                  <th>Receipt Date</th>
-                                  <th>Material Name</th>
-                                  <th>Lot Number</th>
-                                  <th>Qty</th>
-                                  <th>Inspection Status</th>
-                                  <th>Inspected By</th>
-                                </tr>
-                              </thead>
-                              <tbody>
-                                {selectedSupplier.materialReceipts.map((mr) => (
-                                  <tr key={mr.id} className={styles.tableRow}>
-                                    <td>{new Date(mr.receivedAt).toLocaleDateString()}</td>
-                                    <td style={{ fontWeight: '600' }}>{mr.materialName}</td>
-                                    <td><code>{mr.lotNumber}</code></td>
-                                    <td>{mr.quantityReceived} {mr.unit}</td>
-                                    <td>
-                                      <span className={`${styles.badge} ${
-                                        mr.inspectionStatus === 'PASSED' ? styles.badgeEffective :
-                                        mr.inspectionStatus === 'QUARANTINE' ? styles.badgeReview : styles.badgeObsolete
-                                      }`}>
-                                        {mr.inspectionStatus}
-                                      </span>
-                                    </td>
-                                    <td>{mr.inspectedBy?.fullName || 'QC Staff'}</td>
-                                  </tr>
-                                ))}
-                              </tbody>
-                            </table>
-                          </div>
-                        ) : (
-                          <div className="glass" style={{ padding: '16px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '13px' }}>
-                            No material receipts logged for this supplier.
-                          </div>
-                        )}
-                      </div>
-
-                    </div>
-                  </div>
-                ) : (
-                  <div className="glass" style={{ padding: '32px', textAlign: 'center', color: 'var(--text-muted)', marginTop: '16px' }}>
-                    Select a supplier from the Approved Vendor List to view qualification status, audit history, and incoming material receipts.
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* TAB: GxP AUDITS MANAGEMENT */}
-        {activeTab === 'audits-management' && (
-          <div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-              <h2>Internal & Supplier Audit Planning (GxP / ISO 13485)</h2>
-              <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Sensitive exports unavailable during recovery</span>
-            </div>
-
-            <div className={styles.grid2}>
-              {/* Scheduled Audit Plans */}
-              <div className={styles.card}>
-                <div className={styles.cardTitle}>Scheduled Audit Plans</div>
-                <div className={styles.tableWrapper}>
-                  <table className={styles.table}>
-                    <thead>
-                      <tr>
-                        <th>Title / Scope</th>
-                        <th>Type</th>
-                        <th>Scheduled Date</th>
-                        <th>Status</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {auditPlans && auditPlans.length > 0 ? (
-                        auditPlans.map((ap) => (
-                          <tr key={ap.id} className={styles.tableRow}>
-                            <td>
-                              <div style={{ fontWeight: '600' }}>{ap.title}</div>
-                              <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{ap.scope}</div>
-                            </td>
-                            <td><span className={styles.currentBadge}>{ap.auditType}</span></td>
-                            <td>{new Date(ap.scheduledDate).toLocaleDateString()}</td>
-                            <td>
-                              <span className={`${styles.badge} ${
-                                ap.status === 'CLOSED' ? styles.badgeEffective :
-                                ap.status === 'IN_PROGRESS' ? styles.badgeReview : styles.badgeDraft
-                              }`}>
-                                {ap.status}
-                              </span>
-                            </td>
-                          </tr>
-                        ))
-                      ) : (
-                        <tr>
-                          <td colSpan={4} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '24px' }}>
-                            No active audit plans scheduled.
-                          </td>
-                        </tr>
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-
-              {/* Audit-program validation status */}
-              <div className={styles.card}>
-                <div className={styles.cardTitle}>Audit Program Status</div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                  <div className="glass" style={{ padding: '16px', borderRadius: '8px', background: 'rgba(16,185,129,0.05)', border: '1px solid rgba(16,185,129,0.2)' }}>
-                    <div style={{ fontWeight: '600', color: '#10B981', fontSize: '13px' }}>Automated readiness conclusions unavailable</div>
-                    <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px' }}>
-                      Audit plans are shown for recovery reference only. Inspection readiness requires approved scope, evidence review, validation, and independent quality assessment.
-                    </div>
-                  </div>
                 </div>
               </div>
             </div>

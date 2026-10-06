@@ -3,7 +3,6 @@ import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 const page = readFileSync(resolve('src/app/page.tsx'), 'utf8');
-const admin = readFileSync(resolve('src/app/admin/page.tsx'), 'utf8');
 
 describe('audit UI claims containment', () => {
   it('AUDIT-UI-T001 removes export controls and unsupported audit/SoD claims', () => {
@@ -12,7 +11,5 @@ describe('audit UI claims containment', () => {
     expect(page).not.toContain('Immutable chronological ledger of all CUD and READ actions');
     expect(page).not.toContain('Veritas automatically enforces EU Annex 11 & 21 CFR Part 11 SoD policies');
     expect(page).toContain('Append-only storage, completeness, retention, and regulatory validation are not yet evidenced.');
-    expect(admin).not.toContain("fetch('/api/audit/export");
-    expect(admin).not.toContain('complying with 21 CFR Part 11 auditing mandates');
   });
 });
