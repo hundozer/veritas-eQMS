@@ -16,14 +16,18 @@ Full audit and rationale: "Veritas eQMS — Code Audit & Roadmap" (5 Oct 2026).
 - [ ] Stay on free Vercel and Neon plans (owner decision, 5 Oct 2026); Blob
       connected in Production.
 - [ ] Least-privilege application database role; audit tables INSERT/SELECT only,
-      UPDATE/DELETE rejected by trigger.
+      UPDATE/DELETE rejected by trigger. In repository (DEC-057): migration
+      `20261006120000_audit_append_only`, `prisma/maintenance/2026-10-06-app-role.sql`,
+      `npm run test:db`. Open: apply both to production and switch Production
+      `DATABASE_URL` to `veritas_app`.
 - [x] Confirm whether `prisma/seed.js` ever ran against production (it writes a
       fabricated signature manifest); seed refuses to run in production.
       Confirmed 5 Oct 2026: it ran. Production holds the demo tenants "Acme Biotech"
       and "BioLabs Inc", their demo users, and the fabricated "CHARLIE-APPROVED"
       signature manifest. The owner's organisation is linked to "Acme Biotech".
-- [ ] Move the owner's organisation off the demo seed tenant (DEC-056, "fresh
+- [x] Move the owner's organisation off the demo seed tenant (DEC-056, "fresh
       start"): run `prisma/maintenance/2026-10-06-fresh-tenant.sql` in production.
+      Done 6 Oct 2026.
       Demo tenants, their documents and both synthetic signature manifests stay as
       read-only history; nothing is deleted.
 - [x] Security headers in `next.config.ts`; Node version pinned in `engines`.

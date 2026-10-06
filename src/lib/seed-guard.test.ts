@@ -19,14 +19,14 @@ describe('demo seed guard', () => {
   it('SEED-T001 refuses by default, before touching the database', () => {
     const { status, output } = runSeed({});
     expect(status).toBe(1);
-    expect(output).toContain('Refusing to seed: it deletes all data');
+    expect(output).toContain('Refusing to seed: it writes fictional records');
     expect(output).not.toContain('Seeding database');
   });
 
   it('SEED-T002 refuses in production even when unlocked', () => {
     const productionEnvs: Record<string, string>[] = [{ NODE_ENV: 'production' }, { VERCEL_ENV: 'production' }];
     for (const env of productionEnvs) {
-      const { status, output } = runSeed({ ...env, VERITAS_ALLOW_DEMO_SEED: 'wipe-this-database' });
+      const { status, output } = runSeed({ ...env, VERITAS_ALLOW_DEMO_SEED: 'fictional-demo-data' });
       expect(status).toBe(1);
       expect(output).toContain('Refusing to seed: this is a production environment.');
       expect(output).not.toContain('Seeding database');
@@ -40,7 +40,7 @@ describe('demo seed guard', () => {
   });
 
   it('SEED-T004 proceeds only with the explicit unlock outside production', () => {
-    const { output } = runSeed({ VERITAS_ALLOW_DEMO_SEED: 'wipe-this-database', NODE_ENV: 'development' });
+    const { output } = runSeed({ VERITAS_ALLOW_DEMO_SEED: 'fictional-demo-data', NODE_ENV: 'development' });
     expect(output).toContain('Seeding database');
   });
 });
