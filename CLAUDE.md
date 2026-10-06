@@ -25,6 +25,9 @@ will rely on this code, so correctness beats speed.
   roadmap. Delete unused code instead of disabling it.
 - Make no compliance claims ("Part 11 compliant", "validated") in UI or docs.
 - Before opening a PR: `npx vitest run`, `npx tsc --noEmit`, `npx eslint .`.
+- Changes to queries, routes, migrations or database roles also need
+  `npm run test:db` against a disposable PostgreSQL (`TEST_DATABASE_URL`); add a
+  two-tenant case in `src/db-tests/` for every new tenant-owned read or write.
 - Tick roadmap items in `docs/ROADMAP.md` in the same PR that completes them.
 
 ## Key places

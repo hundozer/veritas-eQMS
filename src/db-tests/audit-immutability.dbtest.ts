@@ -1,18 +1,10 @@
 import { randomUUID } from 'node:crypto';
 import { PrismaClient } from '@prisma/client';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { APP_ROLE_TEST_PASSWORD } from './global-setup';
+import { appDatabaseUrl, ownerDatabaseUrl } from './connections';
 
-const ownerUrl = process.env.TEST_DATABASE_URL!;
-const appUrl = (() => {
-  const url = new URL(ownerUrl);
-  url.username = 'veritas_app';
-  url.password = APP_ROLE_TEST_PASSWORD;
-  return url.toString();
-})();
-
-const owner = new PrismaClient({ datasourceUrl: ownerUrl });
-const app = new PrismaClient({ datasourceUrl: appUrl });
+const owner = new PrismaClient({ datasourceUrl: ownerDatabaseUrl() });
+const app = new PrismaClient({ datasourceUrl: appDatabaseUrl() });
 
 const tenantId = randomUUID();
 const auditLogId = randomUUID();

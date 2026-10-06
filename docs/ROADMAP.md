@@ -33,7 +33,8 @@ Full audit and rationale: "Veritas eQMS — Code Audit & Roadmap" (5 Oct 2026).
 - [x] Security headers in `next.config.ts`; Node version pinned in `engines`.
 - [ ] Delete suppliers, equipment, regulatory intelligence, platform admin,
       Microsoft SSO, audit planning, and their containment tests.
-- [ ] Postgres-backed test harness seeded with two tenants.
+- [x] Postgres-backed test harness seeded with two tenants (`npm run test:db`,
+      `src/db-tests/`): real routes, real sessions, application database role.
 
 **Gate:** a synthetic SOP uploads and verifies in production, and the
 application role cannot alter audit rows.
