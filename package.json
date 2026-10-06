@@ -11,7 +11,8 @@
     "postinstall": "prisma generate",
     "start": "next start",
     "lint": "eslint",
-    "test:auth": "vitest run src/lib/auth.test.ts --reporter=verbose"
+    "test:auth": "vitest run src/lib/auth.test.ts --reporter=verbose",
+    "test:db": "vitest run --config vitest.db.config.ts"
   },
   "dependencies": {
     "@emotion/react": "^11.14.0",

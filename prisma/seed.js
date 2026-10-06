@@ -12,26 +12,11 @@ const prisma = new PrismaClient();
 async function main() {
   console.log('Seeding database...');
 
-  await prisma.materialReceipt.deleteMany({});
-  await prisma.supplierAudit.deleteMany({});
-  await prisma.supplier.deleteMany({});
-  await prisma.maintenanceLog.deleteMany({});
-  await prisma.equipment.deleteMany({});
-  await prisma.cAPA.deleteMany({});
-  await prisma.deviation.deleteMany({});
-  await prisma.changeRequestDocument.deleteMany({});
-  await prisma.changeRequest.deleteMany({});
-  await prisma.auditLog.deleteMany({});
-  await prisma.quizResult.deleteMany({});
-  await prisma.trainingAssignment.deleteMany({});
-  await prisma.trainingRequirement.deleteMany({});
-  await prisma.signatureManifest.deleteMany({});
-  await prisma.approvalRouteStep.deleteMany({});
-  await prisma.approvalRoute.deleteMany({});
-  await prisma.documentVersion.deleteMany({});
-  await prisma.document.deleteMany({});
-  await prisma.user.deleteMany({});
-  await prisma.tenant.deleteMany({});
+  // Audit tables are append-only, so the seed no longer wipes a database first.
+  // Use a fresh one (for example `npx prisma migrate reset --skip-seed`).
+  if ((await prisma.tenant.count()) > 0) {
+    throw new Error('Refusing to seed: the database already contains tenants. Seed only an empty database.');
+  }
 
   // 1. Create Tenants
   const acme = await prisma.tenant.create({
