@@ -22,9 +22,10 @@ Full audit and rationale: "Veritas eQMS — Code Audit & Roadmap" (5 Oct 2026).
       Confirmed 5 Oct 2026: it ran. Production holds the demo tenants "Acme Biotech"
       and "BioLabs Inc", their demo users, and the fabricated "CHARLIE-APPROVED"
       signature manifest. The owner's organisation is linked to "Acme Biotech".
-- [ ] Owner decision: how to retire the demo seed data in production (tenants,
-      users, documents, the fabricated signature manifest and the "Company Name"
-      tenant's synthetic-looking signature) without losing audit history.
+- [ ] Move the owner's organisation off the demo seed tenant (DEC-056, "fresh
+      start"): run `prisma/maintenance/2026-10-06-fresh-tenant.sql` in production.
+      Demo tenants, their documents and both synthetic signature manifests stay as
+      read-only history; nothing is deleted.
 - [x] Security headers in `next.config.ts`; Node version pinned in `engines`.
 - [ ] Delete suppliers, equipment, regulatory intelligence, platform admin,
       Microsoft SSO, audit planning, and their containment tests.
