@@ -16,7 +16,7 @@ async function headersFor(pathname: string) {
 
 describe('security headers', () => {
   it('SECHDR-T001 sends the baseline security headers on pages and API routes', async () => {
-    for (const pathname of ['/', '/api/documents/doc-1', '/api/audits']) {
+    for (const pathname of ['/', '/api/documents/doc-1', '/api/trainings']) {
       const headers = await headersFor(pathname);
       expect(headers['Strict-Transport-Security']).toBe('max-age=63072000; includeSubDomains');
       expect(headers['X-Content-Type-Options']).toBe('nosniff');
