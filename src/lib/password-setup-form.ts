@@ -22,3 +22,13 @@ export async function submitPasswordSetup(
   const data = await response.json().catch(() => null);
   return { ok: false, message: data?.error?.message ?? 'Your password could not be set.' };
 }
+
+export async function requestNewSetupLink(email: string, send: typeof fetch = fetch): Promise<string> {
+  const response = await send('/api/auth/setup-password/request', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email: email.trim().toLowerCase() }),
+  });
+  const data = await response.json().catch(() => null);
+  return data?.message ?? 'If this address has an open invitation, a new link is on its way.';
+}

@@ -3,7 +3,32 @@
 import Link from 'next/link';
 import { useState } from 'react';
 import styles from '../../page.module.css';
-import { passwordSetupProblem, submitPasswordSetup } from '@/lib/password-setup-form';
+import { passwordSetupProblem, requestNewSetupLink, submitPasswordSetup } from '@/lib/password-setup-form';
+
+function RequestLinkForm() {
+  const [email, setEmail] = useState('');
+  const [answer, setAnswer] = useState<string | null>(null);
+
+  const onSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setAnswer(await requestNewSetupLink(email));
+  };
+
+  return (
+    <form onSubmit={onSubmit} style={{ marginTop: '20px' }}>
+      <p style={{ fontSize: '13px', color: 'var(--text-muted)' }}>
+        Need a new link? Enter the email address you were invited with.
+      </p>
+      {answer && <p role="status" style={{ color: '#10B981', fontSize: '13px' }}>{answer}</p>}
+      <div className={styles.formGroup}>
+        <label className={styles.formLabel} htmlFor="invite-email">Email address</label>
+        <input id="invite-email" className={styles.input} type="email" autoComplete="email" required
+          value={email} onChange={(event) => setEmail(event.target.value)} />
+      </div>
+      <button type="submit" className={`${styles.btn} ${styles.btnSecondary}`}>Send a new link</button>
+    </form>
+  );
+}
 
 export default function SetupPasswordForm({ token }: { token: string }) {
   const [password, setPassword] = useState('');
@@ -13,7 +38,7 @@ export default function SetupPasswordForm({ token }: { token: string }) {
   const [busy, setBusy] = useState(false);
 
   if (!token) {
-    return <p role="alert">This link is incomplete. Open the link from your invitation email again.</p>;
+    return <RequestLinkForm />;
   }
   if (done) {
     return (
@@ -40,6 +65,7 @@ export default function SetupPasswordForm({ token }: { token: string }) {
   };
 
   return (
+    <>
     <form onSubmit={onSubmit}>
       {error && <p role="alert" style={{ color: '#F87171' }}>{error}</p>}
       <div className={styles.formGroup}>
@@ -56,5 +82,7 @@ export default function SetupPasswordForm({ token }: { token: string }) {
         {busy ? 'Setting password…' : 'Set password'}
       </button>
     </form>
+    {error && <RequestLinkForm />}
+    </>
   );
 }

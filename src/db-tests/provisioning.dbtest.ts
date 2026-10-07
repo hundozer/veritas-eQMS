@@ -106,18 +106,33 @@ describe('audited provisioning and password setup', () => {
     expect(signedIn.headers.get('set-cookie')).toContain('iam-access-token=');
   });
 
-  it('PROV-T003 an inviter cannot hand out a role with permissions they do not hold', async () => {
-    const limitedRole = await owner.iamRole.create({ data: { name: `DB test inviter ${randomUUID()}`, description: 'Inviter', isSystem: false } });
+  it('PROV-T003 a separate administrator may assign organisation roles but never a platform role; others cannot invite', async () => {
+    const adminRole = await owner.iamRole.create({ data: { name: `DB test administrator ${randomUUID()}`, description: 'Administrator', isSystem: false } });
     const permissions = await owner.iamPermission.findMany({ where: { name: { in: ['users.create', 'users.read'] } } });
-    await owner.iamRolePermission.createMany({ data: permissions.map((permission) => ({ roleId: limitedRole.id, permissionId: permission.id })) });
-    const inviter = await addMember(owner, a, 'Limited', limitedRole.id);
-    const body = invitation({ roleId: a.roleId });
+    await owner.iamRolePermission.createMany({ data: permissions.map((permission) => ({ roleId: adminRole.id, permissionId: permission.id })) });
+    const admin = await addMember(owner, a, 'Administrator', adminRole.id);
+    const asAdmin = { ...a, sessionToken: admin.sessionToken };
+    const platformRole = await owner.iamRole.upsert({
+      where: { name: 'System Administrator' }, update: {}, create: { name: 'System Administrator', description: 'Platform', isSystem: true },
+    });
 
-    const response = await invite({ ...a, sessionToken: inviter.sessionToken }, body);
+    expect((await invite(asAdmin, invitation())).status).toBe(201);
 
-    expect(response.status).toBe(403);
-    expect(await owner.iamUser.count({ where: { email: body.email } })).toBe(0);
-    expect(outbox.sent).toEqual([]);
+    const platform = invitation({ roleId: platformRole.id });
+    expect((await invite(asAdmin, platform)).status).toBe(403);
+    expect(await owner.iamUser.count({ where: { email: platform.email } })).toBe(0);
+
+    const { GET: roles } = await import('@/app/api/roles/route');
+    const listed = await (await roles(requestAs(asAdmin, '/api/roles'))).json();
+    expect(listed.roles.map((role: { id: string }) => role.id)).toEqual(expect.arrayContaining([reviewerRoleId]));
+    expect(listed.roles.map((role: { id: string }) => role.id)).not.toContain(platformRole.id);
+
+    const reviewer = await addMember(owner, a, 'Plain', reviewerRoleId);
+    const asReviewer = { ...a, sessionToken: reviewer.sessionToken };
+    const refused = invitation();
+    expect((await invite(asReviewer, refused)).status).toBe(403);
+    expect((await roles(requestAs(asReviewer, '/api/roles'))).status).toBe(403);
+    expect(await owner.iamUser.count({ where: { email: refused.email } })).toBe(0);
   });
 
   it('PROV-T004 an email address that already exists is refused without creating anything', async () => {
@@ -180,5 +195,24 @@ describe('audited provisioning and password setup', () => {
     expect((await setup(anonymous('/api/auth/setup-password', { token: outbox.sent[0].token, password: NEW_PASSWORD }))).status).toBe(200);
     const resentAgain = await resend(requestAs(a, `/api/users/${error.userId}/invitation`, { method: 'POST' }), params(error.userId));
     expect(resentAgain.status).toBe(409);
+  });
+
+  it('PROV-T008 an invited person can ask for a fresh link; nothing reveals whether an address exists', async () => {
+    const body = invitation();
+    expect((await invite(a, body)).status).toBe(201);
+    const firstToken = outbox.sent[0].token;
+    outbox.sent.length = 0;
+    const { POST: request } = await import('@/app/api/auth/setup-password/request/route');
+
+    const answers = await Promise.all([body.email.toUpperCase(), a.email, 'nobody@example.invalid'].map(async (email) => {
+      const response = await request(anonymous('/api/auth/setup-password/request', { email }));
+      return [response.status, await response.json()];
+    }));
+    expect(new Set(answers.map((answer) => JSON.stringify(answer))).size).toBe(1);
+    expect(outbox.sent).toEqual([{ to: body.email, token: expect.any(String) }]);
+
+    const { POST: setup } = await import('@/app/api/auth/setup-password/route');
+    expect((await setup(anonymous('/api/auth/setup-password', { token: firstToken, password: NEW_PASSWORD }))).status).toBe(400);
+    expect((await setup(anonymous('/api/auth/setup-password', { token: outbox.sent[0].token, password: NEW_PASSWORD }))).status).toBe(200);
   });
 });

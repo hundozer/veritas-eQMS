@@ -8,8 +8,8 @@ import { createCredentialActionToken } from './credential-action-token';
 import { sendCredentialActionEmail } from './credential-email';
 import { hashPassword } from './password';
 
-// Audited provisioning (DEC-063). An administrator invites a person into their
-// own organisation with one role. The identity, operational user, membership
+// Audited provisioning (DEC-063). An administrator (users.create) invites a
+// person into their own organisation with one organisation role. The identity, operational user, membership
 // and both audit rows are written in one tenant transaction; the person then
 // sets their own password from a single-use emailed link. Nobody else ever
 // knows or chooses that password.
@@ -79,17 +79,19 @@ function invitationEmailConfigured(): boolean {
   return Boolean(process.env.RESEND_API_KEY?.trim() && process.env.EMAIL_FROM?.trim() && process.env.APP_ORIGIN?.trim());
 }
 
-/** Roles the inviter may hand out: never a platform role, never more than they hold. */
+/**
+ * Roles an administrator may hand out: any organisation role, never a platform
+ * role. Administration is kept apart from quality work (DEC-023), so the
+ * administrator need not hold the permissions of the roles they assign; every
+ * invitation is attributed to them in the audit trail.
+ */
 export async function assignableRoles(inviter: UserContext) {
-  const held = new Set(inviter.permissions);
+  if (!inviter.permissions.includes('users.create')) return [];
   const roles = await prisma.iamRole.findMany({
-    select: { id: true, name: true, description: true, permissions: { select: { permission: { select: { name: true } } } } },
+    select: { id: true, name: true, description: true },
     orderBy: { name: 'asc' },
   });
-  return roles
-    .filter((role) => !PLATFORM_ROLES.has(role.name))
-    .filter((role) => role.permissions.every(({ permission }) => held.has(permission.name)))
-    .map(({ id, name, description }) => ({ id, name, description }));
+  return roles.filter((role) => !PLATFORM_ROLES.has(role.name));
 }
 
 async function sendInvitation(inviter: UserContext, iamUserId: string, operationalUserId: string, email: string) {
@@ -185,6 +187,34 @@ export async function resendInvitation(inviter: UserContext, operationalUserId: 
     context: inviter, action: 'USER_INVITATION_RESENT', objectType: 'User', objectId: operationalUserId,
     payload: { email: membership.user.email }, requestUrl,
   }));
+}
+
+/**
+ * Sends a fresh setup link to an invited identity that asks for one, e.g. after
+ * the first link expired. The caller always gets the same answer, whether or
+ * not the address exists, so the request reveals nothing.
+ */
+export async function requestSetupLink(email: unknown, ipAddress?: string | null): Promise<void> {
+  const address = text(email, 254)?.toLowerCase();
+  if (!address || !EMAIL_PATTERN.test(address) || !invitationEmailConfigured()) return;
+  const identity = await prisma.iamUser.findUnique({
+    where: { email: address },
+    select: { id: true, accountStatus: true, memberships: { select: { organizationId: true }, take: 1 } },
+  });
+  if (!identity || identity.accountStatus !== 'INVITED') return;
+  try {
+    const { token } = await createCredentialActionToken({ userId: identity.id, purpose: IamCredentialActionPurpose.PASSWORD_SETUP });
+    await sendCredentialActionEmail(address, token, IamCredentialActionPurpose.PASSWORD_SETUP);
+    await prisma.iamAuditTrail.create({
+      data: {
+        organizationId: identity.memberships[0]?.organizationId ?? null, userId: identity.id, userEmail: address,
+        action: 'PASSWORD_SETUP_LINK_SENT', objectType: 'IamUser', objectId: identity.id,
+        payload: JSON.stringify({ requestedBy: 'invitee' }), ipAddress: ipAddress ?? null,
+      },
+    });
+  } catch {
+    // Same answer either way; the failure is visible as a missing audit row.
+  }
 }
 
 /** Operational user ids in the tenant whose owner has not set a password yet. */
