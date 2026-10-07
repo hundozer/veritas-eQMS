@@ -41,6 +41,7 @@ describe('controlled-record storage', () => {
     delete process.env.BLOB_READ_WRITE_TOKEN;
     delete process.env.BLOB_STORE_ID;
     delete process.env.VERCEL_OIDC_TOKEN;
+    delete process.env.VERCEL;
   });
 
   it('computes SHA-256 from uploaded bytes and sanitizes display filenames', () => {
@@ -91,6 +92,31 @@ describe('controlled-record storage', () => {
     );
 
     expect(blobMock.put).toHaveBeenCalledOnce();
+  });
+
+  it('accepts the store identity on Vercel, where the OIDC token comes with the request', async () => {
+    process.env.VERCEL = '1';
+    process.env.BLOB_STORE_ID = 'store_synthetic';
+    blobMock.put.mockResolvedValue({});
+
+    await vercelBlobStorage.putObject(
+      'tenants/t/documents/d/versions/1/runtime-oidc-id',
+      new Uint8Array([1]),
+      'application/pdf',
+    );
+
+    expect(blobMock.put).toHaveBeenCalledOnce();
+  });
+
+  it('fails closed on Vercel without a store identity', async () => {
+    process.env.VERCEL = '1';
+
+    await expect(vercelBlobStorage.putObject(
+      'tenants/t/documents/d/versions/1/rejected-id',
+      new Uint8Array([1]),
+      'application/pdf',
+    )).rejects.toThrow('Controlled-record storage is unavailable');
+    expect(blobMock.put).not.toHaveBeenCalled();
   });
 
   it.each([

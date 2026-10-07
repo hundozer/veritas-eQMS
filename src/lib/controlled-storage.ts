@@ -29,11 +29,12 @@ export interface ControlledStorageBackend {
   deleteObject(key: string): Promise<void>;
 }
 
+// On Vercel the OIDC token arrives per request (x-vercel-oidc-token header) and
+// @vercel/blob resolves it itself; VERCEL_OIDC_TOKEN exists only in builds and locally.
 function requireStorageCredentials() {
   const hasReadWriteToken = Boolean(process.env.BLOB_READ_WRITE_TOKEN?.trim());
-  const hasOidcCredentials = Boolean(
-    process.env.VERCEL_OIDC_TOKEN?.trim() && process.env.BLOB_STORE_ID?.trim(),
-  );
+  const hasOidcToken = Boolean(process.env.VERCEL_OIDC_TOKEN?.trim()) || process.env.VERCEL === '1';
+  const hasOidcCredentials = hasOidcToken && Boolean(process.env.BLOB_STORE_ID?.trim());
 
   if (!hasReadWriteToken && !hasOidcCredentials) {
     throw new Error('Controlled-record storage is unavailable');
