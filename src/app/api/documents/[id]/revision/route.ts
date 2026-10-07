@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import prisma from '@/lib/db';
+import { tenantRead, tenantTransaction } from '@/lib/tenant-db';
 import { getContext } from '@/lib/auth';
 import { hasPermission } from '@/lib/rbac';
 import { writeMandatoryAudit } from '@/lib/audit';
@@ -22,9 +22,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     } catch (error) {
       return NextResponse.json({ error: { code: 'ValidationFailed', message: (error as Error).message } }, { status: 400 });
     }
-    const document = await prisma.document.findFirst({ where: { id, tenantId: user.tenantId } });
+    const document = await tenantRead(user.tenantId, (tx) => tx.document.findFirst({ where: { id, tenantId: user.tenantId } }));
     if (!document) return NextResponse.json({ error: { code: 'NotFound', message: 'Document not found' } }, { status: 404 });
-    const effectiveVersion = await prisma.documentVersion.findFirst({ where: { documentId: id, status: 'EFFECTIVE' } });
+    const effectiveVersion = await tenantRead(user.tenantId, (tx) => tx.documentVersion.findFirst({ where: { documentId: id, status: 'EFFECTIVE' } }));
     if (document.status !== 'EFFECTIVE' || !effectiveVersion || effectiveVersion.versionNumber !== document.currentVersionNumber) {
       return NextResponse.json({ error: { code: 'InvalidTransition', message: 'A revision can be created only from the current effective version' } }, { status: 409 });
     }
@@ -32,7 +32,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     uploadedKey = createControlledObjectKey({ tenantId: user.tenantId, documentId: id, versionNumber: nextVersionNumber });
     await vercelBlobStorage.putObject(uploadedKey, upload.bytes, upload.mimeType);
 
-    const version = await prisma.$transaction(async (tx) => {
+    const version = await tenantTransaction(user.tenantId, async (tx) => {
       const documentUpdate = await tx.document.updateMany({
         where: { id, tenantId: user.tenantId, status: 'EFFECTIVE', currentVersionNumber: effectiveVersion.versionNumber },
         data: { status: 'DRAFT', currentVersionNumber: nextVersionNumber },

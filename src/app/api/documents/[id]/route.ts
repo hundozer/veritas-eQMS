@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import prisma from '@/lib/db';
+import { tenantRead, tenantTransaction } from '@/lib/tenant-db';
 import { getContext, logAuditEvent } from '@/lib/auth';
 import { hasPermission } from '@/lib/rbac';
 import { writeMandatoryAudit } from '@/lib/audit';
@@ -24,7 +24,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       return NextResponse.json({ error: { code: 'Forbidden', message: 'Insufficient permission' } }, { status: 403 });
     }
 
-    const document = await prisma.document.findFirst({
+    const document = await tenantRead(user.tenantId, (tx) => tx.document.findFirst({
       where: { id, tenantId: user.tenantId },
       select: {
         id: true,
@@ -76,7 +76,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
           select: { id: true, requiredForRoles: true, requiresQuiz: true },
         },
       },
-    });
+    }));
 
     if (!document) {
       return NextResponse.json({ error: { code: 'NotFound', message: 'Document not found' } }, { status: 404 });
@@ -118,10 +118,10 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       return NextResponse.json({ error: { code: 'Forbidden', message: 'Insufficient permission' } }, { status: 403 });
     }
 
-    const document = await prisma.document.findFirst({
+    const document = await tenantRead(user.tenantId, (tx) => tx.document.findFirst({
       where: { id, tenantId: user.tenantId },
       include: { versions: { orderBy: { versionNumber: 'desc' } } },
-    });
+    }));
 
     if (!document) {
       return NextResponse.json({ error: { code: 'NotFound', message: 'Document not found' } }, { status: 404 });
@@ -149,7 +149,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     }
 
     // 2. Transactionally save everything (metadata update, new version entry, update training)
-    const updatedDoc = await prisma.$transaction(async (tx) => {
+    const updatedDoc = await tenantTransaction(user.tenantId, async (tx) => {
       // Update basic fields
       const documentUpdate = await tx.document.updateMany({
         where: { id, tenantId: user.tenantId, status: 'DRAFT', currentVersionNumber: currentVersion.versionNumber },
@@ -231,7 +231,7 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
     const reason = typeof body.reason === 'string' ? body.reason.trim() : '';
     if (!reason) return NextResponse.json({ error: { code: 'ValidationFailed', message: 'An obsolescence reason is required' } }, { status: 400 });
 
-    const document = await prisma.document.findFirst({ where: { id, tenantId: user.tenantId } });
+    const document = await tenantRead(user.tenantId, (tx) => tx.document.findFirst({ where: { id, tenantId: user.tenantId } }));
 
     if (!document) {
       return NextResponse.json({ error: { code: 'NotFound', message: 'Document not found' } }, { status: 404 });
@@ -240,14 +240,14 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
     if (!['DRAFT', 'APPROVED', 'EFFECTIVE'].includes(document.status)) {
       return NextResponse.json({ error: { code: 'InvalidTransition', message: `Document cannot be obsoleted from ${document.status}` } }, { status: 409 });
     }
-    const version = await prisma.documentVersion.findUnique({ where: { documentId_versionNumber: { documentId: id, versionNumber: document.currentVersionNumber } } });
+    const version = await tenantRead(user.tenantId, (tx) => tx.documentVersion.findUnique({ where: { documentId_versionNumber: { documentId: id, versionNumber: document.currentVersionNumber } } }));
     if (!version) return NextResponse.json({ error: { code: 'Conflict', message: 'Current document version is missing' } }, { status: 409 });
     assertTransition(version.status, 'OBSOLETE');
 
-    const effectiveVersions = await prisma.documentVersion.findMany({
+    const effectiveVersions = await tenantRead(user.tenantId, (tx) => tx.documentVersion.findMany({
       where: { documentId: id, status: 'EFFECTIVE', id: { not: version.id } },
       select: { id: true, versionNumber: true },
-    });
+    }));
 
     // An open revision (draft, in review or approved) sits on top of a live effective
     // version. Obsoleting it here would also retire the SOP people are working to.
@@ -259,7 +259,7 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
       );
     }
 
-    const archivedDoc = await prisma.$transaction(async (tx) => {
+    const archivedDoc = await tenantTransaction(user.tenantId, async (tx) => {
       const versionUpdate = await tx.documentVersion.updateMany({ where: { id: version.id, status: version.status }, data: { status: 'OBSOLETE' } });
       const effectiveUpdate = await tx.documentVersion.updateMany({
         where: { id: { in: effectiveVersions.map((item) => item.id) }, status: 'EFFECTIVE' },

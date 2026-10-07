@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import prisma from '@/lib/db';
+import { tenantRead, tenantTransaction } from '@/lib/tenant-db';
 import { getContext } from '@/lib/auth';
 import { hasPermission } from '@/lib/rbac';
 import { writeMandatoryAudit } from '@/lib/audit';
@@ -15,17 +15,17 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     const body = await req.json().catch(() => ({}));
     const comment = typeof body.comment === 'string' ? body.comment.trim() : '';
 
-    const document = await prisma.document.findFirst({ where: { id, tenantId: user.tenantId } });
+    const document = await tenantRead(user.tenantId, (tx) => tx.document.findFirst({ where: { id, tenantId: user.tenantId } }));
     if (!document) return NextResponse.json({ error: { code: 'NotFound', message: 'Document not found' } }, { status: 404 });
-    const version = await prisma.documentVersion.findUnique({ where: { documentId_versionNumber: { documentId: id, versionNumber: document.currentVersionNumber } } });
+    const version = await tenantRead(user.tenantId, (tx) => tx.documentVersion.findUnique({ where: { documentId_versionNumber: { documentId: id, versionNumber: document.currentVersionNumber } } }));
     if (!version) return NextResponse.json({ error: { code: 'Conflict', message: 'Current document version is missing' } }, { status: 409 });
     assertTransition(version.status, 'APPROVED');
     if (user.id === (version.authoredById || document.ownerId)) {
       return NextResponse.json({ error: { code: 'SegregationOfDuties', message: 'The document author cannot approve their own version' } }, { status: 409 });
     }
-    const route = await prisma.approvalRoute.findFirst({
+    const route = await tenantRead(user.tenantId, (tx) => tx.approvalRoute.findFirst({
       where: { documentVersionId: version.id, status: 'REVIEWED' }, orderBy: { createdAt: 'desc' }, include: { steps: true },
-    });
+    }));
     const reviewStep = route?.steps.find((step) => step.stepType === 'REVIEW');
     const approvalStep = route?.steps.find((step) => step.stepType === 'APPROVAL');
     if (!route || !reviewStep || reviewStep.status !== 'COMPLETED') return NextResponse.json({ error: { code: 'ReviewIncomplete', message: 'Assigned review must be completed before approval' } }, { status: 409 });
@@ -33,7 +33,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     if (approvalStep.status !== 'PENDING') return NextResponse.json({ error: { code: 'StaleWorkflowAction', message: 'This approval has already been completed' } }, { status: 409 });
     await verifyLifecycleIntegrity(version);
 
-    await prisma.$transaction(async (tx) => {
+    await tenantTransaction(user.tenantId, async (tx) => {
       const stepUpdate = await tx.approvalRouteStep.updateMany({ where: { id: approvalStep.id, status: 'PENDING' }, data: { status: 'COMPLETED', completedAt: new Date(), comment: comment || null } });
       const versionUpdate = await tx.documentVersion.updateMany({ where: { id: version.id, status: 'IN_REVIEW' }, data: { status: 'APPROVED' } });
       const documentUpdate = await tx.document.updateMany({ where: { id, tenantId: user.tenantId, currentVersionNumber: version.versionNumber, status: 'IN_REVIEW' }, data: { status: 'APPROVED' } });

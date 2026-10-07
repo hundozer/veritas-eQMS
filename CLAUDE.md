@@ -20,7 +20,10 @@ will rely on this code, so correctness beats speed.
 - Every fix ships with a test that fails without it. Prefer behavioural tests
   over assertions on source text.
 - Regulated mutations: permission check, tenant-scoped predicate,
-  status-guarded `updateMany`, and `writeMandatoryAudit` in the same transaction.
+  status-guarded `updateMany`, and `writeMandatoryAudit` in the same
+  `tenantTransaction` (`src/lib/tenant-db.ts`).
+- Tenant-owned tables have row-level security: read and write them only through
+  `tenantRead` / `tenantTransaction`; a new tenant-owned table gets a policy.
 - Do not add containment stubs, self-audit files, or new modules outside the
   roadmap. Delete unused code instead of disabling it.
 - Make no compliance claims ("Part 11 compliant", "validated") in UI or docs.

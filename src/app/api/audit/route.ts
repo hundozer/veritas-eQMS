@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import prisma from '@/lib/db';
+import { tenantRead } from '@/lib/tenant-db';
 import { getContext } from '@/lib/auth';
 import { hasPermission } from '../../../lib/rbac';
 import { unexpectedErrorResponse } from '../../../lib/server-errors';
@@ -52,7 +52,7 @@ export async function GET(req: NextRequest) {
       if (parsedEndDate) where.timestamp.lte = parsedEndDate;
     }
 
-    const logs = await prisma.auditLog.findMany({
+    const logs = await tenantRead(user.tenantId, (tx) => tx.auditLog.findMany({
       where,
       select: {
         id: true,
@@ -66,7 +66,7 @@ export async function GET(req: NextRequest) {
       },
       orderBy: { timestamp: 'desc' },
       take: 200, // safety cap
-    });
+    }));
 
     return NextResponse.json({ logs }, { headers: { 'Cache-Control': 'no-store' } });
   } catch (error: any) {
