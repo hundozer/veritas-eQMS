@@ -2,6 +2,10 @@ import { randomUUID } from 'node:crypto';
 import { PrismaClient, type Prisma } from '@prisma/client';
 import { NextRequest } from 'next/server';
 import { createIamSession } from '@/lib/iam/session';
+import { hashPassword } from '@/lib/iam/password';
+
+// Password of members added with addMember, used to sign.
+export const MEMBER_PASSWORD = 'db-test-signing-password';
 
 export type SeededTenant = {
   label: string;
@@ -103,6 +107,7 @@ export async function seedTenant(owner: PrismaClient, label: string, roleId: str
 }
 
 // Adds another signed-in member to a seeded tenant, e.g. a reviewer or approver.
+// Their password is MEMBER_PASSWORD.
 export async function addMember(owner: PrismaClient, tenant: SeededTenant, label: string): Promise<{ userId: string; sessionToken: string }> {
   const run = randomUUID().slice(0, 8);
   const email = `${tenant.label.toLowerCase()}-${label.toLowerCase()}-${run}@example.invalid`;
@@ -110,7 +115,7 @@ export async function addMember(owner: PrismaClient, tenant: SeededTenant, label
     data: { email, fullName: `${tenant.label} ${label}`, role: 'QUALITY_MANAGER', department: 'QA', tenantId: tenant.tenantId },
   });
   const iamUser = await owner.iamUser.create({
-    data: { email, passwordHash: 'not-used-by-these-tests', firstName: tenant.label, lastName: label, accountStatus: 'ACTIVE' },
+    data: { email, passwordHash: await hashPassword(MEMBER_PASSWORD), firstName: tenant.label, lastName: label, accountStatus: 'ACTIVE' },
   });
   const membership = await owner.iamMembership.create({
     data: { userId: iamUser.id, organizationId: tenant.organizationId, tenantId: tenant.tenantId, operationalUserId: user.id, roleId: tenant.roleId, status: 'ACTIVE' },

@@ -10,6 +10,18 @@ const prismaMock = vi.hoisted(() => ({
 const authMock = vi.hoisted(() => ({ getContext: vi.fn() }));
 const rbacMock = vi.hoisted(() => ({ hasPermission: vi.fn() }));
 const auditMock = vi.hoisted(() => ({ writeMandatoryAudit: vi.fn() }));
+const signatureMock = vi.hoisted(() => {
+  class SignatureError extends Error {
+    constructor(readonly reason: string) { super(reason); }
+  }
+  return {
+    SignatureError,
+    verifySignerOrRecordFailure: vi.fn(),
+    recordSignature: vi.fn(),
+    clientIp: vi.fn(() => null),
+    signatureFailedResponse: vi.fn(() => Response.json({ error: { code: 'SignatureFailed' } }, { status: 403 })),
+  };
+});
 const lifecycleMock = vi.hoisted(() => ({
   assertTransition: vi.fn(),
   verifyLifecycleIntegrity: vi.fn(),
@@ -22,6 +34,7 @@ vi.mock('@/lib/auth', () => authMock);
 vi.mock('@/lib/rbac', () => rbacMock);
 vi.mock('@/lib/audit', () => auditMock);
 vi.mock('@/lib/document-lifecycle', () => lifecycleMock);
+vi.mock('@/lib/signatures', () => signatureMock);
 
 const context = {
   id: 'approver-1', email: 'qa@example.invalid', fullName: 'QA', role: 'EMPLOYEE', department: 'QA',
@@ -48,6 +61,8 @@ describe('document lifecycle routes', () => {
     prismaMock.documentVersion.findUnique.mockResolvedValue(version);
     lifecycleMock.verifyLifecycleIntegrity.mockResolvedValue({ size: 3 });
     auditMock.writeMandatoryAudit.mockResolvedValue(undefined);
+    signatureMock.verifySignerOrRecordFailure.mockResolvedValue(undefined);
+    signatureMock.recordSignature.mockResolvedValue({ id: 'signature-1' });
   });
 
   it('submits an integrity-verified draft with distinct assigned reviewer and approver in one transaction', async () => {
@@ -116,5 +131,81 @@ describe('document lifecycle routes', () => {
 
     expect(response.status).toBe(500);
     expect(auditMock.writeMandatoryAudit).toHaveBeenCalled();
+  });
+
+  function readyForApproval() {
+    prismaMock.document.findFirst.mockResolvedValue({ ...document, status: 'IN_REVIEW' });
+    prismaMock.documentVersion.findUnique.mockResolvedValue({ ...version, status: 'IN_REVIEW' });
+    prismaMock.approvalRoute.findFirst.mockResolvedValue({ id: 'route-1', status: 'REVIEWED', steps: [
+      { id: 'review-step', stepType: 'REVIEW', status: 'COMPLETED', approverId: 'reviewer-1' },
+      { id: 'approval-step', stepType: 'APPROVAL', status: 'PENDING', approverId: 'approver-1' },
+    ] });
+    const tx = {
+      approvalRouteStep: { updateMany: vi.fn().mockResolvedValue({ count: 1 }) },
+      documentVersion: { updateMany: vi.fn().mockResolvedValue({ count: 1 }) },
+      document: { updateMany: vi.fn().mockResolvedValue({ count: 1 }) },
+      approvalRoute: { update: vi.fn() },
+    };
+    prismaMock.$transaction.mockImplementation(async (callback: (value: typeof tx) => unknown) => callback(tx));
+    return tx;
+  }
+
+  it('SIG-T001 refuses an approval whose password does not verify, before any change', async () => {
+    readyForApproval();
+    signatureMock.verifySignerOrRecordFailure.mockRejectedValue(new signatureMock.SignatureError('PASSWORD_MISMATCH'));
+    const { POST } = await import('../app/api/documents/[id]/approve/route');
+    const response = await POST(request({ password: 'wrong' }), { params: Promise.resolve({ id: 'doc-1' }) });
+
+    expect(response.status).toBe(403);
+    expect(signatureMock.verifySignerOrRecordFailure).toHaveBeenCalledWith(context, 'wrong', 'version-1', expect.anything());
+    expect(prismaMock.$transaction).not.toHaveBeenCalled();
+    expect(signatureMock.recordSignature).not.toHaveBeenCalled();
+  });
+
+  it('SIG-T002 records the approval signature in the same transaction as the status change', async () => {
+    const tx = readyForApproval();
+    const { POST } = await import('../app/api/documents/[id]/approve/route');
+    const response = await POST(request({ password: 'secret', comment: 'ok' }), { params: Promise.resolve({ id: 'doc-1' }) });
+
+    expect(response.status).toBe(200);
+    expect(signatureMock.recordSignature).toHaveBeenCalledWith(tx, expect.objectContaining({
+      context, meaning: 'APPROVED', comment: 'ok', version: expect.objectContaining({ id: 'version-1', hash: 'sha256' }),
+    }));
+    expect(lifecycleMock.verifyLifecycleIntegrity).toHaveBeenCalled();
+  });
+
+  it('SIG-T003 a completed review is signed; a return for changes is not', async () => {
+    authMock.getContext.mockResolvedValue({ ...context, id: 'reviewer-1' });
+    prismaMock.document.findFirst.mockResolvedValue({ ...document, status: 'IN_REVIEW' });
+    prismaMock.documentVersion.findUnique.mockResolvedValue({ ...version, status: 'IN_REVIEW' });
+    prismaMock.approvalRoute.findFirst.mockResolvedValue({ id: 'route-1', status: 'PENDING', steps: [
+      { id: 'review-step', stepType: 'REVIEW', status: 'PENDING', approverId: 'reviewer-1' },
+    ] });
+    const tx = {
+      approvalRouteStep: { updateMany: vi.fn().mockResolvedValue({ count: 1 }) },
+      approvalRoute: { update: vi.fn() },
+      documentVersion: { updateMany: vi.fn().mockResolvedValue({ count: 1 }) },
+      document: { updateMany: vi.fn().mockResolvedValue({ count: 1 }) },
+    };
+    prismaMock.$transaction.mockImplementation(async (callback: (value: typeof tx) => unknown) => callback(tx));
+    const { POST } = await import('../app/api/documents/[id]/review/route');
+
+    const completed = await POST(request({ action: 'COMPLETE', password: 'secret' }), { params: Promise.resolve({ id: 'doc-1' }) });
+    expect(completed.status).toBe(200);
+    expect(signatureMock.recordSignature).toHaveBeenCalledWith(tx, expect.objectContaining({ meaning: 'REVIEWED' }));
+
+    vi.clearAllMocks();
+    authMock.getContext.mockResolvedValue({ ...context, id: 'reviewer-1' });
+    rbacMock.hasPermission.mockReturnValue(true);
+    prismaMock.document.findFirst.mockResolvedValue({ ...document, status: 'IN_REVIEW' });
+    prismaMock.documentVersion.findUnique.mockResolvedValue({ ...version, status: 'IN_REVIEW' });
+    prismaMock.approvalRoute.findFirst.mockResolvedValue({ id: 'route-1', status: 'PENDING', steps: [
+      { id: 'review-step', stepType: 'REVIEW', status: 'PENDING', approverId: 'reviewer-1' },
+    ] });
+    prismaMock.$transaction.mockImplementation(async (callback: (value: typeof tx) => unknown) => callback(tx));
+    const returned = await POST(request({ action: 'RETURN', comment: 'fix section 2' }), { params: Promise.resolve({ id: 'doc-1' }) });
+    expect(returned.status).toBe(200);
+    expect(signatureMock.verifySignerOrRecordFailure).not.toHaveBeenCalled();
+    expect(signatureMock.recordSignature).not.toHaveBeenCalled();
   });
 });

@@ -6,6 +6,7 @@ import { AppShell, useThemeMode } from '@/ui';
 import type { NavGroup } from '@/ui';
 import { LoginErrorNotice } from '@/ui/components/LoginErrorNotice';
 import { documentActionsFor } from '@/lib/document-actions';
+import { SIGNING_LABELS, signingRequest, type SigningMode } from '@/lib/signing-request';
 import {
   Dashboard as DashboardIcon,
   Description as DescriptionIcon,
@@ -45,13 +46,6 @@ interface DocumentVersion {
     status: string;
     steps: Array<{ id: string; stepType: string; status: string; comment?: string | null; approver: User }>;
   }>;
-  signatureManifest?: {
-    id: string;
-    signedAt: string;
-    meaning: string;
-    ipAddress: string;
-    signer: { fullName: string; role: string };
-  } | null;
 }
 
 interface Document {
@@ -135,7 +129,8 @@ export default function Home() {
 
   // Forms / Modals
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [showApproveModal, setShowApproveModal] = useState(false);
+  const [signingMode, setSigningMode] = useState<SigningMode | null>(null);
+  const [signPassword, setSignPassword] = useState('');
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [loginPassword, setLoginPassword] = useState('');
   const [showDemoRequestModal, setShowDemoRequestModal] = useState(false);
@@ -426,28 +421,37 @@ export default function Home() {
     }
   };
 
-  // Assigned workflow approval. Electronic signatures are a separate control.
-  const handleApproveDocument = async (e: React.FormEvent) => {
+  // Review completion and approval are signed with the signer's own password.
+  const closeSigning = () => {
+    setSigningMode(null);
+    setSignPassword('');
+    setEsignComment('');
+  };
+
+  const handleSignDocument = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedDocId) return;
+    if (!selectedDocId || !signingMode) return;
+    const { path, body } = signingRequest(signingMode, selectedDocId, esignComment, signPassword);
+    setSignPassword('');
 
     try {
-      const res = await fetch(`/api/documents/${selectedDocId}/approve`, {
+      const res = await fetch(path, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ comment: esignComment }),
+        body: JSON.stringify(body),
       });
 
       const data = await res.json();
       if (res.ok) {
-        setSuccessMessage('Document approved. It must still be explicitly made effective.');
-        setShowApproveModal(false);
-        setEsignComment('');
+        setSuccessMessage(signingMode === 'REVIEW'
+          ? 'Review signed; assigned approval is now available.'
+          : 'Approval signed. The document must still be explicitly made effective.');
+        closeSigning();
         fetchData();
       } else {
-        setErrorMessage(data.error?.message || 'Verification failed');
+        setErrorMessage(data.error?.message || 'Signing failed');
       }
       setTimeout(() => {
         setSuccessMessage(null);
@@ -504,15 +508,15 @@ export default function Home() {
     );
   };
 
-  const handleReviewDocument = async (action: 'COMPLETE' | 'RETURN') => {
+  const handleReturnDocument = async () => {
     if (!selectedDoc) return;
-    const comment = window.prompt(action === 'RETURN' ? 'Required return reason:' : 'Review comment (optional):')?.trim();
-    if (action === 'RETURN' && !comment) return;
+    const comment = window.prompt('Required return reason:')?.trim();
+    if (!comment) return;
     await runDocumentAction(
       `/api/documents/${selectedDoc.id}/review`,
       'POST',
-      { action, comment },
-      action === 'COMPLETE' ? 'Review completed; assigned approval is now available.' : 'Document returned to draft.',
+      { action: 'RETURN', comment },
+      'Document returned to draft.',
     );
   };
 
@@ -1462,12 +1466,12 @@ export default function Home() {
                       )}
                       {selectedDoc.status === 'IN_REVIEW' && isAssignedReviewer && (
                         <>
-                          <button className={`${styles.btn} ${styles.btnSecondary}`} onClick={() => handleReviewDocument('COMPLETE')}>Complete Assigned Review</button>
-                          <button className={`${styles.btn} ${styles.btnSecondary}`} onClick={() => handleReviewDocument('RETURN')}>Return for Changes</button>
+                          <button className={`${styles.btn} ${styles.btnSecondary}`} onClick={() => setSigningMode('REVIEW')}>Sign Assigned Review</button>
+                          <button className={`${styles.btn} ${styles.btnSecondary}`} onClick={handleReturnDocument}>Return for Changes</button>
                         </>
                       )}
                       {selectedDoc.status === 'IN_REVIEW' && isAssignedApprover && assignedReviewStep?.status === 'COMPLETED' && (
-                        <button className={`${styles.btn} ${styles.btnPrimary}`} onClick={() => setShowApproveModal(true)}>Record Assigned Approval</button>
+                        <button className={`${styles.btn} ${styles.btnPrimary}`} onClick={() => setSigningMode('APPROVE')}>Sign Assigned Approval</button>
                       )}
                       {selectedDoc.status === 'APPROVED' && (
                         <span style={{ fontSize: '12px', color: 'var(--warning)' }}>
@@ -1928,15 +1932,15 @@ export default function Home() {
         </div>
       )}
 
-      {/* MODAL 2: ASSIGNED WORKFLOW APPROVAL */}
-      {showApproveModal && selectedDoc && (
+      {/* MODAL 2: SIGN REVIEW OR APPROVAL */}
+      {signingMode && selectedDoc && (
         <div className={styles.modalOverlay}>
           <div className={styles.modalContent} style={{ maxWidth: '500px' }}>
             <div className={styles.modalHeader}>
-              <h3>Approve Reviewed Document</h3>
-              <button style={{ background: 'transparent', border: 'none', color: '#fff', fontSize: '20px', cursor: 'pointer' }} onClick={() => setShowApproveModal(false)}>×</button>
+              <h3>{SIGNING_LABELS[signingMode].title}</h3>
+              <button style={{ background: 'transparent', border: 'none', color: '#fff', fontSize: '20px', cursor: 'pointer' }} onClick={closeSigning}>×</button>
             </div>
-            <form onSubmit={handleApproveDocument}>
+            <form onSubmit={handleSignDocument}>
               <div className={styles.modalBody}>
                 {errorMessage && (
                   <div style={{ background: 'rgba(239,68,68,0.15)', border: '1px solid #EF4444', color: '#F87171', padding: '10px 14px', borderRadius: '6px', fontSize: '13px', marginBottom: '16px' }}>
@@ -1944,27 +1948,40 @@ export default function Home() {
                   </div>
                 )}
                 <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '16px' }}>
-                  You are recording the assigned workflow approval of <strong style={{ color: '#fff' }}>{selectedDoc.title}</strong> (Version {selectedDoc.currentVersionNumber}.0). This approval does not make the document effective and is not represented as an electronic signature.
+                  You are signing <strong style={{ color: '#fff' }}>{selectedDoc.title}</strong> (Version {selectedDoc.currentVersionNumber}.0) with the meaning <strong style={{ color: '#fff' }}>{SIGNING_LABELS[signingMode].meaning}</strong>. Your signature records your name, role, the time and the SHA-256 of this version&apos;s file.
+                  {signingMode === 'APPROVE' && ' Approval does not make the document effective.'}
                 </div>
 
                 <div className={styles.formGroup}>
                   <label className={styles.formLabel}>Comments (Optional)</label>
-                  <input 
+                  <input
                     className={styles.input}
-                    type="text" 
-                    placeholder="Approver remarks..."
+                    type="text"
+                    placeholder="Remarks..."
                     value={esignComment}
                     onChange={(e) => setEsignComment(e.target.value)}
                   />
                 </div>
 
+                <div className={styles.formGroup}>
+                  <label className={styles.formLabel}>Your password</label>
+                  <input
+                    className={styles.input}
+                    type="password"
+                    autoComplete="current-password"
+                    required
+                    value={signPassword}
+                    onChange={(e) => setSignPassword(e.target.value)}
+                  />
+                </div>
+
               </div>
               <div className={styles.modalFooter}>
-                <button type="button" className={`${styles.btn} ${styles.btnSecondary}`} onClick={() => setShowApproveModal(false)}>
+                <button type="button" className={`${styles.btn} ${styles.btnSecondary}`} onClick={closeSigning}>
                   Cancel
                 </button>
                 <button type="submit" className={`${styles.btn} ${styles.btnPrimary}`} style={{ background: 'var(--warning)', color: '#000' }}>
-                  Record Approval
+                  {SIGNING_LABELS[signingMode].submit}
                 </button>
               </div>
             </form>

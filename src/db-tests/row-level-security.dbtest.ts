@@ -1,7 +1,7 @@
 import { PrismaClient } from '@prisma/client';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { appDatabaseUrl, ownerDatabaseUrl } from './connections';
-import { addMember, asTenant, createFullAccessRole, requestAs, seedTenant, type SeededTenant } from './fixtures';
+import { addMember, asTenant, createFullAccessRole, MEMBER_PASSWORD, requestAs, seedTenant, type SeededTenant } from './fixtures';
 
 // Controlled files live in memory here; the database is real.
 vi.mock('@/lib/controlled-storage', async (importOriginal) => {
@@ -115,7 +115,7 @@ describe('row-level security on tenant-owned tables', () => {
 });
 
 describe('document lifecycle through the real routes under row-level security', () => {
-  it('LIFE-T001 a draft is created, submitted, reviewed and approved with an audit row for each step', async () => {
+  it('LIFE-T001 a draft is created, submitted, and signed as reviewed and approved, with an audit row for each step', async () => {
     const reviewer = await addMember(owner, a, 'Reviewer');
     const approver = await addMember(owner, a, 'Approver');
     const as = (token: string) => ({ ...a, sessionToken: token });
@@ -136,13 +136,19 @@ describe('document lifecycle through the real routes under row-level security', 
 
     const { POST: review } = await import('@/app/api/documents/[id]/review/route');
     const reviewed = await review(requestAs(as(reviewer.sessionToken), `/api/documents/${documentId}/review`, {
-      method: 'POST', body: { action: 'COMPLETE' },
+      method: 'POST', body: { action: 'COMPLETE', password: MEMBER_PASSWORD },
     }), params(documentId));
     expect(reviewed.status).toBe(200);
 
     const { POST: approve } = await import('@/app/api/documents/[id]/approve/route');
+    const wrong = await approve(requestAs(as(approver.sessionToken), `/api/documents/${documentId}/approve`, {
+      method: 'POST', body: { password: 'not-the-password' },
+    }), params(documentId));
+    expect(wrong.status).toBe(403);
+    expect((await owner.document.findUniqueOrThrow({ where: { id: documentId } })).status).toBe('IN_REVIEW');
+
     const approved = await approve(requestAs(as(approver.sessionToken), `/api/documents/${documentId}/approve`, {
-      method: 'POST', body: {},
+      method: 'POST', body: { password: MEMBER_PASSWORD },
     }), params(documentId));
     expect(approved.status).toBe(200);
 
@@ -150,8 +156,27 @@ describe('document lifecycle through the real routes under row-level security', 
     expect(document.status).toBe('APPROVED');
     expect(document.versions.map((version) => [version.status, version.tenantId])).toEqual([['APPROVED', a.tenantId]]);
     const actions = await owner.auditLog.findMany({ where: { tenantId: a.tenantId, objectId: { in: [documentId, document.versions[0].id] } }, select: { action: true } });
-    expect(actions.map((row) => row.action)).toEqual(expect.arrayContaining(['DOCUMENT_CREATED', 'DOCUMENT_SUBMITTED_FOR_REVIEW']));
-    expect(actions.length).toBeGreaterThanOrEqual(4);
+    expect(actions.map((row) => row.action)).toEqual(expect.arrayContaining([
+      'DOCUMENT_CREATED', 'DOCUMENT_SUBMITTED_FOR_REVIEW', 'SIGNATURE_FAILED', 'SIGNATURE_APPLIED', 'DOCUMENT_APPROVED',
+    ]));
+
+    const signatures = await owner.signatureManifest.findMany({ where: { documentVersionId: document.versions[0].id }, orderBy: { signedAt: 'asc' } });
+    expect(signatures.map((signature) => [signature.meaning, signature.signedBy, signature.hashSigned, signature.tenantId])).toEqual([
+      ['REVIEWED', reviewer.userId, document.versions[0].hash, a.tenantId],
+      ['APPROVED', approver.userId, document.versions[0].hash, a.tenantId],
+    ]);
+    expect(signatures.every((signature) => signature.signerName && signature.iamUserId)).toBe(true);
+  });
+
+  it('ESIG-DB-T001 signatures cannot be changed or removed, by the application or the owner', async () => {
+    const [signature] = await owner.signatureManifest.findMany({ where: { tenantId: a.tenantId, meaning: 'APPROVED' }, take: 1 });
+    expect(signature).toBeDefined();
+
+    await expect(asTenant(app, a.tenantId, (tx) => tx.signatureManifest.update({ where: { id: signature.id }, data: { meaning: 'REVIEWED' } }))).rejects.toThrow(/append-only|permission denied/);
+    await expect(asTenant(app, a.tenantId, (tx) => tx.signatureManifest.delete({ where: { id: signature.id } }))).rejects.toThrow(/append-only|permission denied/);
+    await expect(owner.$executeRaw`update "SignatureManifest" set meaning = 'REVIEWED' where id = ${signature.id}`).rejects.toThrow(/append-only/);
+    await expect(owner.$executeRaw`delete from "SignatureManifest" where id = ${signature.id}`).rejects.toThrow(/append-only/);
+    expect((await owner.signatureManifest.findUniqueOrThrow({ where: { id: signature.id } })).meaning).toBe('APPROVED');
   });
 
   it('LIFE-T002 another tenant cannot submit, review or approve the document', async () => {

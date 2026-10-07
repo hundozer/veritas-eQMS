@@ -3,8 +3,9 @@ import { tenantRead, tenantTransaction } from '@/lib/tenant-db';
 import { getContext } from '@/lib/auth';
 import { hasPermission } from '@/lib/rbac';
 import { writeMandatoryAudit } from '@/lib/audit';
-import { assertTransition, lifecycleErrorResponse } from '@/lib/document-lifecycle';
+import { assertTransition, lifecycleErrorResponse, verifyLifecycleIntegrity } from '@/lib/document-lifecycle';
 import { reportServerError } from '../../../../../lib/server-errors';
+import { clientIp, recordSignature, SignatureError, signatureFailedResponse, verifySignerOrRecordFailure } from '@/lib/signatures';
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -31,6 +32,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     if (step.status !== 'PENDING') return NextResponse.json({ error: { code: 'StaleWorkflowAction', message: 'This review action has already been completed' } }, { status: 409 });
 
     if (action === 'RETURN') assertTransition(version.status, 'DRAFT');
+    if (action === 'COMPLETE') {
+      await verifySignerOrRecordFailure(user, body.password, version.id, req);
+      await verifyLifecycleIntegrity(version);
+    }
     await tenantTransaction(user.tenantId, async (tx) => {
       const completed = await tx.approvalRouteStep.updateMany({
         where: { id: step.id, status: 'PENDING' },
@@ -43,6 +48,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         const documentUpdate = await tx.document.updateMany({ where: { id, tenantId: user.tenantId, status: 'IN_REVIEW', currentVersionNumber: version.versionNumber }, data: { status: 'DRAFT' } });
         if (versionUpdate.count !== 1 || documentUpdate.count !== 1) throw new Error('STALE_REVIEW');
       }
+      if (action === 'COMPLETE') {
+        await recordSignature(tx, { context: user, version, meaning: 'REVIEWED', comment, sourceIp: clientIp(req.headers), requestUrl: req.nextUrl.pathname });
+      }
       await writeMandatoryAudit(tx, {
         context: user,
         action: action === 'RETURN' ? 'DOCUMENT_RETURNED_FOR_CHANGES' : 'DOCUMENT_REVIEW_COMPLETED',
@@ -53,6 +61,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     });
     return NextResponse.json({ status: action === 'RETURN' ? 'DRAFT' : 'IN_REVIEW', review: action });
   } catch (error) {
+    if (error instanceof SignatureError) return signatureFailedResponse(error);
     const lifecycle = lifecycleErrorResponse(error);
     if (lifecycle) return NextResponse.json({ error: { code: lifecycle.code, message: lifecycle.message } }, { status: lifecycle.status });
     if ((error as Error).message === 'STALE_REVIEW') return NextResponse.json({ error: { code: 'StaleWorkflowAction', message: 'Document state changed; refresh and try again' } }, { status: 409 });
