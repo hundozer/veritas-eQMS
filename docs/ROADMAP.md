@@ -13,13 +13,17 @@ Full audit and rationale: "Veritas eQMS — Code Audit & Roadmap" (5 Oct 2026).
 
 - [x] Obsoleting a document no longer retires the effective version while a
       revision is open.
-- [ ] Stay on free Vercel and Neon plans (owner decision, 5 Oct 2026); Blob
-      connected in Production.
-- [ ] Least-privilege application database role; audit tables INSERT/SELECT only,
-      UPDATE/DELETE rejected by trigger. In repository (DEC-057): migration
-      `20261006120000_audit_append_only`, `prisma/maintenance/2026-10-06-app-role.sql`,
-      `npm run test:db`. Open: apply both to production and switch Production
-      `DATABASE_URL` to `veritas_app`.
+- [x] Stay on free Vercel and Neon plans (owner decision, 5 Oct 2026); Blob
+      connected in Production. Store `veritas-controlled-records-staging` (private,
+      fra1) is linked to Production via OIDC and `BLOB_STORE_ID` is set (7 Oct 2026).
+      The storage precheck now accepts the per-request OIDC token on Vercel; the
+      owner created "Phase 0 upload test sop" in production on 7 Oct 2026.
+- [x] Least-privilege application database role; audit tables INSERT/SELECT only,
+      UPDATE/DELETE rejected by trigger (DEC-057). Production, 6–7 Oct 2026:
+      migration `20261006120000_audit_append_only` applied and verified (owner
+      UPDATE/DELETE refused); `veritas_app` created and verified (no audit
+      UPDATE/DELETE, no DDL, no migration ledger); Production `DATABASE_URL`
+      switched to `veritas_app` and redeployed.
 - [x] Confirm whether `prisma/seed.js` ever ran against production (it writes a
       fabricated signature manifest); seed refuses to run in production.
       Confirmed 5 Oct 2026: it ran. Production holds the demo tenants "Acme Biotech"
@@ -40,6 +44,8 @@ Full audit and rationale: "Veritas eQMS — Code Audit & Roadmap" (5 Oct 2026).
 
 **Gate:** a synthetic SOP uploads and verifies in production, and the
 application role cannot alter audit rows.
+Status 7 Oct 2026: upload done and audit protection verified. Open: independent
+check that the stored object's SHA-256 matches the database record.
 
 ## Phase 1 — Document control slice (months 1–3)
 
