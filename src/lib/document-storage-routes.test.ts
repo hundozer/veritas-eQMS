@@ -125,7 +125,7 @@ describe('controlled document retrieval route', () => {
     prismaMock.document.findFirst.mockResolvedValue({
       id: 'doc-1', title: 'SOP', classification: 'CONTROLLED', status: 'DRAFT', currentVersionNumber: 1,
       owner: { fullName: 'Owner', department: 'QA' }, tenant: { name: 'Tenant A' },
-      versions: [{ id: 'version-1', versionNumber: 1, storageKey: 'authoritative-db-key', hash: 'stored-sha256', mimeType: 'application/pdf', originalFileName: 'record.pdf', fileData: null, signatureManifest: null }],
+      versions: [{ id: 'version-1', versionNumber: 1, storageKey: 'authoritative-db-key', hash: 'stored-sha256', mimeType: 'application/pdf', originalFileName: 'record.pdf', fileData: null, signatures: [] }],
     });
     storageMock.verifyControlledObject.mockResolvedValue({ bytes: new Uint8Array([1, 2, 3]), contentType: 'application/pdf' });
     const { GET } = await import('../app/api/documents/[id]/pdf/route');
@@ -142,7 +142,10 @@ describe('controlled document retrieval route', () => {
       versions: [{
         versionNumber: 1, storageKey: null, hash: 'stored-sha256', mimeType: 'application/pdf',
         originalFileName: 'record.pdf', fileData: null,
-        signatureManifest: { signedAt: new Date('2026-01-01T00:00:00Z'), meaning: '<script>x</script>', ipAddress: '<x>', hashSigned: '<hash>', signer: { fullName: '<i>Signer</i>', role: '<role>' } },
+        signatures: [
+          { signedAt: new Date('2026-01-01T00:00:00Z'), meaning: '<script>x</script>', ipAddress: '<x>', hashSigned: '<hash>', iamUserId: null, signerName: null, signerRole: null, signer: { fullName: '<i>Signer</i>', role: '<role>' } },
+          { signedAt: new Date('2026-01-02T00:00:00Z'), meaning: 'APPROVED', ipAddress: '192.0.2.1', hashSigned: 'stored-sha256', iamUserId: 'iam-1', signerName: '<u>Snapshot</u>', signerRole: 'QA', signer: { fullName: 'Current Name', role: 'QA' } },
+        ],
       }],
     });
     const { GET } = await import('../app/api/documents/[id]/pdf/route');
@@ -155,6 +158,12 @@ describe('controlled document retrieval route', () => {
     expect(html).toContain('&lt;script&gt;alert(1)&lt;/script&gt;');
     expect(html).not.toContain('<svg onload=alert(1)>');
     expect(html).toContain('&lt;svg onload=alert(1)&gt;');
+    expect(html).not.toContain('<i>Signer</i>');
+    expect(html).toContain('&lt;i&gt;Signer&lt;/i&gt;');
+    expect(html).toContain('LEGACY SIGNATURE METADATA');
+    expect(html).toContain('&lt;u&gt;Snapshot&lt;/u&gt;');
+    expect(html).not.toContain('Current Name');
+    expect(html).toContain('SIGNED CONTENT MATCHES THIS VERSION');
   });
 
   it('does not touch private storage for an unauthenticated request', async () => {

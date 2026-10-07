@@ -97,27 +97,27 @@ model Document {
 }
 
 model DocumentVersion {
-  id                String             @id @default(uuid())
-  documentId        String
-  tenantId          String
-  document          Document           @relation(fields: [documentId, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: Restrict)
-  versionNumber     Int
-  status            String             @default("DRAFT")
-  effectiveDate     DateTime?
-  changeSummary     String?
-  filePath          String // Legacy filesystem path; retained for inherited records
-  fileData          String? // Legacy Base64 content; new versions use private object storage
-  storageKey        String?            @unique
-  originalFileName  String?
-  mimeType          String?
-  sizeBytes         Int?
-  hash              String // SHA-256 content-integrity evidence
-  createdAt         DateTime           @default(now())
-  createdBy         String
-  authoredById      String?
-  authoredBy        User?              @relation("DocumentVersionAuthor", fields: [authoredById, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: Restrict)
-  signatureManifest SignatureManifest?
-  approvalRoutes    ApprovalRoute[]
+  id               String              @id @default(uuid())
+  documentId       String
+  tenantId         String
+  document         Document            @relation(fields: [documentId, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: Restrict)
+  versionNumber    Int
+  status           String              @default("DRAFT")
+  effectiveDate    DateTime?
+  changeSummary    String?
+  filePath         String // Legacy filesystem path; retained for inherited records
+  fileData         String? // Legacy Base64 content; new versions use private object storage
+  storageKey       String?             @unique
+  originalFileName String?
+  mimeType         String?
+  sizeBytes        Int?
+  hash             String // SHA-256 content-integrity evidence
+  createdAt        DateTime            @default(now())
+  createdBy        String
+  authoredById     String?
+  authoredBy       User?               @relation("DocumentVersionAuthor", fields: [authoredById, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: Restrict)
+  signatures       SignatureManifest[]
+  approvalRoutes   ApprovalRoute[]
 
   @@unique([documentId, versionNumber])
   @@unique([id, tenantId])
@@ -150,19 +150,27 @@ model ApprovalRouteStep {
   comment         String?
 }
 
+// Append-only: a database trigger rejects UPDATE, DELETE and TRUNCATE.
 model SignatureManifest {
   id                String          @id @default(uuid())
-  documentVersionId String          @unique
+  documentVersionId String
   tenantId          String
   documentVersion   DocumentVersion @relation(fields: [documentVersionId, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: Restrict)
   signedBy          String
   signer            User            @relation(fields: [signedBy, tenantId], references: [id, tenantId], onUpdate: Restrict)
   signedAt          DateTime        @default(now())
-  meaning           String // e.g. "Authorship", "Approval", "Review"
-  hashSigned        String
+  meaning           String // REVIEWED or APPROVED; older rows hold free text
+  hashSigned        String // SHA-256 of the version content that was signed
   ipAddress         String
+  // Who signed, as they were at signing time. Null only on rows from before DEC-062.
+  iamUserId         String?
+  membershipId      String?
+  signerName        String?
+  signerRole        String?
+  comment           String?
 
-  @@unique([documentVersionId, tenantId])
+  @@unique([documentVersionId, signedBy, meaning, hashSigned])
+  @@index([documentVersionId])
 }
 
 model TrainingRequirement {

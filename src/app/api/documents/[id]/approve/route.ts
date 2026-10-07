@@ -5,6 +5,7 @@ import { hasPermission } from '@/lib/rbac';
 import { writeMandatoryAudit } from '@/lib/audit';
 import { assertTransition, lifecycleErrorResponse, verifyLifecycleIntegrity } from '@/lib/document-lifecycle';
 import { reportServerError } from '../../../../../lib/server-errors';
+import { clientIp, recordSignature, SignatureError, signatureFailedResponse, verifySignerOrRecordFailure } from '@/lib/signatures';
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -31,6 +32,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     if (!route || !reviewStep || reviewStep.status !== 'COMPLETED') return NextResponse.json({ error: { code: 'ReviewIncomplete', message: 'Assigned review must be completed before approval' } }, { status: 409 });
     if (!approvalStep || approvalStep.approverId !== user.id) return NextResponse.json({ error: { code: 'NotAssignedApprover', message: 'Only the assigned approver may approve this version' } }, { status: 403 });
     if (approvalStep.status !== 'PENDING') return NextResponse.json({ error: { code: 'StaleWorkflowAction', message: 'This approval has already been completed' } }, { status: 409 });
+    await verifySignerOrRecordFailure(user, body.password, version.id, req);
     await verifyLifecycleIntegrity(version);
 
     await tenantTransaction(user.tenantId, async (tx) => {
@@ -39,6 +41,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       const documentUpdate = await tx.document.updateMany({ where: { id, tenantId: user.tenantId, currentVersionNumber: version.versionNumber, status: 'IN_REVIEW' }, data: { status: 'APPROVED' } });
       if (stepUpdate.count !== 1 || versionUpdate.count !== 1 || documentUpdate.count !== 1) throw new Error('STALE_APPROVAL');
       await tx.approvalRoute.update({ where: { id: route.id }, data: { status: 'APPROVED' } });
+      await recordSignature(tx, { context: user, version, meaning: 'APPROVED', comment, sourceIp: clientIp(req.headers), requestUrl: req.nextUrl.pathname });
       await writeMandatoryAudit(tx, {
         context: user, action: 'DOCUMENT_APPROVED', objectType: 'DocumentVersion', objectId: version.id,
         payload: { documentId: id, version: version.versionNumber, before: 'IN_REVIEW', after: 'APPROVED', comment: comment || undefined },
@@ -47,6 +50,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     });
     return NextResponse.json({ success: true, status: 'APPROVED', version: version.versionNumber });
   } catch (error) {
+    if (error instanceof SignatureError) return signatureFailedResponse(error);
     const lifecycle = lifecycleErrorResponse(error);
     if (lifecycle) return NextResponse.json({ error: { code: lifecycle.code, message: lifecycle.message } }, { status: lifecycle.status });
     if ((error as Error).message === 'STALE_APPROVAL') return NextResponse.json({ error: { code: 'StaleWorkflowAction', message: 'Document state changed; refresh and try again' } }, { status: 409 });

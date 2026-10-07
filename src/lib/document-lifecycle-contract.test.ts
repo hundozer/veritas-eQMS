@@ -54,9 +54,4 @@ describe('document lifecycle route safety contracts', () => {
       'src/app/api/documents/[id]/approve/route.ts',
     ]) expect(source(path)).toContain('await verifyLifecycleIntegrity(version)');
   });
-
-  it('contains no document approval password or signature creation', () => {
-    const approve = source('src/app/api/documents/[id]/approve/route.ts');
-    expect(approve).not.toMatch(/password|signatureManifest|SignatureManifest/);
-  });
 });

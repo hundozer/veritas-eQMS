@@ -68,6 +68,11 @@ protection was verified on 6 Oct 2026.
   Open: row-level security for `User`, `Tenant` and IAM tables (read during
   sign-in, before the tenant is known).
 - Signature service with password re-entry; multiple signatures per version.
+  Done (DEC-062): review completion and approval are signed with the signer's
+  own password; each signature records signer, role, meaning, time and the
+  SHA-256 signed; signatures are append-only (`src/lib/signatures.ts`,
+  migration `20261007180000_electronic_signatures`). Open: rate limiting of
+  failed signing attempts, with login rate limiting in Phase 2.
 - Release (`documents.release`), supersession, withdraw-revision, retire.
 - Controlled copies default to the effective version; other versions watermarked.
 - Client-direct signed uploads to Blob.

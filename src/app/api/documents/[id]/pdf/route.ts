@@ -45,12 +45,16 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
             hash: true,
             fileData: true,
             originalFileName: true,
-            signatureManifest: {
+            signatures: {
+              orderBy: { signedAt: 'asc' },
               select: {
                 signedAt: true,
                 meaning: true,
                 ipAddress: true,
                 hashSigned: true,
+                iamUserId: true,
+                signerName: true,
+                signerRole: true,
                 signer: { select: { fullName: true, role: true } },
               },
             },
@@ -68,7 +72,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       ? document.versions.find((version) => version.versionNumber === Number(requestedVersion))
       : document.versions[0];
     if (!latestVersion) return new NextResponse('404: Document Version Not Found', { status: 404 });
-    const signature = latestVersion?.signatureManifest;
+    const signatures = latestVersion?.signatures ?? [];
     const isRaw = req.nextUrl.searchParams.get('raw') === 'true';
 
     // Resolve storage identity only from authorized database metadata. Client-supplied
@@ -294,14 +298,20 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       </tr>
     </table>
 
-    ${signature ? `
+    ${signatures.length > 0 ? signatures.map((signature) => {
+      // Rows without iamUserId predate password re-entry signing (DEC-062).
+      const verifiedSigner = Boolean(signature.iamUserId);
+      const name = signature.signerName || signature.signer?.fullName || 'Unknown signer';
+      const role = signature.signerRole || signature.signer?.role || 'Unknown role';
+      const matchesContent = signature.hashSigned === latestVersion.hash;
+      return `
     <div class="esign-box">
       <div class="esign-header">
-        <span>LEGACY SIGNATURE METADATA</span>
-        <span>NOT VALIDATED AS AN ELECTRONIC SIGNATURE</span>
+        <span>${verifiedSigner ? 'ELECTRONIC SIGNATURE' : 'LEGACY SIGNATURE METADATA'}</span>
+        <span>${verifiedSigner ? (matchesContent ? 'SIGNED CONTENT MATCHES THIS VERSION' : 'SIGNED AN EARLIER DRAFT OF THIS VERSION') : 'SIGNER NOT VERIFIED BY PASSWORD'}</span>
       </div>
       <div class="meta-grid">
-        <div><strong>Signer:</strong> ${escapeHtml(signature.signer?.fullName || 'Authorized Approver')} (${escapeHtml(signature.signer?.role || 'QA Admin')})</div>
+        <div><strong>Signer:</strong> ${escapeHtml(name)} (${escapeHtml(role)})</div>
         <div><strong>Timestamp (UTC):</strong> ${escapeHtml(new Date(signature.signedAt).toUTCString())}</div>
         <div><strong>Signature Meaning:</strong> ${escapeHtml(signature.meaning)}</div>
         <div><strong>IP Address:</strong> ${escapeHtml(signature.ipAddress)}</div>
@@ -309,10 +319,10 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       <div style="margin-top: 6px;">
         <strong>SHA-256 Hash:</strong> <span class="hash">${escapeHtml(signature.hashSigned)}</span>
       </div>
-    </div>
-    ` : `
+    </div>`;
+    }).join('') : `
     <div style="margin-bottom: 20px; padding: 12px; background: #fffbebf5; border: 1px dashed #f59e0b; border-radius: 6px; font-size: 12px; color: #b45309;">
-      <strong>WORKFLOW STATUS:</strong> No electronic-signature claim is made for this document version.
+      <strong>WORKFLOW STATUS:</strong> No signature has been recorded for this document version.
     </div>
     `}
 
