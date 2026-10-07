@@ -40,7 +40,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       if (documentUpdate.count !== 1) throw new Error('STALE_REVISION');
       const created = await tx.documentVersion.create({
         data: {
-          documentId: id, versionNumber: nextVersionNumber, status: 'DRAFT', changeSummary: reason,
+          documentId: id, tenantId: user.tenantId, versionNumber: nextVersionNumber, status: 'DRAFT', changeSummary: reason,
           filePath: uploadedKey!, fileData: null, storageKey: uploadedKey!, originalFileName: upload.fileName,
           mimeType: upload.mimeType, sizeBytes: upload.bytes.byteLength, hash: upload.hash,
           createdBy: user.fullName, authoredById: user.id,

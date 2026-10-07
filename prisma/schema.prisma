@@ -81,7 +81,7 @@ model Document {
   classification       String // e.g. "CONTROLLED", "INTERNAL", "HIGHLY_RESTRICTED"
   status               String // e.g. "DRAFT", "IN_REVIEW", "APPROVED", "EFFECTIVE", "OBSOLETE"
   ownerId              String
-  owner                User                    @relation("DocumentOwner", fields: [ownerId], references: [id])
+  owner                User                    @relation("DocumentOwner", fields: [ownerId, tenantId], references: [id, tenantId], onUpdate: Restrict)
   tenantId             String
   tenant               Tenant                  @relation(fields: [tenantId], references: [id])
   versions             DocumentVersion[]
@@ -92,12 +92,14 @@ model Document {
   changeRequests       ChangeRequestDocument[]
 
   @@unique([tenantId, documentNumber])
+  @@unique([id, tenantId])
 }
 
 model DocumentVersion {
   id                String             @id @default(uuid())
   documentId        String
-  document          Document           @relation(fields: [documentId], references: [id], onDelete: Restrict)
+  tenantId          String
+  document          Document           @relation(fields: [documentId, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: Restrict)
   versionNumber     Int
   status            String             @default("DRAFT")
   effectiveDate     DateTime?
@@ -112,28 +114,33 @@ model DocumentVersion {
   createdAt         DateTime           @default(now())
   createdBy         String
   authoredById      String?
-  authoredBy        User?              @relation("DocumentVersionAuthor", fields: [authoredById], references: [id], onDelete: Restrict)
+  authoredBy        User?              @relation("DocumentVersionAuthor", fields: [authoredById, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: Restrict)
   signatureManifest SignatureManifest?
   approvalRoutes    ApprovalRoute[]
 
   @@unique([documentId, versionNumber])
+  @@unique([id, tenantId])
 }
 
 model ApprovalRoute {
   id                String              @id @default(uuid())
   documentVersionId String
-  documentVersion   DocumentVersion     @relation(fields: [documentVersionId], references: [id], onDelete: Restrict)
+  tenantId          String
+  documentVersion   DocumentVersion     @relation(fields: [documentVersionId, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: Restrict)
   steps             ApprovalRouteStep[]
   status            String // e.g. "PENDING", "APPROVED", "REJECTED"
   createdAt         DateTime            @default(now())
+
+  @@unique([id, tenantId])
 }
 
 model ApprovalRouteStep {
   id              String        @id @default(uuid())
   approvalRouteId String
-  approvalRoute   ApprovalRoute @relation(fields: [approvalRouteId], references: [id], onDelete: Restrict)
+  tenantId        String
+  approvalRoute   ApprovalRoute @relation(fields: [approvalRouteId, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: Restrict)
   approverId      String
-  approver        User          @relation(fields: [approverId], references: [id])
+  approver        User          @relation(fields: [approverId, tenantId], references: [id, tenantId], onUpdate: Restrict)
   sequence        Int
   stepType        String        @default("APPROVAL")
   status          String // e.g. "PENDING", "APPROVED", "REJECTED"
@@ -145,46 +152,59 @@ model ApprovalRouteStep {
 model SignatureManifest {
   id                String          @id @default(uuid())
   documentVersionId String          @unique
-  documentVersion   DocumentVersion @relation(fields: [documentVersionId], references: [id], onDelete: Restrict)
+  tenantId          String
+  documentVersion   DocumentVersion @relation(fields: [documentVersionId, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: Restrict)
   signedBy          String
-  signer            User            @relation(fields: [signedBy], references: [id])
+  signer            User            @relation(fields: [signedBy, tenantId], references: [id, tenantId], onUpdate: Restrict)
   signedAt          DateTime        @default(now())
   meaning           String // e.g. "Authorship", "Approval", "Review"
   hashSigned        String
   ipAddress         String
+
+  @@unique([documentVersionId, tenantId])
 }
 
 model TrainingRequirement {
   id               String               @id @default(uuid())
   documentId       String               @unique
-  document         Document             @relation(fields: [documentId], references: [id], onDelete: Restrict)
+  tenantId         String
+  document         Document             @relation(fields: [documentId, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: Restrict)
   requiredForRoles String // Comma-separated roles or departments
   requiresQuiz     Boolean              @default(false)
   quizQuestions    String? // JSON string containing questions, options, and correct answers
   assignments      TrainingAssignment[]
+
+  @@unique([id, tenantId])
+  @@unique([documentId, tenantId])
 }
 
 model TrainingAssignment {
   id            String              @id @default(uuid())
   requirementId String
-  requirement   TrainingRequirement @relation(fields: [requirementId], references: [id], onDelete: Restrict)
+  tenantId      String
+  requirement   TrainingRequirement @relation(fields: [requirementId, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: Restrict)
   userId        String
-  user          User                @relation(fields: [userId], references: [id], onDelete: Restrict)
+  user          User                @relation(fields: [userId, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: Restrict)
   status        String // e.g. "ASSIGNED", "COMPLETED", "OVERDUE"
   assignedAt    DateTime            @default(now())
   completedAt   DateTime?
   quizResultId  String?             @unique
-  quizResult    QuizResult?         @relation(fields: [quizResultId], references: [id])
+  quizResult    QuizResult?         @relation(fields: [quizResultId, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: Restrict)
+
+  @@unique([quizResultId, tenantId])
 }
 
 model QuizResult {
   id                 String              @id @default(uuid())
   userId             String
-  user               User                @relation(fields: [userId], references: [id], onDelete: Restrict)
+  tenantId           String
+  user               User                @relation(fields: [userId, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: Restrict)
   score              Int
   passed             Boolean
   createdAt          DateTime            @default(now())
   trainingAssignment TrainingAssignment?
+
+  @@unique([id, tenantId])
 }
 
 model ChangeRequest {
@@ -397,7 +417,7 @@ model Notification {
   tenantId  String
   tenant    Tenant   @relation(fields: [tenantId], references: [id])
   userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId, tenantId], references: [id, tenantId], onDelete: Cascade, onUpdate: Restrict)
   title     String
   message   String
   type      String // e.g. "TRAINING_OVERDUE", "DOCUMENT_REVIEW", "CAPA_DUE", "CALIBRATION_ALERT"

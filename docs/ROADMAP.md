@@ -55,6 +55,9 @@ protection was verified on 6 Oct 2026.
   gated by session permissions, never `User.role`.
 - `tenantId` on every tenant-owned row, composite `(id, tenantId)` foreign keys,
   row-level security, two-tenant isolation suite in CI.
+  Done for the document and training tables (DEC-059): migration
+  `20261007120000_tenant_scoped_document_rows`, `src/db-tests/tenant-scoped-keys.dbtest.ts`.
+  Open: row-level security, the suite in CI, and `ChangeRequest`.
 - Signature service with password re-entry; multiple signatures per version.
 - Release (`documents.release`), supersession, withdraw-revision, retire.
 - Controlled copies default to the effective version; other versions watermarked.

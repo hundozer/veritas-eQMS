@@ -45,7 +45,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       if (updated.count !== 1) throw new Error('STALE_DOCUMENT');
       const approvalRoute = await tx.approvalRoute.create({
         data: {
-          documentVersionId: version.id, status: 'PENDING',
+          documentVersionId: version.id, tenantId: user.tenantId, status: 'PENDING',
           steps: { create: [
             { approverId: reviewerId, sequence: 1, stepType: 'REVIEW', status: 'PENDING' },
             { approverId, sequence: 2, stepType: 'APPROVAL', status: 'PENDING' },

@@ -131,6 +131,7 @@ async function main() {
   await prisma.documentVersion.create({
     data: {
       documentId: doc1.id,
+      tenantId: acme.id,
       versionNumber: 1,
       filePath: 'drafts/SOP-101-v1.pdf',
       hash: 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855', // empty file hash
@@ -154,6 +155,7 @@ async function main() {
   const doc2Version = await prisma.documentVersion.create({
     data: {
       documentId: doc2.id,
+      tenantId: acme.id,
       versionNumber: 1,
       filePath: 'effective/SOP-102-v1.pdf',
       hash: '8f43c5b3648fa39e6a32d1e2b4f9958ae49f50e82c589a195ca195fb7852c811',
@@ -165,6 +167,7 @@ async function main() {
   await prisma.signatureManifest.create({
     data: {
       documentVersionId: doc2Version.id,
+      tenantId: acme.id,
       signedBy: acmeApprover.id,
       meaning: 'Approval of Document Release',
       hashSigned: '8f43c5b3648fa39e6a32d1e2b4f9958ae49f50e82c589a195ca195fb7852c811-CHARLIE-APPROVED',
@@ -201,6 +204,7 @@ async function main() {
   const trainingReq = await prisma.trainingRequirement.create({
     data: {
       documentId: doc2.id,
+      tenantId: acme.id,
       requiredForRoles: 'EMPLOYEE,OWNER',
       requiresQuiz: true,
       quizQuestions: JSON.stringify(quizQuestions),
@@ -212,6 +216,7 @@ async function main() {
   await prisma.trainingAssignment.create({
     data: {
       requirementId: trainingReq.id,
+      tenantId: acme.id,
       userId: acmeEmployee.id,
       status: 'ASSIGNED',
     },
@@ -221,6 +226,7 @@ async function main() {
   const bobQuizResult = await prisma.quizResult.create({
     data: {
       userId: acmeOwner.id,
+      tenantId: acme.id,
       score: 100,
       passed: true,
     },
@@ -229,6 +235,7 @@ async function main() {
   await prisma.trainingAssignment.create({
     data: {
       requirementId: trainingReq.id,
+      tenantId: acme.id,
       userId: acmeOwner.id,
       status: 'COMPLETED',
       completedAt: new Date(),
