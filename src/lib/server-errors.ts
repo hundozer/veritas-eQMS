@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server';
 export type ServerErrorEvent =
   | 'audit.query'
   | 'audit.writeFailed'
+  | 'auth.setupPassword'
   | 'document.create'
   | 'document.approve'
   | 'document.delete'
@@ -17,7 +18,10 @@ export type ServerErrorEvent =
   | 'notification.list'
   | 'storage.cleanupFailed'
   | 'training.list'
-  | 'user.list';
+  | 'user.invite'
+  | 'user.list'
+  | 'user.resendInvitation'
+  | 'role.list';
 
 export function reportServerError(event: ServerErrorEvent) {
   const errorId = crypto.randomUUID();

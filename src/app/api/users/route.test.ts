@@ -1,15 +1,25 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { NextRequest } from 'next/server';
 
-const { getContext, findMany, create, update, transaction } = vi.hoisted(() => ({
-  getContext: vi.fn(),
-  findMany: vi.fn(),
-  create: vi.fn(),
-  update: vi.fn(),
-  transaction: vi.fn(),
-}));
+const { getContext, findMany, create, update, transaction, provisioning } = vi.hoisted(() => {
+  class ProvisioningError extends Error {
+    constructor(readonly failure: string) { super(failure); }
+    get status() { return 409; }
+    get publicMessage() { return 'A user with this email address already exists'; }
+    operationalUserId = undefined;
+  }
+  return {
+    getContext: vi.fn(),
+    findMany: vi.fn(),
+    create: vi.fn(),
+    update: vi.fn(),
+    transaction: vi.fn(),
+    provisioning: { ProvisioningError, inviteMember: vi.fn(), pendingInvitationUserIds: vi.fn() },
+  };
+});
 
 vi.mock('@/lib/auth', () => ({ getContext }));
+vi.mock('@/lib/iam/provisioning', () => provisioning);
 vi.mock('@/lib/db', () => ({
   default: { user: { findMany, create, update }, $transaction: transaction },
 }));
@@ -28,9 +38,14 @@ function request() {
   return new NextRequest('http://localhost/api/users');
 }
 
+function inviteRequest(body: Record<string, unknown>) {
+  return new NextRequest('http://localhost/api/users', { method: 'POST', body: JSON.stringify(body) });
+}
+
 describe('user-administration containment', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    provisioning.pendingInvitationUserIds.mockResolvedValue(new Set(['user-2']));
   });
 
   it('USER-ADMIN-T001 rejects roster reads without identity or persisted permission', async () => {
@@ -42,7 +57,7 @@ describe('user-administration containment', () => {
   });
 
   it('USER-ADMIN-T002 returns a minimized non-cacheable tenant roster', async () => {
-    const users = [{ id: 'user-1', fullName: 'Current User' }];
+    const users = [{ id: 'user-1', fullName: 'Current User' }, { id: 'user-2', fullName: 'Invited User' }];
     getContext.mockResolvedValue(context);
     findMany.mockResolvedValue(users);
 
@@ -66,11 +81,13 @@ describe('user-administration containment', () => {
       },
       orderBy: { fullName: 'asc' },
     });
-    await expect(response.json()).resolves.toEqual({ users });
+    await expect(response.json()).resolves.toEqual({ users: [
+      { id: 'user-1', fullName: 'Current User', invitationPending: false },
+      { id: 'user-2', fullName: 'Invited User', invitationPending: true },
+    ] });
   });
 
   it.each([
-    ['POST', POST],
     ['PUT', PUT],
     ['DELETE', DELETE],
   ])('USER-ADMIN-T003 disables %s without identity or data processing', async (_method, handler) => {
@@ -90,5 +107,32 @@ describe('user-administration containment', () => {
     expect(create).not.toHaveBeenCalled();
     expect(update).not.toHaveBeenCalled();
     expect(transaction).not.toHaveBeenCalled();
+  });
+
+  it('USER-ADMIN-T004 inviting requires users.create and goes through the provisioning service', async () => {
+    getContext.mockResolvedValue(null);
+    expect((await POST(inviteRequest({}))).status).toBe(401);
+    getContext.mockResolvedValue({ ...context, permissions: ['users.read'] });
+    expect((await POST(inviteRequest({}))).status).toBe(403);
+    expect(provisioning.inviteMember).not.toHaveBeenCalled();
+
+    const inviter = { ...context, permissions: ['users.create'] };
+    getContext.mockResolvedValue(inviter);
+    provisioning.inviteMember.mockResolvedValue({ userId: 'user-3', email: 'new@example.invalid' });
+    const body = { email: 'new@example.invalid', firstName: 'New', lastName: 'Person', department: 'QA', roleId: 'role-1' };
+    const response = await POST(inviteRequest(body));
+
+    expect(response.status).toBe(201);
+    expect(provisioning.inviteMember).toHaveBeenCalledWith(inviter, body, '/api/users');
+  });
+
+  it('USER-ADMIN-T005 reports provisioning refusals with their fixed message', async () => {
+    getContext.mockResolvedValue({ ...context, permissions: ['users.create'] });
+    provisioning.inviteMember.mockRejectedValue(new provisioning.ProvisioningError('EmailInUse'));
+
+    const response = await POST(inviteRequest({ email: 'taken@example.invalid' }));
+
+    expect(response.status).toBe(409);
+    await expect(response.json()).resolves.toEqual({ error: { code: 'EmailInUse', message: 'A user with this email address already exists' } });
   });
 });

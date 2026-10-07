@@ -44,6 +44,14 @@ function isValidPurpose(value: unknown): value is IamCredentialActionPurpose {
   return VALID_PURPOSES.has(value as IamCredentialActionPurpose);
 }
 
+// A password-setup link only serves an invited identity that has never had a
+// password; a reset link only serves an active one. A setup link can therefore
+// never overwrite an established password.
+const ELIGIBLE_ACCOUNT_STATUS: Record<IamCredentialActionPurpose, string> = {
+  [IamCredentialActionPurpose.PASSWORD_SETUP]: 'INVITED',
+  [IamCredentialActionPurpose.PASSWORD_RESET]: 'ACTIVE',
+};
+
 function hashToken(token: string): string {
   return createHash('sha256').update(token).digest('hex');
 }
@@ -83,7 +91,7 @@ export async function createCredentialActionToken(
           select: { id: true, accountStatus: true },
         });
 
-        if (!user || user.accountStatus !== 'ACTIVE') {
+        if (!user || user.accountStatus !== ELIGIBLE_ACCOUNT_STATUS[input.purpose]) {
           throw new CredentialActionError();
         }
 
@@ -146,7 +154,7 @@ export async function consumeCredentialActionToken(
         actionToken.consumedAt !== null ||
         actionToken.expiresAt <= now ||
         !actionToken.user ||
-        actionToken.user.accountStatus !== 'ACTIVE'
+        actionToken.user.accountStatus !== ELIGIBLE_ACCOUNT_STATUS[input.expectedPurpose]
       ) {
         throw new CredentialActionError();
       }

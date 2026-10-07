@@ -1,20 +1,5 @@
 import { NextResponse } from 'next/server';
 
-export function regulatoryIntelligenceDisabled() {
-  return NextResponse.json(
-    {
-      error: {
-        code: 'FeatureDisabled',
-        message: 'Regulatory intelligence and platform administration are temporarily unavailable',
-      },
-    },
-    {
-      status: 503,
-      headers: { 'Cache-Control': 'no-store', 'Retry-After': '86400' },
-    },
-  );
-}
-
 export function sensitiveExportDisabled() {
   return NextResponse.json(
     {

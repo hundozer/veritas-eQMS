@@ -7,6 +7,8 @@ import type { NavGroup } from '@/ui';
 import { LoginErrorNotice } from '@/ui/components/LoginErrorNotice';
 import { documentActionsFor } from '@/lib/document-actions';
 import { SIGNING_LABELS, signingRequest, type SigningMode } from '@/lib/signing-request';
+import InviteMemberPanel from '@/ui/components/InviteMemberPanel';
+import { resendInvitation } from '@/lib/invitations-client';
 import {
   Dashboard as DashboardIcon,
   Description as DescriptionIcon,
@@ -201,6 +203,23 @@ export default function Home() {
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   // Restore the authenticated user from the server-side opaque session.
+  const reloadUsers = useCallback(() => {
+    fetch('/api/users')
+      .then((res) => res.json())
+      .then((usersData) => setUsers(usersData.users || []))
+      .catch(() => undefined);
+  }, []);
+
+  const handleResendInvitation = async (userId: string) => {
+    const result = await resendInvitation(userId);
+    if (result.ok) setSuccessMessage('A new invitation link was sent.');
+    else setErrorMessage(result.message);
+    setTimeout(() => {
+      setSuccessMessage(null);
+      setErrorMessage(null);
+    }, 5000);
+  };
+
   useEffect(() => {
     fetch('/api/auth/session')
       .then((res) => res.json())
@@ -208,9 +227,7 @@ export default function Home() {
         if (data.user) {
           setCurrentUser(data.user);
           setViewMode('app');
-          fetch('/api/users')
-            .then((res) => res.json())
-            .then((usersData) => setUsers(usersData.users || []));
+          reloadUsers();
         } else {
           setCurrentUser(null);
           setViewMode('landing');
@@ -570,6 +587,7 @@ export default function Home() {
     canApprove: canApproveDocuments,
     canObsolete: canObsoleteDocuments,
   } = documentActionsFor(currentUser?.permissions);
+  const canInviteUsers = Boolean(currentUser?.permissions?.includes('users.create'));
   const currentWorkflow = selectedDoc?.versions.find((version) => version.versionNumber === selectedDoc.currentVersionNumber)?.approvalRoutes?.[0];
   const assignedReviewStep = currentWorkflow?.steps.find((step) => step.stepType === 'REVIEW');
   const assignedApprovalStep = currentWorkflow?.steps.find((step) => step.stepType === 'APPROVAL');
@@ -1647,6 +1665,7 @@ export default function Home() {
                       <th>Assigned GxP Role</th>
                       <th>Department</th>
                       <th>Clearance</th>
+                      <th>Sign-in</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -1668,12 +1687,26 @@ export default function Home() {
                         </td>
                         <td><span className={styles.badge}>{u.department}</span></td>
                         <td><span className={styles.badge}>{u.clearance || 'INTERNAL'}</span></td>
+                        <td>
+                          {u.invitationPending ? (
+                            <>
+                              <span className={styles.badge}>Invitation pending</span>
+                              {canInviteUsers && (
+                                <button type="button" className={`${styles.btn} ${styles.btnSecondary}`} style={{ marginLeft: '8px', padding: '4px 10px', fontSize: '12px' }} onClick={() => handleResendInvitation(u.id)}>Resend</button>
+                              )}
+                            </>
+                          ) : (
+                            <span className={styles.badge}>Active</span>
+                          )}
+                        </td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
               </div>
             </div>
+
+            {canInviteUsers && <InviteMemberPanel onInvited={reloadUsers} />}
 
             {/* Canonical permission presentation containment */}
             <div className={styles.card}>

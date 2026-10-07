@@ -77,6 +77,12 @@ protection was verified on 6 Oct 2026.
 - Controlled copies default to the effective version; other versions watermarked.
 - Client-direct signed uploads to Blob.
 - Audited provisioning script; password-setup emails wired.
+  Done in the application rather than as a script, because the owner works
+  from an iPad (DEC-063): a holder of `users.create` invites a person with one
+  role no stronger than their own; identity, user, membership and audit rows
+  are written in one transaction; the person sets their own password from a
+  single-use 30-minute emailed link (`src/lib/iam/provisioning.ts`,
+  `/auth/setup-password`, `src/db-tests/provisioning.dbtest.ts`).
 
 **Gate:** an SOP goes draft → signed → effective → superseded in production, and
 the isolation suite passes.

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 import { getContext } from '@/lib/auth';
 import { hasPermission } from '../../../lib/rbac';
-import { userAdministrationMutationDisabled } from '../../../lib/recovery-disabled';
+import { inviteMember, pendingInvitationUserIds, ProvisioningError, type InviteInput } from '@/lib/iam/provisioning';
 import { unexpectedErrorResponse } from '../../../lib/server-errors';
 
 // GET /api/users - List users (tenant-scoped if authenticated, or all system demo users for persona login)
@@ -32,13 +32,38 @@ export async function GET(req: NextRequest) {
       },
       orderBy: { fullName: 'asc' },
     });
+    const pending = await pendingInvitationUserIds(user.tenantId);
 
-    return NextResponse.json({ users }, { headers: { 'Cache-Control': 'no-store' } });
+    return NextResponse.json(
+      { users: users.map((member) => ({ ...member, invitationPending: pending.has(member.id) })) },
+      { headers: { 'Cache-Control': 'no-store' } },
+    );
   } catch (error: any) {
     return unexpectedErrorResponse('user.list');
   }
 }
 
-// Provisioning remains unavailable until IAM identity, credential activation,
-// membership, operational user, role assignment, and audit are one workflow.
-export const POST = userAdministrationMutationDisabled;
+// POST /api/users - invite a person into the caller's organisation (DEC-063)
+export async function POST(req: NextRequest) {
+  try {
+    const user = await getContext(req);
+    if (!user) {
+      return NextResponse.json({ error: { code: 'Unauthorized', message: 'User context not found' } }, { status: 401 });
+    }
+    if (!hasPermission(user, 'users.create')) {
+      return NextResponse.json({ error: { code: 'Forbidden', message: 'Insufficient permission' } }, { status: 403 });
+    }
+    const body: unknown = await req.json().catch(() => null);
+    const invited = await inviteMember(user, (body && typeof body === "object" ? body : {}) as InviteInput, req.nextUrl.pathname);
+    return NextResponse.json({ user: invited }, { status: 201, headers: { 'Cache-Control': 'no-store' } });
+  } catch (error) {
+    if (error instanceof ProvisioningError) {
+      const failure = error;
+      return NextResponse.json(
+        { error: { code: failure.failure, message: failure.publicMessage, userId: failure.operationalUserId } },
+        { status: failure.status, headers: { 'Cache-Control': 'no-store' } },
+      );
+    }
+    return unexpectedErrorResponse('user.invite');
+  }
+}
