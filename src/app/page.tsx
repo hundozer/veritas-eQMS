@@ -1472,8 +1472,8 @@ export default function Home() {
                                 {step.stepType}: {step.approver.fullName} — {step.status}
                               </div>
                             ))}
-                            <a href={`/api/documents/${selectedDoc.id}/pdf?raw=true&version=${ver.versionNumber}`} target="_blank" rel="noreferrer" style={{ fontSize: '11px' }}>
-                              Download retained version
+                            <a href={`/api/documents/${selectedDoc.id}/pdf?version=${ver.versionNumber}`} target="_blank" rel="noreferrer" style={{ fontSize: '11px' }}>
+                              {ver.status === 'EFFECTIVE' ? 'View effective version' : 'View (marked uncontrolled copy)'}
                             </a>
                           </div>
                         ))}
@@ -1508,7 +1508,7 @@ export default function Home() {
                         <button className={`${styles.btn} ${styles.btnSecondary}`} onClick={() => setSigningMode('RETIRE')}>Sign Retirement (Obsolete)</button>
                       )}
                       <a href={`/api/documents/${selectedDoc.id}/pdf`} target="_blank" rel="noreferrer" className={`${styles.btn} ${styles.btnSecondary}`}>
-                        View Controlled Copy
+                        {selectedDoc.versions.some((version) => version.status === 'EFFECTIVE') ? 'View Effective Version' : 'View Current Version (Uncontrolled)'}
                       </a>
                     </div>
 

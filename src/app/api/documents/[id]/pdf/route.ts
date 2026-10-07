@@ -3,6 +3,7 @@ import { tenantRead } from '@/lib/tenant-db';
 import { getContext } from '@/lib/auth';
 import { hasPermission } from '@/lib/rbac';
 import { sanitizeDisplayFileName, sha256, vercelBlobStorage, verifyControlledObject } from '@/lib/controlled-storage';
+import { CopyMarkingError, markPdf, markText, selectCopyVersion, uncontrolledMarking } from '../../../../../lib/controlled-copy';
 import { reportServerError, unexpectedErrorResponse } from '../../../../../lib/server-errors';
 
 function escapeHtml(value: unknown): string {
@@ -31,6 +32,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       select: {
         id: true,
         title: true,
+        documentNumber: true,
         classification: true,
         status: true,
         currentVersionNumber: true,
@@ -40,6 +42,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
           orderBy: { versionNumber: 'desc' },
           select: {
             versionNumber: true,
+            status: true,
             mimeType: true,
             storageKey: true,
             hash: true,
@@ -67,12 +70,11 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       return new NextResponse('404: Document Not Found', { status: 404 });
     }
 
-    const requestedVersion = req.nextUrl.searchParams.get('version');
-    const latestVersion = requestedVersion
-      ? document.versions.find((version) => version.versionNumber === Number(requestedVersion))
-      : document.versions[0];
+    // Readers get the effective version unless they ask for another (DEC-067).
+    const latestVersion = selectCopyVersion(document.versions, document.currentVersionNumber, req.nextUrl.searchParams.get('version'));
     if (!latestVersion) return new NextResponse('404: Document Version Not Found', { status: 404 });
-    const signatures = latestVersion?.signatures ?? [];
+    const signatures = latestVersion.signatures;
+    const marking = uncontrolledMarking(latestVersion.status);
     const isRaw = req.nextUrl.searchParams.get('raw') === 'true';
 
     // Resolve storage identity only from authorized database metadata. Client-supplied
@@ -98,23 +100,47 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
         return new NextResponse('Controlled document content could not be verified', { status: 409 });
       }
 
+      // The effective version is served exactly as signed; any other version
+      // carries its marking, or is named as uncontrolled where the format
+      // cannot be stamped.
+      let displayName = sanitizeDisplayFileName(latestVersion.originalFileName || `${document.title}-v${latestVersion.versionNumber}.pdf`);
+      if (marking) {
+        const details = {
+          marking,
+          documentNumber: document.documentNumber || document.id.substring(0, 8),
+          versionNumber: latestVersion.versionNumber,
+          printedBy: user.fullName,
+          printedAt: new Date(),
+        };
+        if (contentType === 'application/pdf') {
+          try {
+            bytes = await markPdf(bytes, details);
+          } catch (error) {
+            if (!(error instanceof CopyMarkingError)) throw error;
+            return new NextResponse('This version could not be marked as an uncontrolled copy, so it is not served', { status: 409 });
+          }
+        } else if (contentType === 'text/plain') {
+          bytes = markText(bytes, details);
+        }
+        displayName = sanitizeDisplayFileName(`UNCONTROLLED-${latestVersion.status}-${displayName}`);
+      }
+
       const disposition = contentType === 'application/pdf' ? 'inline' : 'attachment';
-      const displayName = sanitizeDisplayFileName(latestVersion.originalFileName || `${document.title}-v${latestVersion.versionNumber}.pdf`);
       return new NextResponse(Buffer.from(bytes), {
         headers: {
           'Content-Type': contentType,
           'Content-Disposition': `${disposition}; filename="${displayName}"`,
           'Cache-Control': 'private, no-store',
           'X-Content-Type-Options': 'nosniff',
+          'X-Veritas-Copy': marking ? 'uncontrolled' : 'effective',
         },
       });
     }
 
-    const pdfSource = latestVersion?.storageKey
-      ? `/api/documents/${document.id}/pdf?raw=true`
-      : latestVersion?.fileData
-        ? `data:application/pdf;base64,${latestVersion.fileData}`
-        : null;
+    // Always through the raw route, which marks non-effective versions; never an inline data URL.
+    const rawUrl = `/api/documents/${document.id}/pdf?raw=true&version=${latestVersion.versionNumber}`;
+    const pdfSource = latestVersion.storageKey || latestVersion.fileData ? rawUrl : null;
+    const isPdf = (latestVersion.mimeType || 'application/pdf') === 'application/pdf';
 
     const html = `<!DOCTYPE html>
 <html lang="en">
@@ -268,15 +294,17 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       <span style="font-size: 12px; color: #94a3b8; font-weight: 400;">| Controlled Document Copy</span>
     </div>
     <div style="display: flex; align-items: center; gap: 16px;">
-      <span class="badge">${escapeHtml(document.status)}</span>
-      ${pdfSource ? `<a href="/api/documents/${document.id}/pdf?raw=true" target="_blank" class="btn-download">📥 Open / Download Raw Uploaded PDF</a>` : ''}
+      <span class="badge"${marking ? ' style="background: #e11d48; color: #ffffff;"' : ''}>v${escapeHtml(latestVersion.versionNumber)} ${escapeHtml(latestVersion.status)}</span>
+      ${pdfSource ? `<a href="${escapeHtml(rawUrl)}" target="_blank" class="btn-download">📥 Open / Download File</a>` : ''}
     </div>
   </div>
 
   <div class="container">
-    <div class="watermark-banner">
-      ⚠ CONTROLLED QMS RECORD — VERIFY CURRENT STATUS BEFORE USE — DO NOT ALTER
-    </div>
+    ${marking ? `<div class="watermark-banner" style="font-size: 16px; background: rgba(225, 29, 72, 0.15);">
+      ⚠ ${escapeHtml(marking)}
+    </div>` : `<div class="watermark-banner" style="color: #047857; border-color: rgba(4, 120, 87, 0.4); background: rgba(16, 185, 129, 0.08);">
+      EFFECTIVE VERSION — VERIFY CURRENT STATUS BEFORE USE — DO NOT ALTER
+    </div>`}
 
     <table class="header-table">
       <tr>
@@ -285,16 +313,16 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
           <div style="font-size: 10px; color: #64748b;">Veritas controlled-document metadata</div>
         </td>
         <td><strong>Title:</strong> ${escapeHtml(document.title)}</td>
-        <td><strong>Doc ID:</strong> ${escapeHtml(document.id.substring(0, 8))}</td>
+        <td><strong>Doc No.:</strong> ${escapeHtml(document.documentNumber || document.id.substring(0, 8))}</td>
       </tr>
       <tr>
         <td><strong>Classification:</strong> ${escapeHtml(document.classification)}</td>
-        <td><strong>Revision:</strong> v${escapeHtml(document.currentVersionNumber)}.0</td>
+        <td><strong>Version:</strong> v${escapeHtml(latestVersion.versionNumber)} (${escapeHtml(latestVersion.status)})</td>
       </tr>
       <tr>
         <td><strong>Tenant:</strong> ${escapeHtml(document.tenant.name)}</td>
         <td><strong>Owner:</strong> ${escapeHtml(document.owner.fullName)} (${escapeHtml(document.owner.department)})</td>
-        <td><strong>Status:</strong> ${escapeHtml(document.status)}</td>
+        <td><strong>Document status:</strong> ${escapeHtml(document.status)}</td>
       </tr>
     </table>
 
@@ -330,16 +358,16 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       📄 UPLOADED PHYSICAL SOP ATTACHMENT PREVIEW:
     </div>
 
-    ${pdfSource ? `
-      <object data="${pdfSource}" type="application/pdf" class="pdf-frame">
-        <embed src="${pdfSource}" type="application/pdf" class="pdf-frame" />
+    ${pdfSource && isPdf ? `
+      <object data="${escapeHtml(pdfSource)}" type="application/pdf" class="pdf-frame">
+        <embed src="${escapeHtml(pdfSource)}" type="application/pdf" class="pdf-frame" />
         <div style="padding: 24px; text-align: center; color: #64748b;">
-          PDF Preview unavailable in this browser engine. <a href="/api/documents/${document.id}/pdf?raw=true" target="_blank" style="color: #0284c7; font-weight: 600;">Click here to open raw PDF file directly.</a>
+          PDF Preview unavailable in this browser engine. <a href="${escapeHtml(rawUrl)}" target="_blank" style="color: #0284c7; font-weight: 600;">Click here to open the file directly.</a>
         </div>
       </object>
     ` : `
       <div style="padding: 40px; background: #f8fafc; border: 1.5px dashed #cbd5e1; border-radius: 6px; text-align: center; color: #64748b; font-size: 14px;">
-        No physical PDF file was attached during document draft creation.
+        ${pdfSource ? 'This file is not a PDF and cannot be previewed here; use Open / Download File.' : 'No file is attached to this version.'}
       </div>
     `}
 
@@ -357,7 +385,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
         'Content-Type': 'text/html; charset=utf-8',
         'Cache-Control': 'private, no-store',
         'X-Content-Type-Options': 'nosniff',
-        'Content-Security-Policy': "default-src 'none'; style-src 'unsafe-inline'; object-src 'self' data:; frame-src 'self' data:; img-src data:; base-uri 'none'; form-action 'none'",
+        'Content-Security-Policy': "default-src 'none'; style-src 'unsafe-inline'; object-src 'self'; frame-src 'self'; img-src data:; base-uri 'none'; form-action 'none'",
       },
     });
   } catch (error: any) {

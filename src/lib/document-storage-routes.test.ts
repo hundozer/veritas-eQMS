@@ -23,6 +23,7 @@ const lifecycleMock = vi.hoisted(() => ({
   normalizeDocumentType: vi.fn(() => 'SOP'),
 }));
 
+vi.mock('server-only', () => ({}));
 vi.mock('@/lib/tenant-db', async () => (await import('../test-support/tenant-db-double')).tenantDbDouble());
 vi.mock('@/lib/db', () => ({ default: prismaMock }));
 vi.mock('@/lib/auth', () => authMock);
@@ -125,7 +126,7 @@ describe('controlled document retrieval route', () => {
     prismaMock.document.findFirst.mockResolvedValue({
       id: 'doc-1', title: 'SOP', classification: 'CONTROLLED', status: 'DRAFT', currentVersionNumber: 1,
       owner: { fullName: 'Owner', department: 'QA' }, tenant: { name: 'Tenant A' },
-      versions: [{ id: 'version-1', versionNumber: 1, storageKey: 'authoritative-db-key', hash: 'stored-sha256', mimeType: 'application/pdf', originalFileName: 'record.pdf', fileData: null, signatures: [] }],
+      versions: [{ id: 'version-1', versionNumber: 1, status: 'EFFECTIVE', storageKey: 'authoritative-db-key', hash: 'stored-sha256', mimeType: 'application/pdf', originalFileName: 'record.pdf', fileData: null, signatures: [] }],
     });
     storageMock.verifyControlledObject.mockResolvedValue({ bytes: new Uint8Array([1, 2, 3]), contentType: 'application/pdf' });
     const { GET } = await import('../app/api/documents/[id]/pdf/route');
@@ -164,6 +165,101 @@ describe('controlled document retrieval route', () => {
     expect(html).toContain('&lt;u&gt;Snapshot&lt;/u&gt;');
     expect(html).not.toContain('Current Name');
     expect(html).toContain('SIGNED CONTENT MATCHES THIS VERSION');
+  });
+
+  describe('controlled copies (DEC-067)', () => {
+    const stored: { bytes: Uint8Array; contentType: string } = { bytes: new Uint8Array(), contentType: 'application/pdf' };
+    function documentWith(versions: Array<{ versionNumber: number; status: string; mimeType?: string; fileName?: string }>) {
+      return {
+        id: 'doc-1', title: 'SOP', documentNumber: 'SOP-0001', classification: 'CONTROLLED', status: 'DRAFT', currentVersionNumber: versions[0].versionNumber,
+        owner: { fullName: 'Owner', department: 'QA' }, tenant: { name: 'Tenant A' },
+        versions: versions.map((version) => ({
+          versionNumber: version.versionNumber, status: version.status, storageKey: `key-v${version.versionNumber}`, hash: `hash-v${version.versionNumber}`,
+          mimeType: version.mimeType ?? 'application/pdf', originalFileName: version.fileName ?? 'record.pdf', fileData: null, signatures: [],
+        })),
+      };
+    }
+    async function get(query: string) {
+      const { GET } = await import('../app/api/documents/[id]/pdf/route');
+      return GET(request({}, `https://veritas.invalid/api/documents/doc-1/pdf${query}`), { params: Promise.resolve({ id: 'doc-1' }) });
+    }
+
+    beforeEach(async () => {
+      const { PDFDocument } = await import('pdf-lib');
+      const pdf = await PDFDocument.create();
+      pdf.addPage();
+      stored.bytes = await pdf.save();
+      storageMock.verifyControlledObject.mockImplementation(async () => ({ bytes: stored.bytes, contentType: 'application/pdf' }));
+    });
+
+    it('COPY-T007 the file defaults to the effective version and is served exactly as stored', async () => {
+      prismaMock.document.findFirst.mockResolvedValue(documentWith([{ versionNumber: 2, status: 'DRAFT' }, { versionNumber: 1, status: 'EFFECTIVE' }]));
+
+      const response = await get('?raw=true');
+
+      expect(response.status).toBe(200);
+      expect(storageMock.verifyControlledObject).toHaveBeenCalledWith(storageMock.vercelBlobStorage, 'key-v1', 'hash-v1');
+      expect(response.headers.get('x-veritas-copy')).toBe('effective');
+      expect(new Uint8Array(await response.arrayBuffer())).toEqual(stored.bytes);
+    });
+
+    it('COPY-T008 any other version is stamped as an uncontrolled copy of its status', async () => {
+      prismaMock.document.findFirst.mockResolvedValue(documentWith([{ versionNumber: 2, status: 'DRAFT' }, { versionNumber: 1, status: 'EFFECTIVE' }]));
+
+      const response = await get('?raw=true&version=2');
+
+      expect(response.status).toBe(200);
+      expect(storageMock.verifyControlledObject).toHaveBeenCalledWith(storageMock.vercelBlobStorage, 'key-v2', 'hash-v2');
+      expect(response.headers.get('x-veritas-copy')).toBe('uncontrolled');
+      expect(response.headers.get('content-disposition')).toContain('UNCONTROLLED-DRAFT-record.pdf');
+      const { PDFDocument } = await import('pdf-lib');
+      const marked = await PDFDocument.load(new Uint8Array(await response.arrayBuffer()));
+      expect(marked.getSubject()).toBe('UNCONTROLLED COPY - DRAFT - NOT FOR USE');
+    });
+
+    it('COPY-T009 a non-effective PDF that cannot be stamped is refused', async () => {
+      prismaMock.document.findFirst.mockResolvedValue(documentWith([{ versionNumber: 1, status: 'SUPERSEDED' }]));
+      storageMock.verifyControlledObject.mockResolvedValue({ bytes: new Uint8Array([1, 2, 3]), contentType: 'application/pdf' });
+
+      const response = await get('?raw=true');
+
+      expect(response.status).toBe(409);
+      expect(await response.text()).not.toContain('%PDF');
+    });
+
+    it('COPY-T010 a text version is marked at the top; other formats are named uncontrolled', async () => {
+      prismaMock.document.findFirst.mockResolvedValue(documentWith([
+        { versionNumber: 2, status: 'OBSOLETE', mimeType: 'text/plain', fileName: 'sop.txt' },
+        { versionNumber: 1, status: 'SUPERSEDED', mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', fileName: 'sop.docx' },
+      ]));
+      storageMock.verifyControlledObject.mockResolvedValue({ bytes: new TextEncoder().encode('Step 1'), contentType: 'text/plain' });
+
+      const text = await get('?raw=true');
+      expect((await text.text()).startsWith('UNCONTROLLED COPY - OBSOLETE - NOT FOR USE\nSOP-0001 v2')).toBe(true);
+
+      const word = await get('?raw=true&version=1');
+      expect(word.headers.get('content-disposition')).toBe('attachment; filename="UNCONTROLLED-SUPERSEDED-sop.docx"');
+    });
+
+    it('COPY-T011 the viewer shows the chosen version and embeds it only through the marking route', async () => {
+      prismaMock.document.findFirst.mockResolvedValue(documentWith([{ versionNumber: 2, status: 'IN_REVIEW' }, { versionNumber: 1, status: 'EFFECTIVE' }]));
+
+      const effective = await (await get('')).text();
+      expect(effective).toContain('EFFECTIVE VERSION');
+      expect(effective).toContain('pdf?raw=true&amp;version=1');
+
+      const review = await (await get('?version=2')).text();
+      expect(review).toContain('UNCONTROLLED COPY - IN REVIEW - NOT FOR USE');
+      expect(review).toContain('/api/documents/doc-1/pdf?raw=true&amp;version=2');
+      expect(review).not.toContain('data:application/pdf');
+    });
+
+    it('COPY-T012 a malformed or unknown version number is not found', async () => {
+      prismaMock.document.findFirst.mockResolvedValue(documentWith([{ versionNumber: 1, status: 'EFFECTIVE' }]));
+      expect((await get('?raw=true&version=1abc')).status).toBe(404);
+      expect((await get('?version=7')).status).toBe(404);
+      expect(storageMock.verifyControlledObject).not.toHaveBeenCalled();
+    });
   });
 
   it('does not touch private storage for an unauthenticated request', async () => {

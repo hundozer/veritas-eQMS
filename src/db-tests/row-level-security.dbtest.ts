@@ -220,6 +220,15 @@ describe('document lifecycle through the real routes under row-level security', 
     const meanings = await owner.signatureManifest.findMany({ where: { documentVersionId: versions[1].id }, orderBy: { signedAt: 'asc' }, select: { meaning: true } });
     expect(meanings.map((row) => row.meaning)).toEqual(['REVIEWED', 'APPROVED', 'RELEASED']);
     expect(await owner.auditLog.count({ where: { tenantId: a.tenantId, action: 'DOCUMENT_SUPERSEDED', objectId: versions[0].id } })).toBe(1);
+
+    // Controlled copies (DEC-067): the effective version by default, as stored; the superseded one marked.
+    const { GET: copy } = await import('@/app/api/documents/[id]/pdf/route');
+    const effective = await copy(requestAs(a, `/api/documents/${documentId}/pdf?raw=true`), params(documentId));
+    expect([effective.status, effective.headers.get('x-veritas-copy'), await effective.text()]).toEqual([200, 'effective', 'version two']);
+    const superseded = await copy(requestAs(a, `/api/documents/${documentId}/pdf?raw=true&version=1`), params(documentId));
+    expect(superseded.headers.get('x-veritas-copy')).toBe('uncontrolled');
+    expect(await superseded.text()).toMatch(/^UNCONTROLLED COPY - SUPERSEDED - NOT FOR USE\n[\s\S]*\n\nversion one$/);
+    expect((await copy(requestAs(b, `/api/documents/${documentId}/pdf?raw=true`), params(documentId))).status).toBe(404);
   });
 
   it('LIFE-T005 an open revision is withdrawn, the effective version stays in force, revision numbers are not reused, and retirement is signed', async () => {
