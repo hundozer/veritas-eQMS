@@ -299,12 +299,14 @@ async function main() {
       reason: 'Update the review cycle parameters from 30 days to 90 days as per current industry QA standards.',
       riskLevel: 'MEDIUM',
       status: 'UNDER_REVIEW',
+      tenantId: acme.id,
     }
   });
 
   await prisma.changeRequestDocument.create({
     data: {
       changeRequestId: cr.id,
+      tenantId: acme.id,
       documentId: doc2.id
     }
   });

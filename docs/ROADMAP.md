@@ -62,8 +62,11 @@ protection was verified on 6 Oct 2026.
   Row-level security on the document, training, notification and audit tables
   (DEC-060): migration `20261007140000_tenant_row_level_security`,
   `src/lib/tenant-db.ts`, `src/db-tests/row-level-security.dbtest.ts`.
-  Open: `ChangeRequest`; `User`, `Tenant` and IAM tables (read during sign-in,
-  before the tenant is known).
+  `ChangeRequest` and `ChangeRequestDocument` carry `tenantId` with composite
+  keys and row-level security (DEC-061, migration
+  `20261007160000_tenant_scoped_change_requests`).
+  Open: row-level security for `User`, `Tenant` and IAM tables (read during
+  sign-in, before the tenant is known).
 - Signature service with password re-entry; multiple signatures per version.
 - Release (`documents.release`), supersession, withdraw-revision, retire.
 - Controlled copies default to the effective version; other versions watermarked.
