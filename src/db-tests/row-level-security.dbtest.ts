@@ -222,7 +222,7 @@ describe('document lifecycle through the real routes under row-level security', 
     expect(await owner.auditLog.count({ where: { tenantId: a.tenantId, action: 'DOCUMENT_SUPERSEDED', objectId: versions[0].id } })).toBe(1);
   });
 
-  it('LIFE-T005 an open revision is withdrawn, the effective version stays in force, and revision numbers are not reused', async () => {
+  it('LIFE-T005 an open revision is withdrawn, the effective version stays in force, revision numbers are not reused, and retirement is signed', async () => {
     const reviewer = await addMember(owner, a, 'WdReviewer');
     const approver = await addMember(owner, a, 'WdApprover');
     const as = (token: string) => ({ ...a, sessionToken: token });
@@ -259,8 +259,13 @@ describe('document lifecycle through the real routes under row-level security', 
     const blocked = await obsolete(requestAs(a, `/api/documents/${documentId}`, { method: 'DELETE', body: { reason: 'retire' } }), params(documentId));
     expect(blocked.status).toBe(409);
     expect((await post(withdraw, a, 'withdraw-revision', { reason: 'Retiring instead' })).status).toBe(200);
-    const retired = await obsolete(requestAs(a, `/api/documents/${documentId}`, { method: 'DELETE', body: { reason: 'retire' } }), params(documentId));
+    const wrong = await obsolete(requestAs(as(approver.sessionToken), `/api/documents/${documentId}`, { method: 'DELETE', body: { reason: 'retire', password: 'not-the-password' } }), params(documentId));
+    expect(wrong.status).toBe(403);
+    expect((await owner.document.findUniqueOrThrow({ where: { id: documentId } })).status).toBe('EFFECTIVE');
+    const retired = await obsolete(requestAs(as(approver.sessionToken), `/api/documents/${documentId}`, { method: 'DELETE', body: { reason: 'retire', password: MEMBER_PASSWORD } }), params(documentId));
     expect(retired.status).toBe(200);
+    const retirement = await owner.signatureManifest.findFirstOrThrow({ where: { meaning: 'RETIRED', documentVersion: { documentId } } });
+    expect([retirement.signedBy, retirement.comment]).toEqual([approver.userId, 'retire']);
 
     const finalVersions = await owner.documentVersion.findMany({ where: { documentId }, orderBy: { versionNumber: 'asc' } });
     expect(finalVersions.map((version) => [version.versionNumber, version.status])).toEqual([[1, 'OBSOLETE'], [2, 'WITHDRAWN'], [3, 'WITHDRAWN']]);

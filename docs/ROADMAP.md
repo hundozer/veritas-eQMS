@@ -80,7 +80,9 @@ protection was verified on 6 Oct 2026.
   (`/api/documents/[id]/release`, LIFE-T003 runs the gate path end to end).
   Withdraw-revision done (DEC-065): an open revision becomes `WITHDRAWN`, its
   review route is cancelled and the effective version stays in force; revision
-  numbers are never reused (LIFE-T005). Open: retire.
+  numbers are never reused (LIFE-T005). Retire done (DEC-066): obsoleting an
+  effective document is a signed act (meaning `RETIRED`, reason required,
+  recorded with the signature in the same transaction).
 - Controlled copies default to the effective version; other versions watermarked.
 - Client-direct signed uploads to Blob.
 - Audited provisioning script; password-setup emails wired.
