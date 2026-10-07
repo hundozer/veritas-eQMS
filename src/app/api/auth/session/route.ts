@@ -20,6 +20,7 @@ export async function GET(req: NextRequest) {
       clearance: user.clearance,
       tenantId: user.tenantId,
       tenantName: user.tenantName,
+      permissions: [...user.permissions],
     },
   }, { headers: { 'Cache-Control': 'no-store' } });
 }
