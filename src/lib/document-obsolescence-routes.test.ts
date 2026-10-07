@@ -8,6 +8,18 @@ const prismaMock = vi.hoisted(() => ({
 const authMock = vi.hoisted(() => ({ getContext: vi.fn(), logAuditEvent: vi.fn() }));
 const rbacMock = vi.hoisted(() => ({ hasPermission: vi.fn() }));
 const auditMock = vi.hoisted(() => ({ writeMandatoryAudit: vi.fn() }));
+const signatureMock = vi.hoisted(() => {
+  class SignatureError extends Error {
+    constructor(readonly reason: string) { super(reason); }
+  }
+  return {
+    SignatureError,
+    verifySignerOrRecordFailure: vi.fn(),
+    recordSignature: vi.fn(),
+    clientIp: vi.fn(() => null),
+    signatureFailedResponse: vi.fn(() => Response.json({ error: { code: 'SignatureFailed' } }, { status: 403 })),
+  };
+});
 const lifecycleMock = vi.hoisted(() => ({
   assertTransition: vi.fn(),
   lifecycleErrorResponse: vi.fn(() => null),
@@ -19,6 +31,7 @@ vi.mock('@/lib/auth', () => authMock);
 vi.mock('@/lib/rbac', () => rbacMock);
 vi.mock('@/lib/audit', () => auditMock);
 vi.mock('@/lib/document-lifecycle', () => lifecycleMock);
+vi.mock('@/lib/signatures', () => signatureMock);
 vi.mock('@/lib/controlled-storage', () => ({
   cleanupUncontrolledObject: vi.fn(),
   createControlledObjectKey: vi.fn(),
@@ -58,6 +71,8 @@ function transactionWith(counts: { version: number; effective: number; document:
 describe('document obsolescence route', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    signatureMock.verifySignerOrRecordFailure.mockResolvedValue(undefined);
+    signatureMock.recordSignature.mockResolvedValue({ id: 'signature-1' });
     vi.resetModules();
     authMock.getContext.mockResolvedValue(context);
     rbacMock.hasPermission.mockReturnValue(true);
@@ -154,5 +169,34 @@ describe('document obsolescence route', () => {
     expect(response.status).toBe(409);
     await expect(response.json()).resolves.toMatchObject({ error: { code: 'StaleWorkflowAction' } });
     expect(auditMock.writeMandatoryAudit).not.toHaveBeenCalled();
+  });
+
+  it('RET-T001 a retirement whose password does not verify changes nothing', async () => {
+    prismaMock.document.findFirst.mockResolvedValue({ id: 'doc-1', tenantId: 'tenant-a', status: 'EFFECTIVE', currentVersionNumber: 1 });
+    prismaMock.documentVersion.findUnique.mockResolvedValue({ id: 'v1', versionNumber: 1, status: 'EFFECTIVE' });
+    prismaMock.documentVersion.findMany.mockResolvedValue([]);
+    signatureMock.verifySignerOrRecordFailure.mockRejectedValue(new signatureMock.SignatureError('PASSWORD_MISMATCH'));
+
+    const { DELETE } = await import('../app/api/documents/[id]/route');
+    const response = await DELETE(request({ reason: 'process retired', password: 'wrong' }), { params: Promise.resolve({ id: 'doc-1' }) });
+
+    expect(response.status).toBe(403);
+    expect(signatureMock.verifySignerOrRecordFailure).toHaveBeenCalledWith(expect.objectContaining({ id: 'qm-1' }), 'wrong', 'v1', expect.anything());
+    expect(prismaMock.$transaction).not.toHaveBeenCalled();
+  });
+
+  it('RET-T002 the retirement is signed with its reason in the same transaction as the status change', async () => {
+    prismaMock.document.findFirst.mockResolvedValue({ id: 'doc-1', tenantId: 'tenant-a', status: 'EFFECTIVE', currentVersionNumber: 1 });
+    prismaMock.documentVersion.findUnique.mockResolvedValue({ id: 'v1', versionNumber: 1, status: 'EFFECTIVE' });
+    prismaMock.documentVersion.findMany.mockResolvedValue([]);
+    const tx = transactionWith({ version: 1, effective: 0, document: 1 });
+
+    const { DELETE } = await import('../app/api/documents/[id]/route');
+    const response = await DELETE(request({ reason: 'replaced by SOP-200', password: 'pw' }), { params: Promise.resolve({ id: 'doc-1' }) });
+
+    expect(response.status).toBe(200);
+    expect(signatureMock.recordSignature).toHaveBeenCalledWith(tx, expect.objectContaining({
+      meaning: 'RETIRED', comment: 'replaced by SOP-200', version: expect.objectContaining({ id: 'v1' }),
+    }));
   });
 });

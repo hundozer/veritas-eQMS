@@ -6,7 +6,7 @@ import { AppShell, useThemeMode } from '@/ui';
 import type { NavGroup } from '@/ui';
 import { LoginErrorNotice } from '@/ui/components/LoginErrorNotice';
 import { documentActionsFor } from '@/lib/document-actions';
-import { SIGNING_LABELS, signingRequest, type SigningMode } from '@/lib/signing-request';
+import { REASON_REQUIRED, SIGNING_LABELS, signingRequest, type SigningMode } from '@/lib/signing-request';
 import InviteMemberPanel from '@/ui/components/InviteMemberPanel';
 import { resendInvitation } from '@/lib/invitations-client';
 import {
@@ -448,12 +448,12 @@ export default function Home() {
   const handleSignDocument = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedDocId || !signingMode) return;
-    const { path, body } = signingRequest(signingMode, selectedDocId, esignComment, signPassword);
+    const { path, method, body } = signingRequest(signingMode, selectedDocId, esignComment, signPassword);
     setSignPassword('');
 
     try {
       const res = await fetch(path, {
-        method: 'POST',
+        method,
         headers: {
           'Content-Type': 'application/json',
         },
@@ -466,7 +466,9 @@ export default function Home() {
           ? 'Review signed; assigned approval is now available.'
           : signingMode === 'APPROVE'
             ? 'Approval signed. The document must still be released to become effective.'
-            : 'Release signed. This version is now effective; any previous version is superseded.');
+            : signingMode === 'RELEASE'
+              ? 'Release signed. This version is now effective; any previous version is superseded.'
+              : 'Retirement signed. The document is obsolete; its records were kept.');
         closeSigning();
         fetchData();
       } else {
@@ -548,18 +550,6 @@ export default function Home() {
       'POST',
       { reason },
       'Revision withdrawn; the effective version remains in force.',
-    );
-  };
-
-  const handleObsoleteDocument = async () => {
-    if (!selectedDoc) return;
-    const reason = window.prompt('Required reason for making this document obsolete:')?.trim();
-    if (!reason) return;
-    await runDocumentAction(
-      `/api/documents/${selectedDoc.id}`,
-      'DELETE',
-      { reason },
-      'Document marked obsolete; retained records were not deleted.',
     );
   };
 
@@ -1515,7 +1505,7 @@ export default function Home() {
                         <button className={`${styles.btn} ${styles.btnPrimary}`} onClick={() => setSigningMode('RELEASE')}>Sign Release (Make Effective)</button>
                       )}
                       {canObsoleteDocuments && ['DRAFT', 'APPROVED', 'EFFECTIVE'].includes(selectedDoc.status) && (
-                        <button className={`${styles.btn} ${styles.btnSecondary}`} onClick={handleObsoleteDocument}>Mark Obsolete</button>
+                        <button className={`${styles.btn} ${styles.btnSecondary}`} onClick={() => setSigningMode('RETIRE')}>Sign Retirement (Obsolete)</button>
                       )}
                       <a href={`/api/documents/${selectedDoc.id}/pdf`} target="_blank" rel="noreferrer" className={`${styles.btn} ${styles.btnSecondary}`}>
                         View Controlled Copy
@@ -2002,14 +1992,16 @@ export default function Home() {
                   You are signing <strong style={{ color: '#fff' }}>{selectedDoc.title}</strong> (Version {selectedDoc.currentVersionNumber}.0) with the meaning <strong style={{ color: '#fff' }}>{SIGNING_LABELS[signingMode].meaning}</strong>. Your signature records your name, role, the time and the SHA-256 of this version&apos;s file.
                   {signingMode === 'APPROVE' && ' Approval does not make the document effective.'}
                   {signingMode === 'RELEASE' && ' Releasing makes this version effective now and supersedes the previously effective version.'}
+                  {signingMode === 'RETIRE' && ' Retiring takes the document out of use; its versions and records are kept.'}
                 </div>
 
                 <div className={styles.formGroup}>
-                  <label className={styles.formLabel}>Comments (Optional)</label>
+                  <label className={styles.formLabel}>{REASON_REQUIRED[signingMode] ? 'Reason (required)' : 'Comments (Optional)'}</label>
                   <input
                     className={styles.input}
                     type="text"
-                    placeholder="Remarks..."
+                    placeholder={REASON_REQUIRED[signingMode] ? 'Why is this document retired?' : 'Remarks...'}
+                    required={REASON_REQUIRED[signingMode]}
                     value={esignComment}
                     onChange={(e) => setEsignComment(e.target.value)}
                   />

@@ -14,6 +14,7 @@ export const SIGNATURE_MEANINGS = {
   REVIEWED: 'Reviewed',
   APPROVED: 'Approved',
   RELEASED: 'Released',
+  RETIRED: 'Retired',
 } as const;
 
 export type SignatureMeaning = keyof typeof SIGNATURE_MEANINGS;

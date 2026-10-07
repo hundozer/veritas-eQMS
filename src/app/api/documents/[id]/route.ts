@@ -11,6 +11,7 @@ import {
   vercelBlobStorage,
 } from '@/lib/controlled-storage';
 import { assertTransition, lifecycleErrorResponse } from '@/lib/document-lifecycle';
+import { clientIp, recordSignature, SignatureError, signatureFailedResponse, verifySignerOrRecordFailure } from '@/lib/signatures';
 
 // GET /api/documents/[id] - Get document details + version history + training configs
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -258,6 +259,8 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
         { status: 409 },
       );
     }
+    // Retirement is signed (DEC-066): it takes a controlled document out of use.
+    await verifySignerOrRecordFailure(user, body.password, version.id, req);
 
     const archivedDoc = await tenantTransaction(user.tenantId, async (tx) => {
       const versionUpdate = await tx.documentVersion.updateMany({ where: { id: version.id, status: version.status }, data: { status: 'OBSOLETE' } });
@@ -268,6 +271,7 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
       const documentUpdate = await tx.document.updateMany({ where: { id, tenantId: user.tenantId, currentVersionNumber: version.versionNumber, status: document.status }, data: { status: 'OBSOLETE' } });
       if (versionUpdate.count !== 1 || effectiveUpdate.count !== effectiveVersions.length || documentUpdate.count !== 1) throw new Error('STALE_OBSOLESCENCE');
       const archived = await tx.document.findUniqueOrThrow({ where: { id } });
+      await recordSignature(tx, { context: user, version, meaning: 'RETIRED', comment: reason, sourceIp: clientIp(req.headers), requestUrl: req.nextUrl.pathname });
       await writeMandatoryAudit(tx, {
         context: user,
         action: 'DOCUMENT_OBSOLETED',
@@ -291,6 +295,7 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
 
     return NextResponse.json({ success: true, document: archivedDoc });
   } catch (error: any) {
+    if (error instanceof SignatureError) return signatureFailedResponse(error);
     const lifecycle = lifecycleErrorResponse(error);
     if (lifecycle) return NextResponse.json({ error: { code: lifecycle.code, message: lifecycle.message } }, { status: lifecycle.status });
     if (error.message === 'STALE_OBSOLESCENCE') return NextResponse.json({ error: { code: 'StaleWorkflowAction', message: 'Document state changed; refresh and try again' } }, { status: 409 });
