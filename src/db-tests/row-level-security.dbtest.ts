@@ -237,7 +237,8 @@ describe('document lifecycle through the real routes under row-level security', 
     const { DELETE: obsolete } = await import('@/app/api/documents/[id]/route');
 
     const documentId = (await (await create(requestAs(a, '/api/documents', { method: 'POST', body: { title: 'Withdraw SOP', classification: 'CONTROLLED', documentType: 'SOP', ...content('v1') } }))).json()).document.id as string;
-    const post = (handler: typeof submit, by: SeededTenant, path: string, body: unknown) => handler(requestAs(by, `/api/documents/${documentId}/${path}`, { method: 'POST', body }), params(documentId));
+    type Handler = (req: ReturnType<typeof requestAs>, context: ReturnType<typeof params>) => Promise<Response>;
+    const post = (handler: Handler, by: SeededTenant, path: string, body: unknown) => handler(requestAs(by, `/api/documents/${documentId}/${path}`, { method: 'POST', body }), params(documentId));
     expect((await post(submit, a, 'submit-review', { reviewerId: reviewer.userId, approverId: approver.userId })).status).toBe(200);
     expect((await post(review, as(reviewer.sessionToken), 'review', { action: 'COMPLETE', password: MEMBER_PASSWORD })).status).toBe(200);
     expect((await post(approve, as(approver.sessionToken), 'approve', { password: MEMBER_PASSWORD })).status).toBe(200);
@@ -248,7 +249,7 @@ describe('document lifecycle through the real routes under row-level security', 
     expect((await post(withdraw, b, 'withdraw-revision', { reason: 'not yours' })).status).toBe(404);
     expect((await post(withdraw, a, 'withdraw-revision', { reason: 'Change no longer needed' })).status).toBe(200);
 
-    let versions = await owner.documentVersion.findMany({ where: { documentId }, orderBy: { versionNumber: 'asc' }, include: { approvalRoutes: { include: { steps: true } } } });
+    const versions = await owner.documentVersion.findMany({ where: { documentId }, orderBy: { versionNumber: 'asc' }, include: { approvalRoutes: { include: { steps: true } } } });
     expect(versions.map((version) => [version.versionNumber, version.status])).toEqual([[1, 'EFFECTIVE'], [2, 'WITHDRAWN']]);
     expect(versions[1].approvalRoutes.map((route) => route.status)).toEqual(['CANCELLED']);
     expect(versions[1].approvalRoutes[0].steps.every((step) => step.status === 'CANCELLED')).toBe(true);
@@ -261,8 +262,8 @@ describe('document lifecycle through the real routes under row-level security', 
     const retired = await obsolete(requestAs(a, `/api/documents/${documentId}`, { method: 'DELETE', body: { reason: 'retire' } }), params(documentId));
     expect(retired.status).toBe(200);
 
-    versions = await owner.documentVersion.findMany({ where: { documentId }, orderBy: { versionNumber: 'asc' }, include: { approvalRoutes: true } });
-    expect(versions.map((version) => [version.versionNumber, version.status])).toEqual([[1, 'OBSOLETE'], [2, 'WITHDRAWN'], [3, 'WITHDRAWN']]);
+    const finalVersions = await owner.documentVersion.findMany({ where: { documentId }, orderBy: { versionNumber: 'asc' } });
+    expect(finalVersions.map((version) => [version.versionNumber, version.status])).toEqual([[1, 'OBSOLETE'], [2, 'WITHDRAWN'], [3, 'WITHDRAWN']]);
     expect(await owner.auditLog.count({ where: { tenantId: a.tenantId, action: 'DOCUMENT_REVISION_WITHDRAWN', payload: { contains: documentId } } })).toBe(2);
   });
 
