@@ -22,7 +22,7 @@ import {
   CredentialActionError,
 } from './credential-action-token';
 
-const PURPOSE = IamCredentialActionPurpose.PASSWORD_SETUP;
+const PURPOSE = IamCredentialActionPurpose.PASSWORD_RESET;
 const activeUser = { id: 'iam-user-1', accountStatus: 'ACTIVE' };
 
 function sha256(value: string): string {
@@ -116,14 +116,15 @@ describe('IAM credential-action tokens', () => {
   });
 
   it('CRED-T007: leaves the other credential-action purpose unaffected', async () => {
+    prismaMock.iamUser.findUnique.mockResolvedValue({ ...activeUser, accountStatus: 'INVITED' });
     await createCredentialActionToken({
       userId: activeUser.id,
-      purpose: IamCredentialActionPurpose.PASSWORD_RESET,
+      purpose: IamCredentialActionPurpose.PASSWORD_SETUP,
     });
     const invalidation = prismaMock.iamCredentialActionToken.updateMany.mock.calls[0][0];
 
-    expect(invalidation.where.purpose).toBe(IamCredentialActionPurpose.PASSWORD_RESET);
-    expect(invalidation.where.purpose).not.toBe(IamCredentialActionPurpose.PASSWORD_SETUP);
+    expect(invalidation.where.purpose).toBe(IamCredentialActionPurpose.PASSWORD_SETUP);
+    expect(invalidation.where.purpose).not.toBe(IamCredentialActionPurpose.PASSWORD_RESET);
   });
 
   it('CRED-T008: consumes a valid token exactly once', async () => {
@@ -164,7 +165,7 @@ describe('IAM credential-action tokens', () => {
   it('CRED-T011: rejects a purpose mismatch', async () => {
     await expect(consumeCredentialActionToken({
       token: 'wrong-purpose',
-      expectedPurpose: IamCredentialActionPurpose.PASSWORD_RESET,
+      expectedPurpose: IamCredentialActionPurpose.PASSWORD_SETUP,
     })).rejects.toBeInstanceOf(CredentialActionError);
     expect(prismaMock.iamCredentialActionToken.updateMany).not.toHaveBeenCalled();
   });
@@ -225,5 +226,18 @@ describe('IAM credential-action tokens', () => {
     await consumeCredentialActionToken({ token: created.token, expectedPurpose: PURPOSE });
 
     for (const spy of spies) expect(spy).not.toHaveBeenCalled();
+  });
+
+  it('CRED-T016: a setup link serves only an invited identity, a reset link only an active one', async () => {
+    const SETUP = IamCredentialActionPurpose.PASSWORD_SETUP;
+    prismaMock.iamUser.findUnique.mockResolvedValue({ ...activeUser, accountStatus: 'ACTIVE' });
+    await expect(createCredentialActionToken({ userId: activeUser.id, purpose: SETUP })).rejects.toBeInstanceOf(CredentialActionError);
+
+    prismaMock.iamUser.findUnique.mockResolvedValue({ ...activeUser, accountStatus: 'INVITED' });
+    await expect(createCredentialActionToken({ userId: activeUser.id, purpose: SETUP })).resolves.toHaveProperty('token');
+    await expect(createCredentialActionToken({ userId: activeUser.id, purpose: PURPOSE })).rejects.toBeInstanceOf(CredentialActionError);
+
+    prismaMock.iamCredentialActionToken.findUnique.mockResolvedValue(storedToken({ purpose: SETUP, user: { ...activeUser, accountStatus: 'ACTIVE' } }));
+    await expect(consumeCredentialActionToken({ token: 'setup-for-active', expectedPurpose: SETUP })).rejects.toBeInstanceOf(CredentialActionError);
   });
 });

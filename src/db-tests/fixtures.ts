@@ -108,7 +108,12 @@ export async function seedTenant(owner: PrismaClient, label: string, roleId: str
 
 // Adds another signed-in member to a seeded tenant, e.g. a reviewer or approver.
 // Their password is MEMBER_PASSWORD.
-export async function addMember(owner: PrismaClient, tenant: SeededTenant, label: string): Promise<{ userId: string; sessionToken: string }> {
+export async function addMember(
+  owner: PrismaClient,
+  tenant: SeededTenant,
+  label: string,
+  roleId: string = tenant.roleId,
+): Promise<{ userId: string; sessionToken: string }> {
   const run = randomUUID().slice(0, 8);
   const email = `${tenant.label.toLowerCase()}-${label.toLowerCase()}-${run}@example.invalid`;
   const user = await owner.user.create({
@@ -118,7 +123,7 @@ export async function addMember(owner: PrismaClient, tenant: SeededTenant, label
     data: { email, passwordHash: await hashPassword(MEMBER_PASSWORD), firstName: tenant.label, lastName: label, accountStatus: 'ACTIVE' },
   });
   const membership = await owner.iamMembership.create({
-    data: { userId: iamUser.id, organizationId: tenant.organizationId, tenantId: tenant.tenantId, operationalUserId: user.id, roleId: tenant.roleId, status: 'ACTIVE' },
+    data: { userId: iamUser.id, organizationId: tenant.organizationId, tenantId: tenant.tenantId, operationalUserId: user.id, roleId, status: 'ACTIVE' },
   });
   const session = await createIamSession({ userId: iamUser.id, membershipId: membership.id });
   return { userId: user.id, sessionToken: session.sessionToken };

@@ -77,6 +77,13 @@ protection was verified on 6 Oct 2026.
 - Controlled copies default to the effective version; other versions watermarked.
 - Client-direct signed uploads to Blob.
 - Audited provisioning script; password-setup emails wired.
+  Done in the application rather than as a script, because the owner works
+  from an iPad (DEC-063): a holder of `users.create` (a separate administrator
+  account) invites a person with one organisation role; identity, user, membership and audit rows
+  are written in one transaction; the person sets their own password from a
+  single-use 30-minute emailed link (`src/lib/iam/provisioning.ts`,
+  `/auth/setup-password`, `src/db-tests/provisioning.dbtest.ts`).
+  Code done; going live is parked in the backlog (see Backlog).
 
 **Gate:** an SOP goes draft → signed → effective → superseded in production, and
 the isolation suite passes.
@@ -103,6 +110,16 @@ the isolation suite passes.
 
 - SAML/OIDC SSO, self-service onboarding, periodic review reminders.
 - Anything else only when a signed contract asks for it.
+
+## Backlog
+
+Parked by the owner; not part of any phase gate until taken up again.
+
+- Invitation email in production (owner, 7 Oct 2026). Set `EMAIL_FROM` in
+  Production to a sender on a domain verified in Resend (the first value was
+  wrong and was removed from Production), then create the owner's separate
+  administrator account (Organization Owner role, DEC-063) with a reviewed
+  maintenance step. Until then invitations are refused and nothing is created.
 
 ## Out of scope
 
