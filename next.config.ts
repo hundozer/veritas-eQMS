@@ -21,6 +21,9 @@ const contentSecurityPolicy = [
 
 const allPathsSource = "/(.*)";
 const cspSource = "/:path((?!api/documents/[^/]+/pdf$).*)";
+// The viewer embeds the verified file from its own path (?raw=true), so that one
+// path may be framed by this origin; every other path stays DENY.
+const pdfViewerSource = "/api/documents/:id/pdf";
 
 const contentSecurityHeaders = [
   { key: "Content-Security-Policy", value: contentSecurityPolicy },
@@ -40,6 +43,8 @@ const nextConfig: NextConfig = {
     return [
       { source: allPathsSource, headers: securityHeaders },
       { source: cspSource, headers: contentSecurityHeaders },
+      // Later rules override earlier ones for the same header key.
+      { source: pdfViewerSource, headers: [{ key: "X-Frame-Options", value: "SAMEORIGIN" }] },
     ];
   },
 };
