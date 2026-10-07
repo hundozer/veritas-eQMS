@@ -31,7 +31,13 @@ describe('security headers', () => {
   it('SECHDR-T002 leaves the PDF viewer its own content security policy', async () => {
     const headers = await headersFor('/api/documents/doc-1/pdf');
     expect(headers['Content-Security-Policy']).toBeUndefined();
-    expect(headers['X-Frame-Options']).toBe('DENY');
+  });
+
+  it('SECHDR-T005 lets the PDF viewer embed its own file but keeps other paths unframeable', async () => {
+    expect((await headersFor('/api/documents/doc-1/pdf'))['X-Frame-Options']).toBe('SAMEORIGIN');
+    for (const pathname of ['/', '/api/documents/doc-1', '/api/documents/doc-1/pdfx', '/api/documents/doc-1/pdf/extra']) {
+      expect((await headersFor(pathname))['X-Frame-Options']).toBe('DENY');
+    }
   });
 
   it('SECHDR-T003 only exempts the exact PDF viewer path', async () => {
