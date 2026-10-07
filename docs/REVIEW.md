@@ -76,6 +76,8 @@ qualified human reviewer of record.
 - [ ] Negative cases: wrong tenant, missing permission, wrong assignee, stale
       state.
 - [ ] `npx vitest run`, `npx tsc --noEmit`, and `npx eslint .` pass.
+- [ ] Both CI jobs (`.github/workflows/ci.yml`) are green on the PR head: unit
+      tests, types and lint; migration drift check and `npm run test:db`.
 
 ### Scope
 - [ ] The PR delivers one capability from the current roadmap phase.
