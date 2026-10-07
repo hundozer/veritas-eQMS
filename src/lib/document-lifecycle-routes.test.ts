@@ -269,4 +269,55 @@ describe('document lifecycle routes', () => {
     expect((await POST(request({ password: 'pw' }), { params: Promise.resolve({ id: 'doc-1' }) })).status).toBe(409);
     expect(prismaMock.$transaction).not.toHaveBeenCalled();
   });
+
+  function openRevision() {
+    prismaMock.document.findFirst.mockResolvedValue({ ...document, status: 'IN_REVIEW', currentVersionNumber: 2 });
+    prismaMock.documentVersion.findUnique.mockResolvedValue({ ...version, id: 'version-2', versionNumber: 2, status: 'IN_REVIEW' });
+    (prismaMock.documentVersion as Record<string, unknown>).findFirst = vi.fn().mockResolvedValue({ ...version, id: 'version-1', versionNumber: 1, status: 'EFFECTIVE' });
+    const tx = {
+      documentVersion: { updateMany: vi.fn().mockResolvedValue({ count: 1 }) },
+      document: { updateMany: vi.fn().mockResolvedValue({ count: 1 }) },
+      approvalRoute: { findMany: vi.fn().mockResolvedValue([{ id: 'route-2' }]), updateMany: vi.fn() },
+      approvalRouteStep: { updateMany: vi.fn() },
+    };
+    prismaMock.$transaction.mockImplementation(async (callback: (value: typeof tx) => unknown) => callback(tx));
+    return tx;
+  }
+
+  it('WDR-T001 withdrawing needs a reason and revision permission', async () => {
+    openRevision();
+    const { POST } = await import('../app/api/documents/[id]/withdraw-revision/route');
+
+    expect((await POST(request({}), { params: Promise.resolve({ id: 'doc-1' }) })).status).toBe(400);
+    rbacMock.hasPermission.mockReturnValue(false);
+    expect((await POST(request({ reason: 'not needed' }), { params: Promise.resolve({ id: 'doc-1' }) })).status).toBe(403);
+    expect(prismaMock.$transaction).not.toHaveBeenCalled();
+  });
+
+  it('WDR-T002 a first draft with no effective version is not a revision and cannot be withdrawn', async () => {
+    openRevision();
+    (prismaMock.documentVersion as Record<string, ReturnType<typeof vi.fn>>).findFirst.mockResolvedValue(null);
+    const { POST } = await import('../app/api/documents/[id]/withdraw-revision/route');
+
+    expect((await POST(request({ reason: 'abandon' }), { params: Promise.resolve({ id: 'doc-1' }) })).status).toBe(409);
+    expect(prismaMock.$transaction).not.toHaveBeenCalled();
+  });
+
+  it('WDR-T003 withdraws the revision, cancels its open review and returns to the effective version, audited', async () => {
+    const tx = openRevision();
+    const { POST } = await import('../app/api/documents/[id]/withdraw-revision/route');
+
+    const response = await POST(request({ reason: 'superseded by regulation change' }), { params: Promise.resolve({ id: 'doc-1' }) });
+
+    expect(response.status).toBe(200);
+    expect(tx.documentVersion.updateMany).toHaveBeenCalledWith({ where: { id: 'version-2', status: 'IN_REVIEW' }, data: { status: 'WITHDRAWN' } });
+    expect(tx.document.updateMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: expect.objectContaining({ id: 'doc-1', tenantId: 'tenant-a', currentVersionNumber: 2 }),
+      data: { status: 'EFFECTIVE', currentVersionNumber: 1 },
+    }));
+    expect(tx.approvalRoute.updateMany).toHaveBeenCalledWith({ where: { id: { in: ['route-2'] } }, data: { status: 'CANCELLED' } });
+    expect(auditMock.writeMandatoryAudit).toHaveBeenCalledWith(tx, expect.objectContaining({
+      action: 'DOCUMENT_REVISION_WITHDRAWN', payload: expect.objectContaining({ reason: 'superseded by regulation change', effectiveVersion: 1 }),
+    }));
+  });
 });

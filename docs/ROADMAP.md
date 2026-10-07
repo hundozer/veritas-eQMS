@@ -78,7 +78,9 @@ protection was verified on 6 Oct 2026.
   `RELEASED`, never by the author) makes the approved version effective and
   supersedes the previously effective one in the same transaction
   (`/api/documents/[id]/release`, LIFE-T003 runs the gate path end to end).
-  Open: withdraw-revision, retire.
+  Withdraw-revision done (DEC-065): an open revision becomes `WITHDRAWN`, its
+  review route is cancelled and the effective version stays in force; revision
+  numbers are never reused (LIFE-T005). Open: retire.
 - Controlled copies default to the effective version; other versions watermarked.
 - Client-direct signed uploads to Blob.
 - Audited provisioning script; password-setup emails wired.

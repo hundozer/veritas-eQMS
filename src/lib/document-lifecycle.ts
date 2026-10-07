@@ -3,19 +3,21 @@ import 'server-only';
 import { randomBytes } from 'node:crypto';
 import { vercelBlobStorage, verifyControlledObject } from './controlled-storage';
 
-export const DOCUMENT_STATUSES = ['DRAFT', 'IN_REVIEW', 'APPROVED', 'EFFECTIVE', 'SUPERSEDED', 'OBSOLETE'] as const;
+export const DOCUMENT_STATUSES = ['DRAFT', 'IN_REVIEW', 'APPROVED', 'EFFECTIVE', 'SUPERSEDED', 'OBSOLETE', 'WITHDRAWN'] as const;
 export type DocumentStatus = typeof DOCUMENT_STATUSES[number];
 
 export const DOCUMENT_TYPES = ['SOP', 'POLICY', 'WORK_INSTRUCTION', 'FORM', 'OTHER'] as const;
 export type DocumentType = typeof DOCUMENT_TYPES[number];
 
 const TRANSITIONS: Readonly<Record<DocumentStatus, ReadonlySet<DocumentStatus>>> = {
-  DRAFT: new Set(['IN_REVIEW', 'OBSOLETE']),
-  IN_REVIEW: new Set(['DRAFT', 'APPROVED']),
-  APPROVED: new Set(['EFFECTIVE', 'OBSOLETE']),
+  DRAFT: new Set(['IN_REVIEW', 'OBSOLETE', 'WITHDRAWN']),
+  IN_REVIEW: new Set(['DRAFT', 'APPROVED', 'WITHDRAWN']),
+  APPROVED: new Set(['EFFECTIVE', 'OBSOLETE', 'WITHDRAWN']),
   EFFECTIVE: new Set(['SUPERSEDED', 'OBSOLETE']),
   SUPERSEDED: new Set(),
   OBSOLETE: new Set(),
+  // A revision abandoned before release; the effective version stays in force.
+  WITHDRAWN: new Set(),
 };
 
 export class DocumentLifecycleError extends Error {
