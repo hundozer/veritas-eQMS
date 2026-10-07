@@ -251,10 +251,10 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
 
     // An open revision (draft, in review or approved) sits on top of a live effective
     // version. Obsoleting it here would also retire the SOP people are working to.
-    // Withdrawing a revision is a separate lifecycle action and is not available yet.
+    // Withdraw the revision first (POST /api/documents/[id]/withdraw-revision).
     if (version.status !== 'EFFECTIVE' && effectiveVersions.length > 0) {
       return NextResponse.json(
-        { error: { code: 'RevisionInProgress', message: 'This document has an open revision; the effective version cannot be obsoleted until the revision is resolved' } },
+        { error: { code: 'RevisionInProgress', message: 'This document has an open revision; the effective version cannot be obsoleted until the revision is withdrawn' } },
         { status: 409 },
       );
     }

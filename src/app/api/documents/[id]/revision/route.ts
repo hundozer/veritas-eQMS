@@ -28,7 +28,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     if (document.status !== 'EFFECTIVE' || !effectiveVersion || effectiveVersion.versionNumber !== document.currentVersionNumber) {
       return NextResponse.json({ error: { code: 'InvalidTransition', message: 'A revision can be created only from the current effective version' } }, { status: 409 });
     }
-    const nextVersionNumber = document.currentVersionNumber + 1;
+    // Numbers of withdrawn revisions are never reused.
+    const highest = await tenantRead(user.tenantId, (tx) => tx.documentVersion.aggregate({ where: { documentId: id }, _max: { versionNumber: true } }));
+    const nextVersionNumber = (highest._max.versionNumber ?? document.currentVersionNumber) + 1;
     uploadedKey = createControlledObjectKey({ tenantId: user.tenantId, documentId: id, versionNumber: nextVersionNumber });
     await vercelBlobStorage.putObject(uploadedKey, upload.bytes, upload.mimeType);
 

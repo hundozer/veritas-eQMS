@@ -539,6 +539,18 @@ export default function Home() {
     );
   };
 
+  const handleWithdrawRevision = async () => {
+    if (!selectedDoc) return;
+    const reason = window.prompt('Required reason for withdrawing this revision (the effective version stays in force):')?.trim();
+    if (!reason) return;
+    await runDocumentAction(
+      `/api/documents/${selectedDoc.id}/withdraw-revision`,
+      'POST',
+      { reason },
+      'Revision withdrawn; the effective version remains in force.',
+    );
+  };
+
   const handleObsoleteDocument = async () => {
     if (!selectedDoc) return;
     const reason = window.prompt('Required reason for making this document obsolete:')?.trim();
@@ -589,6 +601,7 @@ export default function Home() {
     canApprove: canApproveDocuments,
     canObsolete: canObsoleteDocuments,
     canRelease: canReleaseDocuments,
+    canWithdrawRevision: canWithdrawRevisions,
   } = documentActionsFor(currentUser?.permissions);
   const canInviteUsers = Boolean(currentUser?.permissions?.includes('users.create'));
   const currentWorkflow = selectedDoc?.versions.find((version) => version.versionNumber === selectedDoc.currentVersionNumber)?.approvalRoutes?.[0];
@@ -1493,6 +1506,10 @@ export default function Home() {
                       )}
                       {selectedDoc.status === 'IN_REVIEW' && isAssignedApprover && assignedReviewStep?.status === 'COMPLETED' && (
                         <button className={`${styles.btn} ${styles.btnPrimary}`} onClick={() => setSigningMode('APPROVE')}>Sign Assigned Approval</button>
+                      )}
+                      {canWithdrawRevisions && ['DRAFT', 'IN_REVIEW', 'APPROVED'].includes(selectedDoc.status)
+                        && selectedDoc.versions.some((version) => version.status === 'EFFECTIVE') && (
+                        <button className={`${styles.btn} ${styles.btnSecondary}`} onClick={handleWithdrawRevision}>Withdraw Revision</button>
                       )}
                       {selectedDoc.status === 'APPROVED' && canReleaseDocuments && (
                         <button className={`${styles.btn} ${styles.btnPrimary}`} onClick={() => setSigningMode('RELEASE')}>Sign Release (Make Effective)</button>

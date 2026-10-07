@@ -222,6 +222,50 @@ describe('document lifecycle through the real routes under row-level security', 
     expect(await owner.auditLog.count({ where: { tenantId: a.tenantId, action: 'DOCUMENT_SUPERSEDED', objectId: versions[0].id } })).toBe(1);
   });
 
+  it('LIFE-T005 an open revision is withdrawn, the effective version stays in force, and revision numbers are not reused', async () => {
+    const reviewer = await addMember(owner, a, 'WdReviewer');
+    const approver = await addMember(owner, a, 'WdApprover');
+    const as = (token: string) => ({ ...a, sessionToken: token });
+    const content = (text: string) => ({ contentBase64: Buffer.from(text).toString('base64'), fileName: 'sop.txt', mimeType: 'text/plain' });
+    const { POST: create } = await import('@/app/api/documents/route');
+    const { POST: submit } = await import('@/app/api/documents/[id]/submit-review/route');
+    const { POST: review } = await import('@/app/api/documents/[id]/review/route');
+    const { POST: approve } = await import('@/app/api/documents/[id]/approve/route');
+    const { POST: release } = await import('@/app/api/documents/[id]/release/route');
+    const { POST: revise } = await import('@/app/api/documents/[id]/revision/route');
+    const { POST: withdraw } = await import('@/app/api/documents/[id]/withdraw-revision/route');
+    const { DELETE: obsolete } = await import('@/app/api/documents/[id]/route');
+
+    const documentId = (await (await create(requestAs(a, '/api/documents', { method: 'POST', body: { title: 'Withdraw SOP', classification: 'CONTROLLED', documentType: 'SOP', ...content('v1') } }))).json()).document.id as string;
+    const post = (handler: typeof submit, by: SeededTenant, path: string, body: unknown) => handler(requestAs(by, `/api/documents/${documentId}/${path}`, { method: 'POST', body }), params(documentId));
+    expect((await post(submit, a, 'submit-review', { reviewerId: reviewer.userId, approverId: approver.userId })).status).toBe(200);
+    expect((await post(review, as(reviewer.sessionToken), 'review', { action: 'COMPLETE', password: MEMBER_PASSWORD })).status).toBe(200);
+    expect((await post(approve, as(approver.sessionToken), 'approve', { password: MEMBER_PASSWORD })).status).toBe(200);
+    expect((await post(release, as(approver.sessionToken), 'release', { password: MEMBER_PASSWORD })).status).toBe(200);
+
+    expect((await post(revise, a, 'revision', { reason: 'Update', ...content('v2') })).status).toBe(201);
+    expect((await post(submit, a, 'submit-review', { reviewerId: reviewer.userId, approverId: approver.userId })).status).toBe(200);
+    expect((await post(withdraw, b, 'withdraw-revision', { reason: 'not yours' })).status).toBe(404);
+    expect((await post(withdraw, a, 'withdraw-revision', { reason: 'Change no longer needed' })).status).toBe(200);
+
+    let versions = await owner.documentVersion.findMany({ where: { documentId }, orderBy: { versionNumber: 'asc' }, include: { approvalRoutes: { include: { steps: true } } } });
+    expect(versions.map((version) => [version.versionNumber, version.status])).toEqual([[1, 'EFFECTIVE'], [2, 'WITHDRAWN']]);
+    expect(versions[1].approvalRoutes.map((route) => route.status)).toEqual(['CANCELLED']);
+    expect(versions[1].approvalRoutes[0].steps.every((step) => step.status === 'CANCELLED')).toBe(true);
+    expect(await owner.document.findUniqueOrThrow({ where: { id: documentId } })).toMatchObject({ status: 'EFFECTIVE', currentVersionNumber: 1 });
+
+    expect((await post(revise, a, 'revision', { reason: 'Second attempt', ...content('v3') })).status).toBe(201);
+    const blocked = await obsolete(requestAs(a, `/api/documents/${documentId}`, { method: 'DELETE', body: { reason: 'retire' } }), params(documentId));
+    expect(blocked.status).toBe(409);
+    expect((await post(withdraw, a, 'withdraw-revision', { reason: 'Retiring instead' })).status).toBe(200);
+    const retired = await obsolete(requestAs(a, `/api/documents/${documentId}`, { method: 'DELETE', body: { reason: 'retire' } }), params(documentId));
+    expect(retired.status).toBe(200);
+
+    versions = await owner.documentVersion.findMany({ where: { documentId }, orderBy: { versionNumber: 'asc' }, include: { approvalRoutes: true } });
+    expect(versions.map((version) => [version.versionNumber, version.status])).toEqual([[1, 'OBSOLETE'], [2, 'WITHDRAWN'], [3, 'WITHDRAWN']]);
+    expect(await owner.auditLog.count({ where: { tenantId: a.tenantId, action: 'DOCUMENT_REVISION_WITHDRAWN', payload: { contains: documentId } } })).toBe(2);
+  });
+
   it('LIFE-T004 another tenant cannot release the document', async () => {
     const { POST: release } = await import('@/app/api/documents/[id]/release/route');
     const response = await release(requestAs(b, `/api/documents/${a.documentId}/release`, { method: 'POST', body: { password: MEMBER_PASSWORD } }), params(a.documentId));
