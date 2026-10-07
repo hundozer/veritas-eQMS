@@ -25,6 +25,7 @@ model Tenant {
   notifications         Notification[]
   regulatoryAssessments TenantRequirementAssessment[]
   iamOrganization       IamOrganization?
+  changeRequests        ChangeRequest[]
 }
 
 model User {
@@ -209,19 +210,24 @@ model QuizResult {
 
 model ChangeRequest {
   id        String                  @id @default(uuid())
+  tenantId  String
+  tenant    Tenant                  @relation(fields: [tenantId], references: [id], onUpdate: Restrict)
   title     String
   reason    String
   riskLevel String // e.g. "LOW", "MEDIUM", "HIGH"
   status    String // e.g. "DRAFT", "UNDER_REVIEW", "APPROVED", "CLOSED"
   createdAt DateTime                @default(now())
   documents ChangeRequestDocument[]
+
+  @@unique([id, tenantId])
 }
 
 model ChangeRequestDocument {
   changeRequestId String
-  changeRequest   ChangeRequest @relation(fields: [changeRequestId], references: [id], onDelete: Cascade)
+  tenantId        String
+  changeRequest   ChangeRequest @relation(fields: [changeRequestId, tenantId], references: [id, tenantId], onDelete: Cascade, onUpdate: Restrict)
   documentId      String
-  document        Document      @relation(fields: [documentId], references: [id], onDelete: Restrict)
+  document        Document      @relation(fields: [documentId, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: Restrict)
 
   @@id([changeRequestId, documentId])
 }

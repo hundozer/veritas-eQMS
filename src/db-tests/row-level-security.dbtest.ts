@@ -96,6 +96,22 @@ describe('row-level security on tenant-owned tables', () => {
   it('RLS-T006 the table owner used for migrations still sees every tenant', async () => {
     expect(await owner.document.count({ where: { id: { in: [a.documentId, b.documentId] } } })).toBe(2);
   });
+
+  it('RLS-T007 change requests are visible only to their own tenant', async () => {
+    const bravo = await owner.changeRequest.create({
+      data: { tenantId: b.tenantId, title: 'Bravo change', reason: 'test', riskLevel: 'LOW', status: 'DRAFT', documents: { create: { documentId: b.documentId } } },
+    });
+
+    const seen = await asTenant(app, a.tenantId, async (tx) => ({
+      requests: await tx.changeRequest.count({ where: { id: bravo.id } }),
+      links: await tx.changeRequestDocument.count({ where: { changeRequestId: bravo.id } }),
+    }));
+    expect(seen).toEqual({ requests: 0, links: 0 });
+    expect(await asTenant(app, b.tenantId, (tx) => tx.changeRequest.count({ where: { id: bravo.id } }))).toBe(1);
+    await expect(asTenant(app, a.tenantId, (tx) => tx.changeRequest.create({
+      data: { tenantId: b.tenantId, title: 'Planted', reason: 'test', riskLevel: 'LOW', status: 'DRAFT' },
+    }))).rejects.toThrow(ROW_LEVEL_SECURITY);
+  });
 });
 
 describe('document lifecycle through the real routes under row-level security', () => {

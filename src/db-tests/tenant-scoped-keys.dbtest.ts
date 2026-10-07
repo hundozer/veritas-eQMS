@@ -106,4 +106,18 @@ describe('tenant-scoped keys reject cross-tenant links', () => {
     }));
     expect(quiz.tenantId).toBe(a.tenantId);
   });
+
+  it('TKEY-T010 a change request cannot link another tenant\'s document', async () => {
+    const changeRequest = await asTenant(app, a.tenantId, (tx) => tx.changeRequest.create({
+      data: { tenantId: a.tenantId, title: 'Alpha change', reason: 'test', riskLevel: 'LOW', status: 'DRAFT' },
+    }));
+
+    await expect(asTenant(app, a.tenantId, (tx) => tx.changeRequestDocument.create({
+      data: { changeRequestId: changeRequest.id, tenantId: a.tenantId, documentId: b.documentId },
+    }))).rejects.toThrow(FOREIGN_KEY_VIOLATION);
+    const linked = await asTenant(app, a.tenantId, (tx) => tx.changeRequestDocument.create({
+      data: { changeRequestId: changeRequest.id, tenantId: a.tenantId, documentId: a.documentId },
+    }));
+    expect(linked.tenantId).toBe(a.tenantId);
+  });
 });
