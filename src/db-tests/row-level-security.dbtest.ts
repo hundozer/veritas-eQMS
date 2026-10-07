@@ -179,6 +179,56 @@ describe('document lifecycle through the real routes under row-level security', 
     expect((await owner.signatureManifest.findUniqueOrThrow({ where: { id: signature.id } })).meaning).toBe('APPROVED');
   });
 
+  it('LIFE-T003 Phase 1 gate path: draft, signed review and approval, release to effective, then a revision supersedes it', async () => {
+    const reviewer = await addMember(owner, a, 'GateReviewer');
+    const approver = await addMember(owner, a, 'GateApprover');
+    const as = (token: string) => ({ ...a, sessionToken: token });
+    const content = (text: string) => ({ contentBase64: Buffer.from(text).toString('base64'), fileName: 'sop.txt', mimeType: 'text/plain' });
+    const { POST: create } = await import('@/app/api/documents/route');
+    const { POST: submit } = await import('@/app/api/documents/[id]/submit-review/route');
+    const { POST: review } = await import('@/app/api/documents/[id]/review/route');
+    const { POST: approve } = await import('@/app/api/documents/[id]/approve/route');
+    const { POST: release } = await import('@/app/api/documents/[id]/release/route');
+    const { POST: revise } = await import('@/app/api/documents/[id]/revision/route');
+
+    const created = await create(requestAs(a, '/api/documents', { method: 'POST', body: { title: 'Gate SOP', classification: 'CONTROLLED', documentType: 'SOP', ...content('version one') } }));
+    const documentId = (await created.json()).document.id as string;
+
+    async function signThrough(expectRelease: number) {
+      expect((await submit(requestAs(a, `/api/documents/${documentId}/submit-review`, { method: 'POST', body: { reviewerId: reviewer.userId, approverId: approver.userId } }), params(documentId))).status).toBe(200);
+      expect((await review(requestAs(as(reviewer.sessionToken), `/api/documents/${documentId}/review`, { method: 'POST', body: { action: 'COMPLETE', password: MEMBER_PASSWORD } }), params(documentId))).status).toBe(200);
+      expect((await approve(requestAs(as(approver.sessionToken), `/api/documents/${documentId}/approve`, { method: 'POST', body: { password: MEMBER_PASSWORD } }), params(documentId))).status).toBe(200);
+      const byAuthor = await release(requestAs(a, `/api/documents/${documentId}/release`, { method: 'POST', body: { password: MEMBER_PASSWORD } }), params(documentId));
+      expect(byAuthor.status).toBe(409);
+      const released = await release(requestAs(as(approver.sessionToken), `/api/documents/${documentId}/release`, { method: 'POST', body: { password: MEMBER_PASSWORD } }), params(documentId));
+      expect(released.status).toBe(expectRelease);
+    }
+
+    await signThrough(200);
+    let versions = await owner.documentVersion.findMany({ where: { documentId }, orderBy: { versionNumber: 'asc' } });
+    expect(versions.map((version) => [version.versionNumber, version.status])).toEqual([[1, 'EFFECTIVE']]);
+    expect(versions[0].effectiveDate).not.toBeNull();
+
+    const revised = await revise(requestAs(a, `/api/documents/${documentId}/revision`, { method: 'POST', body: { reason: 'Annual review', ...content('version two') } }), params(documentId));
+    expect(revised.status).toBe(201);
+    await signThrough(200);
+
+    versions = await owner.documentVersion.findMany({ where: { documentId }, orderBy: { versionNumber: 'asc' } });
+    expect(versions.map((version) => [version.versionNumber, version.status])).toEqual([[1, 'SUPERSEDED'], [2, 'EFFECTIVE']]);
+    const document = await owner.document.findUniqueOrThrow({ where: { id: documentId } });
+    expect([document.status, document.currentVersionNumber]).toEqual(['EFFECTIVE', 2]);
+    const meanings = await owner.signatureManifest.findMany({ where: { documentVersionId: versions[1].id }, orderBy: { signedAt: 'asc' }, select: { meaning: true } });
+    expect(meanings.map((row) => row.meaning)).toEqual(['REVIEWED', 'APPROVED', 'RELEASED']);
+    expect(await owner.auditLog.count({ where: { tenantId: a.tenantId, action: 'DOCUMENT_SUPERSEDED', objectId: versions[0].id } })).toBe(1);
+  });
+
+  it('LIFE-T004 another tenant cannot release the document', async () => {
+    const { POST: release } = await import('@/app/api/documents/[id]/release/route');
+    const response = await release(requestAs(b, `/api/documents/${a.documentId}/release`, { method: 'POST', body: { password: MEMBER_PASSWORD } }), params(a.documentId));
+
+    expect(response.status).toBe(404);
+  });
+
   it('LIFE-T002 another tenant cannot submit, review or approve the document', async () => {
     const { POST: submit } = await import('@/app/api/documents/[id]/submit-review/route');
     const response = await submit(requestAs(b, `/api/documents/${a.documentId}/submit-review`, {

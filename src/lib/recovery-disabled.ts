@@ -74,18 +74,3 @@ export function qualityEventsDisabled() {
     },
   );
 }
-
-export function documentReleaseDisabled() {
-  return NextResponse.json(
-    {
-      error: {
-        code: 'DocumentReleaseDisabled',
-        message: 'Document release is temporarily unavailable',
-      },
-    },
-    {
-      status: 503,
-      headers: { 'Cache-Control': 'no-store', 'Retry-After': '86400' },
-    },
-  );
-}

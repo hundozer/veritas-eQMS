@@ -10,6 +10,7 @@ export type ServerErrorEvent =
   | 'document.get'
   | 'document.list'
   | 'document.pdf'
+  | 'document.release'
   | 'document.retrieveControlledObject'
   | 'document.review'
   | 'document.revision'

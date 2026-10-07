@@ -6,6 +6,7 @@ export type DocumentActions = {
   canReview: boolean;
   canApprove: boolean;
   canObsolete: boolean;
+  canRelease: boolean;
 };
 
 export function documentActionsFor(permissions: readonly string[] | undefined): DocumentActions {
@@ -15,5 +16,6 @@ export function documentActionsFor(permissions: readonly string[] | undefined): 
     canReview: granted.has('documents.review'),
     canApprove: granted.has('documents.approve'),
     canObsolete: granted.has('documents.obsolete'),
+    canRelease: granted.has('documents.release'),
   };
 }
