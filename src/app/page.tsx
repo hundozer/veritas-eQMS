@@ -5,6 +5,7 @@ import styles from './page.module.css';
 import { AppShell, useThemeMode } from '@/ui';
 import type { NavGroup } from '@/ui';
 import { LoginErrorNotice } from '@/ui/components/LoginErrorNotice';
+import { documentActionsFor } from '@/lib/document-actions';
 import {
   Dashboard as DashboardIcon,
   Description as DescriptionIcon,
@@ -22,6 +23,7 @@ interface User {
   tenantId: string;
   tenantName?: string;
   membershipRole?: string;
+  permissions?: string[];
   tenant?: {
     id?: string;
     name: string;
@@ -537,7 +539,9 @@ export default function Home() {
 
       const data = await res.json();
       if (res.ok) {
-        setCurrentUser(data.user);
+        // The session carries the persisted permissions that decide which actions are offered.
+        const session = await fetch('/api/auth/session').then((r) => r.json()).catch(() => null);
+        setCurrentUser(session?.user ?? data.user);
         setLoginPassword('');
         setShowLoginModal(false);
         setSuccessMessage(`Switched active session to ${data.user.fullName} (${data.user.role})`);
@@ -556,11 +560,12 @@ export default function Home() {
   };
 
   const selectedDoc = documents.find((d) => d.id === selectedDocId);
-  const lifecycleRole = (currentUser?.membershipRole || currentUser?.role || '').toUpperCase().replace(/[\s-]+/g, '_');
-  const canAuthorDocuments = lifecycleRole === 'QUALITY_MANAGER' || lifecycleRole === 'DOCUMENT_OWNER';
-  const canReviewDocuments = lifecycleRole === 'QUALITY_MANAGER' || lifecycleRole === 'APPROVER';
-  const canApproveDocuments = lifecycleRole === 'QUALITY_MANAGER' || lifecycleRole === 'APPROVER';
-  const canObsoleteDocuments = lifecycleRole === 'QUALITY_MANAGER';
+  const {
+    canAuthor: canAuthorDocuments,
+    canReview: canReviewDocuments,
+    canApprove: canApproveDocuments,
+    canObsolete: canObsoleteDocuments,
+  } = documentActionsFor(currentUser?.permissions);
   const currentWorkflow = selectedDoc?.versions.find((version) => version.versionNumber === selectedDoc.currentVersionNumber)?.approvalRoutes?.[0];
   const assignedReviewStep = currentWorkflow?.steps.find((step) => step.stepType === 'REVIEW');
   const assignedApprovalStep = currentWorkflow?.steps.find((step) => step.stepType === 'APPROVAL');

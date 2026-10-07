@@ -20,7 +20,7 @@ describe('authentication response containment', () => {
     await expect(response.json()).resolves.toEqual({ user: {
       id: context.id, email: context.email, fullName: context.fullName, role: context.role,
       department: context.department, clearance: context.clearance, tenantId: context.tenantId,
-      tenantName: context.tenantName,
+      tenantName: context.tenantName, permissions: [...context.permissions],
     } });
   });
 
