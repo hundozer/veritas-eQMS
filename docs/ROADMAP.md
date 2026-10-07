@@ -44,8 +44,10 @@ Full audit and rationale: "Veritas eQMS — Code Audit & Roadmap" (5 Oct 2026).
 
 **Gate:** a synthetic SOP uploads and verifies in production, and the
 application role cannot alter audit rows.
-Status 7 Oct 2026: upload done and audit protection verified. Open: independent
-check that the stored object's SHA-256 matches the database record.
+Passed 7 Oct 2026. "Phase 0 upload test sop" (SOP-D07EC5C4) uploaded in
+production; its version and `DOCUMENT_CREATED` audit row hold the same SHA-256,
+and the viewer served the stored object after recomputing that hash. Audit
+protection was verified on 6 Oct 2026.
 
 ## Phase 1 — Document control slice (months 1–3)
 
