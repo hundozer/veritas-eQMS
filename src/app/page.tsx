@@ -464,7 +464,9 @@ export default function Home() {
       if (res.ok) {
         setSuccessMessage(signingMode === 'REVIEW'
           ? 'Review signed; assigned approval is now available.'
-          : 'Approval signed. The document must still be explicitly made effective.');
+          : signingMode === 'APPROVE'
+            ? 'Approval signed. The document must still be released to become effective.'
+            : 'Release signed. This version is now effective; any previous version is superseded.');
         closeSigning();
         fetchData();
       } else {
@@ -586,6 +588,7 @@ export default function Home() {
     canReview: canReviewDocuments,
     canApprove: canApproveDocuments,
     canObsolete: canObsoleteDocuments,
+    canRelease: canReleaseDocuments,
   } = documentActionsFor(currentUser?.permissions);
   const canInviteUsers = Boolean(currentUser?.permissions?.includes('users.create'));
   const currentWorkflow = selectedDoc?.versions.find((version) => version.versionNumber === selectedDoc.currentVersionNumber)?.approvalRoutes?.[0];
@@ -1491,10 +1494,8 @@ export default function Home() {
                       {selectedDoc.status === 'IN_REVIEW' && isAssignedApprover && assignedReviewStep?.status === 'COMPLETED' && (
                         <button className={`${styles.btn} ${styles.btnPrimary}`} onClick={() => setSigningMode('APPROVE')}>Sign Assigned Approval</button>
                       )}
-                      {selectedDoc.status === 'APPROVED' && (
-                        <span style={{ fontSize: '12px', color: 'var(--warning)' }}>
-                          Release unavailable pending distinct release authority.
-                        </span>
+                      {selectedDoc.status === 'APPROVED' && canReleaseDocuments && (
+                        <button className={`${styles.btn} ${styles.btnPrimary}`} onClick={() => setSigningMode('RELEASE')}>Sign Release (Make Effective)</button>
                       )}
                       {canObsoleteDocuments && ['DRAFT', 'APPROVED', 'EFFECTIVE'].includes(selectedDoc.status) && (
                         <button className={`${styles.btn} ${styles.btnSecondary}`} onClick={handleObsoleteDocument}>Mark Obsolete</button>
@@ -1983,6 +1984,7 @@ export default function Home() {
                 <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '16px' }}>
                   You are signing <strong style={{ color: '#fff' }}>{selectedDoc.title}</strong> (Version {selectedDoc.currentVersionNumber}.0) with the meaning <strong style={{ color: '#fff' }}>{SIGNING_LABELS[signingMode].meaning}</strong>. Your signature records your name, role, the time and the SHA-256 of this version&apos;s file.
                   {signingMode === 'APPROVE' && ' Approval does not make the document effective.'}
+                  {signingMode === 'RELEASE' && ' Releasing makes this version effective now and supersedes the previously effective version.'}
                 </div>
 
                 <div className={styles.formGroup}>

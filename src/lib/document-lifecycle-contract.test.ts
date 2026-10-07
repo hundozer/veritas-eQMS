@@ -42,12 +42,6 @@ describe('document lifecycle route safety contracts', () => {
     expect(source('src/app/api/documents/[id]/approve/route.ts')).toContain("hasPermission(user, 'documents.approve')");
   });
 
-  it('keeps effectiveness fail-closed until distinct release authority exists', () => {
-    const route = source('src/app/api/documents/[id]/effective/route.ts');
-    expect(route).toContain('documentReleaseDisabled');
-    expect(route).not.toMatch(/NextRequest|prisma|getContext|hasPermission|writeMandatoryAudit/);
-  });
-
   it('verifies durable integrity before submit and approval', () => {
     for (const path of [
       'src/app/api/documents/[id]/submit-review/route.ts',

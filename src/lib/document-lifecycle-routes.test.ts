@@ -208,4 +208,65 @@ describe('document lifecycle routes', () => {
     expect(signatureMock.verifySignerOrRecordFailure).not.toHaveBeenCalled();
     expect(signatureMock.recordSignature).not.toHaveBeenCalled();
   });
+
+  function readyForRelease(previousEffective: Array<{ id: string; versionNumber: number }> = []) {
+    prismaMock.document.findFirst.mockResolvedValue({ ...document, status: 'APPROVED', currentVersionNumber: 2 });
+    prismaMock.documentVersion.findUnique.mockResolvedValue({ ...version, id: 'version-2', versionNumber: 2, status: 'APPROVED' });
+    (prismaMock.documentVersion as Record<string, unknown>).findMany = vi.fn().mockResolvedValue(previousEffective);
+    const tx = {
+      documentVersion: { updateMany: vi.fn().mockResolvedValueOnce({ count: previousEffective.length }).mockResolvedValueOnce({ count: 1 }) },
+      document: { updateMany: vi.fn().mockResolvedValue({ count: 1 }) },
+    };
+    prismaMock.$transaction.mockImplementation(async (callback: (value: typeof tx) => unknown) => callback(tx));
+    return tx;
+  }
+
+  it('REL-T001 release needs documents.release and is refused to the author before anything changes', async () => {
+    readyForRelease();
+    const { POST } = await import('../app/api/documents/[id]/release/route');
+
+    rbacMock.hasPermission.mockReturnValue(false);
+    expect((await POST(request({ password: 'pw' }), { params: Promise.resolve({ id: 'doc-1' }) })).status).toBe(403);
+
+    rbacMock.hasPermission.mockReturnValue(true);
+    authMock.getContext.mockResolvedValue({ ...context, id: 'author-1' });
+    const byAuthor = await POST(request({ password: 'pw' }), { params: Promise.resolve({ id: 'doc-1' }) });
+    expect(byAuthor.status).toBe(409);
+    expect(prismaMock.$transaction).not.toHaveBeenCalled();
+    expect(signatureMock.verifySignerOrRecordFailure).not.toHaveBeenCalled();
+  });
+
+  it('REL-T002 a release whose password does not verify changes nothing', async () => {
+    readyForRelease();
+    signatureMock.verifySignerOrRecordFailure.mockRejectedValue(new signatureMock.SignatureError('PASSWORD_MISMATCH'));
+    const { POST } = await import('../app/api/documents/[id]/release/route');
+
+    const response = await POST(request({ password: 'wrong' }), { params: Promise.resolve({ id: 'doc-1' }) });
+
+    expect(response.status).toBe(403);
+    expect(prismaMock.$transaction).not.toHaveBeenCalled();
+  });
+
+  it('REL-T003 release makes the version effective, supersedes the previous one and signs, in one transaction', async () => {
+    const tx = readyForRelease([{ id: 'version-1', versionNumber: 1 }]);
+    const { POST } = await import('../app/api/documents/[id]/release/route');
+
+    const response = await POST(request({ password: 'pw' }), { params: Promise.resolve({ id: 'doc-1' }) });
+
+    expect(response.status).toBe(200);
+    expect(tx.documentVersion.updateMany).toHaveBeenNthCalledWith(1, { where: { id: { in: ['version-1'] }, status: 'EFFECTIVE' }, data: { status: 'SUPERSEDED' } });
+    expect(tx.documentVersion.updateMany).toHaveBeenNthCalledWith(2, expect.objectContaining({ where: { id: 'version-2', status: 'APPROVED' } }));
+    expect(signatureMock.recordSignature).toHaveBeenCalledWith(tx, expect.objectContaining({ meaning: 'RELEASED' }));
+    expect(auditMock.writeMandatoryAudit).toHaveBeenCalledWith(tx, expect.objectContaining({ action: 'DOCUMENT_RELEASED' }));
+    expect(auditMock.writeMandatoryAudit).toHaveBeenCalledWith(tx, expect.objectContaining({ action: 'DOCUMENT_SUPERSEDED', objectId: 'version-1' }));
+  });
+
+  it('REL-T004 only an approved current version can be released', async () => {
+    readyForRelease();
+    prismaMock.document.findFirst.mockResolvedValue({ ...document, status: 'IN_REVIEW', currentVersionNumber: 2 });
+    const { POST } = await import('../app/api/documents/[id]/release/route');
+
+    expect((await POST(request({ password: 'pw' }), { params: Promise.resolve({ id: 'doc-1' }) })).status).toBe(409);
+    expect(prismaMock.$transaction).not.toHaveBeenCalled();
+  });
 });

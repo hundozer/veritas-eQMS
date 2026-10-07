@@ -13,4 +13,10 @@ describe('signing request from the document screen', () => {
       path: '/api/documents/doc-1/approve', body: { comment: '', password: 'pw' },
     });
   });
+
+  it('SIGNREQ-T003 a release signature goes to the release route with the password', () => {
+    expect(signingRequest('RELEASE', 'doc-1', ' ok ', 'pw')).toEqual({
+      path: '/api/documents/doc-1/release', body: { comment: 'ok', password: 'pw' },
+    });
+  });
 });

@@ -74,6 +74,11 @@ protection was verified on 6 Oct 2026.
   migration `20261007180000_electronic_signatures`). Open: rate limiting of
   failed signing attempts, with login rate limiting in Phase 2.
 - Release (`documents.release`), supersession, withdraw-revision, retire.
+  Release and supersession done (DEC-064): a signed release (meaning
+  `RELEASED`, never by the author) makes the approved version effective and
+  supersedes the previously effective one in the same transaction
+  (`/api/documents/[id]/release`, LIFE-T003 runs the gate path end to end).
+  Open: withdraw-revision, retire.
 - Controlled copies default to the effective version; other versions watermarked.
 - Client-direct signed uploads to Blob.
 - Audited provisioning script; password-setup emails wired.
