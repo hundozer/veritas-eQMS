@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, type Prisma } from '@prisma/client';
 import { NextRequest } from 'next/server';
 import { createIamSession } from '@/lib/iam/session';
 
@@ -15,6 +15,8 @@ export type SeededTenant = {
   assignmentId: string;
   notificationId: string;
   sessionToken: string;
+  organizationId: string;
+  roleId: string;
 };
 
 // A role holding every persisted permission, so isolation failures cannot hide
@@ -95,7 +97,26 @@ export async function seedTenant(owner: PrismaClient, label: string, roleId: str
     assignmentId: assignment.id,
     notificationId: notification.id,
     sessionToken: session.sessionToken,
+    organizationId: organization.id,
+    roleId,
   };
+}
+
+// Adds another signed-in member to a seeded tenant, e.g. a reviewer or approver.
+export async function addMember(owner: PrismaClient, tenant: SeededTenant, label: string): Promise<{ userId: string; sessionToken: string }> {
+  const run = randomUUID().slice(0, 8);
+  const email = `${tenant.label.toLowerCase()}-${label.toLowerCase()}-${run}@example.invalid`;
+  const user = await owner.user.create({
+    data: { email, fullName: `${tenant.label} ${label}`, role: 'QUALITY_MANAGER', department: 'QA', tenantId: tenant.tenantId },
+  });
+  const iamUser = await owner.iamUser.create({
+    data: { email, passwordHash: 'not-used-by-these-tests', firstName: tenant.label, lastName: label, accountStatus: 'ACTIVE' },
+  });
+  const membership = await owner.iamMembership.create({
+    data: { userId: iamUser.id, organizationId: tenant.organizationId, tenantId: tenant.tenantId, operationalUserId: user.id, roleId: tenant.roleId, status: 'ACTIVE' },
+  });
+  const session = await createIamSession({ userId: iamUser.id, membershipId: membership.id });
+  return { userId: user.id, sessionToken: session.sessionToken };
 }
 
 export function requestAs(
@@ -116,4 +137,17 @@ export function markers(tenant: SeededTenant): string[] {
     tenant.tenantId, tenant.operationalUserId, tenant.colleagueId, tenant.email,
     tenant.documentId, tenant.documentTitle, tenant.auditEventId, tenant.assignmentId, tenant.notificationId,
   ];
+}
+
+// Runs work in one transaction as the given tenant, the way src/lib/tenant-db.ts
+// does, so row-level security applies to the application role.
+export function asTenant<T>(
+  client: PrismaClient,
+  tenantId: string,
+  work: (tx: Prisma.TransactionClient) => Promise<T>,
+): Promise<T> {
+  return client.$transaction(async (tx) => {
+    await tx.$executeRaw`SELECT set_config('app.tenant_id', ${tenantId}, true)`;
+    return work(tx);
+  });
 }

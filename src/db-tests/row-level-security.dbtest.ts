@@ -1,0 +1,151 @@
+import { PrismaClient } from '@prisma/client';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
+import { appDatabaseUrl, ownerDatabaseUrl } from './connections';
+import { addMember, asTenant, createFullAccessRole, requestAs, seedTenant, type SeededTenant } from './fixtures';
+
+// Controlled files live in memory here; the database is real.
+vi.mock('@/lib/controlled-storage', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/controlled-storage')>();
+  const objects = new Map<string, { bytes: Uint8Array; contentType: string }>();
+  return {
+    ...actual,
+    vercelBlobStorage: {
+      async putObject(key: string, bytes: Uint8Array, contentType: string) {
+        if (objects.has(key)) throw new Error('overwrite denied');
+        objects.set(key, { bytes, contentType });
+      },
+      async getObject(key: string) {
+        const object = objects.get(key);
+        return object ? { key, bytes: object.bytes, contentType: object.contentType, size: object.bytes.byteLength } : null;
+      },
+      async headObject(key: string) {
+        const object = objects.get(key);
+        return object ? { key, contentType: object.contentType, size: object.bytes.byteLength } : null;
+      },
+      async deleteObject(key: string) { objects.delete(key); },
+    },
+  };
+});
+
+const owner = new PrismaClient({ datasourceUrl: ownerDatabaseUrl() });
+const app = new PrismaClient({ datasourceUrl: appDatabaseUrl() });
+let a: SeededTenant;
+let b: SeededTenant;
+
+const params = (id: string) => ({ params: Promise.resolve({ id }) });
+const ROW_LEVEL_SECURITY = /row-level security/i;
+
+beforeAll(async () => {
+  const roleId = await createFullAccessRole(owner);
+  a = await seedTenant(owner, 'Alpha', roleId);
+  b = await seedTenant(owner, 'Bravo', roleId);
+});
+
+afterAll(async () => {
+  await Promise.all([owner.$disconnect(), app.$disconnect()]);
+});
+
+describe('row-level security on tenant-owned tables', () => {
+  it('RLS-T001 without a tenant the application role sees and writes no tenant rows', async () => {
+    expect(await app.document.findMany({ where: { id: { in: [a.documentId, b.documentId] } } })).toEqual([]);
+    expect(await app.auditLog.count({ where: { tenantId: a.tenantId } })).toBe(0);
+    await expect(app.notification.create({
+      data: { tenantId: a.tenantId, userId: a.operationalUserId, title: 'no tenant', message: '', type: 'DOCUMENT_REVIEW' },
+    })).rejects.toThrow(ROW_LEVEL_SECURITY);
+  });
+
+  it('RLS-T002 as one tenant, another tenant\'s rows are invisible even without a tenant filter', async () => {
+    const seen = await asTenant(app, a.tenantId, async (tx) => ({
+      documents: await tx.document.findMany({ where: { id: { in: [a.documentId, b.documentId] } }, select: { id: true } }),
+      versions: await tx.documentVersion.count({ where: { documentId: b.documentId } }),
+      assignments: await tx.trainingAssignment.count({ where: { id: b.assignmentId } }),
+      notifications: await tx.notification.count({ where: { id: b.notificationId } }),
+      audit: await tx.auditLog.count({ where: { eventId: b.auditEventId } }),
+    }));
+
+    expect(seen).toEqual({ documents: [{ id: a.documentId }], versions: 0, assignments: 0, notifications: 0, audit: 0 });
+  });
+
+  it('RLS-T003 as one tenant, a row labelled with another tenant is refused', async () => {
+    await expect(asTenant(app, a.tenantId, (tx) => tx.notification.create({
+      data: { tenantId: b.tenantId, userId: b.operationalUserId, title: 'cross-tenant', message: '', type: 'DOCUMENT_REVIEW' },
+    }))).rejects.toThrow(ROW_LEVEL_SECURITY);
+  });
+
+  it('RLS-T004 as one tenant, another tenant\'s rows cannot be changed or moved', async () => {
+    const changed = await asTenant(app, a.tenantId, (tx) => tx.document.updateMany({
+      where: { id: b.documentId }, data: { title: 'overwritten' },
+    }));
+    expect(changed.count).toBe(0);
+
+    await expect(asTenant(app, a.tenantId, (tx) => tx.document.update({
+      where: { id: a.documentId }, data: { tenantId: b.tenantId },
+    }))).rejects.toThrow();
+
+    const bravo = await owner.document.findUniqueOrThrow({ where: { id: b.documentId } });
+    expect(bravo.title).not.toBe('overwritten');
+  });
+
+  it('RLS-T005 the tenant setting ends with its transaction', async () => {
+    await asTenant(app, a.tenantId, (tx) => tx.document.count());
+    for (let i = 0; i < 5; i += 1) {
+      expect(await app.document.count({ where: { id: a.documentId } })).toBe(0);
+    }
+  });
+
+  it('RLS-T006 the table owner used for migrations still sees every tenant', async () => {
+    expect(await owner.document.count({ where: { id: { in: [a.documentId, b.documentId] } } })).toBe(2);
+  });
+});
+
+describe('document lifecycle through the real routes under row-level security', () => {
+  it('LIFE-T001 a draft is created, submitted, reviewed and approved with an audit row for each step', async () => {
+    const reviewer = await addMember(owner, a, 'Reviewer');
+    const approver = await addMember(owner, a, 'Approver');
+    const as = (token: string) => ({ ...a, sessionToken: token });
+
+    const { POST: create } = await import('@/app/api/documents/route');
+    const created = await create(requestAs(a, '/api/documents', {
+      method: 'POST',
+      body: { title: 'Lifecycle SOP', classification: 'CONTROLLED', documentType: 'SOP', contentBase64: Buffer.from('synthetic SOP').toString('base64'), fileName: 'sop.txt', mimeType: 'text/plain' },
+    }));
+    expect(created.status).toBe(201);
+    const documentId = (await created.json()).document.id as string;
+
+    const { POST: submit } = await import('@/app/api/documents/[id]/submit-review/route');
+    const submitted = await submit(requestAs(a, `/api/documents/${documentId}/submit-review`, {
+      method: 'POST', body: { reviewerId: reviewer.userId, approverId: approver.userId },
+    }), params(documentId));
+    expect(submitted.status).toBe(200);
+
+    const { POST: review } = await import('@/app/api/documents/[id]/review/route');
+    const reviewed = await review(requestAs(as(reviewer.sessionToken), `/api/documents/${documentId}/review`, {
+      method: 'POST', body: { action: 'COMPLETE' },
+    }), params(documentId));
+    expect(reviewed.status).toBe(200);
+
+    const { POST: approve } = await import('@/app/api/documents/[id]/approve/route');
+    const approved = await approve(requestAs(as(approver.sessionToken), `/api/documents/${documentId}/approve`, {
+      method: 'POST', body: {},
+    }), params(documentId));
+    expect(approved.status).toBe(200);
+
+    const document = await owner.document.findUniqueOrThrow({ where: { id: documentId }, include: { versions: true } });
+    expect(document.status).toBe('APPROVED');
+    expect(document.versions.map((version) => [version.status, version.tenantId])).toEqual([['APPROVED', a.tenantId]]);
+    const actions = await owner.auditLog.findMany({ where: { tenantId: a.tenantId, objectId: { in: [documentId, document.versions[0].id] } }, select: { action: true } });
+    expect(actions.map((row) => row.action)).toEqual(expect.arrayContaining(['DOCUMENT_CREATED', 'DOCUMENT_SUBMITTED_FOR_REVIEW']));
+    expect(actions.length).toBeGreaterThanOrEqual(4);
+  });
+
+  it('LIFE-T002 another tenant cannot submit, review or approve the document', async () => {
+    const { POST: submit } = await import('@/app/api/documents/[id]/submit-review/route');
+    const response = await submit(requestAs(b, `/api/documents/${a.documentId}/submit-review`, {
+      method: 'POST', body: { reviewerId: b.colleagueId, approverId: b.operationalUserId },
+    }), params(a.documentId));
+
+    expect(response.status).toBe(404);
+    const alpha = await owner.document.findUniqueOrThrow({ where: { id: a.documentId } });
+    expect(alpha.status).toBe('DRAFT');
+  });
+});

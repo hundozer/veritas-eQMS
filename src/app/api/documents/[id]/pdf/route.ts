@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import prisma from '@/lib/db';
+import { tenantRead } from '@/lib/tenant-db';
 import { getContext } from '@/lib/auth';
 import { hasPermission } from '@/lib/rbac';
 import { sanitizeDisplayFileName, sha256, vercelBlobStorage, verifyControlledObject } from '@/lib/controlled-storage';
@@ -26,7 +26,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       return new NextResponse('Forbidden', { status: 403 });
     }
 
-    const document = await prisma.document.findFirst({
+    const document = await tenantRead(user.tenantId, (tx) => tx.document.findFirst({
       where: { id, tenantId: user.tenantId },
       select: {
         id: true,
@@ -57,7 +57,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
           },
         },
       },
-    });
+    }));
 
     if (!document) {
       return new NextResponse('404: Document Not Found', { status: 404 });

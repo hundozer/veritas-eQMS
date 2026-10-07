@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server';
 import prisma from './db';
 import { validateIamSession } from './iam/session';
 import { reportServerError } from './server-errors';
+import { tenantTransaction } from './tenant-db';
 
 export interface UserContext {
   iamUserId: string;
@@ -87,7 +88,7 @@ export async function logSecurityEventBestEffort(params: {
     const crypto = await import('crypto');
     const eventId = crypto.randomUUID();
 
-    await prisma.auditLog.create({
+    await tenantTransaction(params.tenantId, (tx) => tx.auditLog.create({
       data: {
         tenantId: params.tenantId,
         eventId,
@@ -102,7 +103,7 @@ export async function logSecurityEventBestEffort(params: {
         sourceIp: params.sourceIp || '127.0.0.1',
         requestUrl: params.requestUrl || null,
       },
-    });
+    }));
   } catch (err) {
     reportServerError('audit.writeFailed');
   }

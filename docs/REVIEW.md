@@ -34,6 +34,8 @@ qualified human reviewer of record.
 - [ ] IDs taken from the request (user, document, version) are verified to
       belong to the caller's tenant before use.
 - [ ] Storage keys are built server-side and are tenant-prefixed.
+- [ ] Tenant-owned tables are read and written only inside `tenantRead` or
+      `tenantTransaction`; Blob I/O stays outside those transactions.
 
 ### Authorization
 - [ ] Every handler calls `getContext` then `hasPermission` with a persisted
@@ -67,7 +69,8 @@ qualified human reviewer of record.
 ### Database changes
 - [ ] Schema changes come with a migration; destructive steps are called out.
 - [ ] New tenant-owned models have `tenantId` and an index that serves their
-      list query.
+      list query, composite `(id, tenantId)` foreign keys, and a row-level
+      security policy in the same migration.
 
 ### Tests
 - [ ] New behaviour has tests that exercise the route or library, not grep the

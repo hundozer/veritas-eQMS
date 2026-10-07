@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import prisma from '@/lib/db';
+import { tenantRead } from '@/lib/tenant-db';
 import { getContext } from '@/lib/auth';
 import { hasPermission } from '../../../lib/rbac';
 import { unexpectedErrorResponse } from '../../../lib/server-errors';
@@ -18,11 +18,11 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    const notifications = await prisma.notification.findMany({
+    const notifications = await tenantRead(user.tenantId, (tx) => tx.notification.findMany({
       where: { userId: user.id, tenantId: user.tenantId },
       orderBy: { createdAt: 'desc' },
       take: 20,
-    });
+    }));
 
     return NextResponse.json({ notifications });
   } catch (error: any) {

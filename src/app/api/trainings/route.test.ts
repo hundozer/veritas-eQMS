@@ -10,6 +10,7 @@ const { getContext, findMany, update, quizCreate, transaction } = vi.hoisted(() 
 }));
 
 vi.mock('@/lib/auth', () => ({ getContext }));
+vi.mock('@/lib/tenant-db', async () => (await import('../../../test-support/tenant-db-double')).tenantDbDouble());
 vi.mock('@/lib/db', () => ({
   default: {
     trainingAssignment: { findMany, update },

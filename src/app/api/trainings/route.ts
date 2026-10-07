@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import prisma from '@/lib/db';
+import { tenantRead } from '@/lib/tenant-db';
 import { getContext } from '@/lib/auth';
 import { hasPermission } from '../../../lib/rbac';
 import { trainingCompletionDisabled } from '../../../lib/recovery-disabled';
@@ -21,7 +21,7 @@ export async function GET(req: NextRequest) {
 
     if (canReadAll) {
       // 1. Get entire training matrix for the tenant
-      const assignments = await prisma.trainingAssignment.findMany({
+      const assignments = await tenantRead(user.tenantId, (tx) => tx.trainingAssignment.findMany({
         where: {
           user: { tenantId: user.tenantId },
         },
@@ -44,12 +44,12 @@ export async function GET(req: NextRequest) {
           quizResult: { select: { id: true, score: true, passed: true, createdAt: true } },
         },
         orderBy: { assignedAt: 'desc' },
-      });
+      }));
 
       return NextResponse.json({ assignments, isMatrix: true }, { headers: { 'Cache-Control': 'no-store' } });
     } else {
       // 2. Get assignments only for the current user
-      const assignments = await prisma.trainingAssignment.findMany({
+      const assignments = await tenantRead(user.tenantId, (tx) => tx.trainingAssignment.findMany({
         where: {
           userId: user.id,
           user: { tenantId: user.tenantId },
@@ -72,7 +72,7 @@ export async function GET(req: NextRequest) {
           quizResult: { select: { id: true, score: true, passed: true, createdAt: true } },
         },
         orderBy: { status: 'asc' }, // ASSIGNED first, then COMPLETED
-      });
+      }));
 
       return NextResponse.json({ assignments, isMatrix: false }, { headers: { 'Cache-Control': 'no-store' } });
     }

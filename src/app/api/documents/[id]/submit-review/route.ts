@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/db';
+import { tenantRead, tenantTransaction } from '@/lib/tenant-db';
 import { getContext } from '@/lib/auth';
 import { hasPermission } from '@/lib/rbac';
 import { writeMandatoryAudit } from '@/lib/audit';
@@ -18,13 +19,13 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       return NextResponse.json({ error: { code: 'ValidationFailed', message: 'Distinct reviewer and approver assignments are required' } }, { status: 400 });
     }
 
-    const document = await prisma.document.findFirst({
+    const document = await tenantRead(user.tenantId, (tx) => tx.document.findFirst({
       where: { id, tenantId: user.tenantId },
-    });
+    }));
     if (!document) return NextResponse.json({ error: { code: 'NotFound', message: 'Document not found' } }, { status: 404 });
-    const version = await prisma.documentVersion.findUnique({
+    const version = await tenantRead(user.tenantId, (tx) => tx.documentVersion.findUnique({
       where: { documentId_versionNumber: { documentId: id, versionNumber: document.currentVersionNumber } },
-    });
+    }));
     if (!version) return NextResponse.json({ error: { code: 'Conflict', message: 'Current document version is missing' } }, { status: 409 });
     assertTransition(version.status, 'IN_REVIEW');
     await verifyLifecycleIntegrity(version);
@@ -38,7 +39,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       return NextResponse.json({ error: { code: 'SegregationOfDuties', message: 'The document author cannot be assigned as its approver' } }, { status: 409 });
     }
 
-    const route = await prisma.$transaction(async (tx) => {
+    const route = await tenantTransaction(user.tenantId, async (tx) => {
       const transitioned = await tx.documentVersion.updateMany({ where: { id: version.id, status: 'DRAFT' }, data: { status: 'IN_REVIEW' } });
       if (transitioned.count !== 1) throw new Error('STALE_DOCUMENT_VERSION');
       const updated = await tx.document.updateMany({ where: { id, tenantId: user.tenantId, currentVersionNumber: version.versionNumber, status: 'DRAFT' }, data: { status: 'IN_REVIEW' } });

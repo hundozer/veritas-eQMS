@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import prisma from '@/lib/db';
+import { tenantRead, tenantTransaction } from '@/lib/tenant-db';
 import { getContext, logAuditEvent } from '@/lib/auth';
 import { hasPermission } from '@/lib/rbac';
 import { writeMandatoryAudit } from '@/lib/audit';
@@ -25,7 +25,7 @@ export async function GET(req: NextRequest) {
     }
 
     // Tenant isolation
-    const dbDocs = await prisma.document.findMany({
+    const dbDocs = await tenantRead(user.tenantId, (tx) => tx.document.findMany({
       where: {
         tenantId: user.tenantId,
       },
@@ -77,7 +77,7 @@ export async function GET(req: NextRequest) {
         },
       },
       orderBy: { updatedAt: 'desc' },
-    });
+    }));
 
     // Log the read action asynchronously
     await logAuditEvent({
@@ -142,7 +142,7 @@ export async function POST(req: NextRequest) {
     await vercelBlobStorage.putObject(storageKey, upload.bytes, upload.mimeType);
 
     // 2. Database transaction (Outbox-equivalent in prisma: save doc + version + training config in one txn)
-    const result = await prisma.$transaction(async (tx) => {
+    const result = await tenantTransaction(user.tenantId, async (tx) => {
       // Create Document
       const document = await tx.document.create({
         data: {

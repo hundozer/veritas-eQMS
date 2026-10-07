@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { PrismaClient } from '@prisma/client';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { appDatabaseUrl, ownerDatabaseUrl } from './connections';
+import { asTenant } from './fixtures';
 
 const owner = new PrismaClient({ datasourceUrl: ownerDatabaseUrl() });
 const app = new PrismaClient({ datasourceUrl: appDatabaseUrl() });
@@ -49,9 +50,11 @@ describe('audit tables are append-only for every role', () => {
 describe('the application role is least-privileged', () => {
   it('DBAPP-T001 can insert and read audit rows', async () => {
     const id = randomUUID();
-    await app.$executeRaw`insert into "AuditLog" (id, "tenantId", "eventId", action, "objectType", payload, status)
-      values (${id}, ${tenantId}, ${randomUUID()}, 'APP', 'Test', '{}', 'SUCCESS')`;
-    const rows = await app.$queryRaw<{ id: string }[]>`select id from "AuditLog" where id = ${id}`;
+    const rows = await asTenant(app, tenantId, async (tx) => {
+      await tx.$executeRaw`insert into "AuditLog" (id, "tenantId", "eventId", action, "objectType", payload, status)
+        values (${id}, ${tenantId}, ${randomUUID()}, 'APP', 'Test', '{}', 'SUCCESS')`;
+      return tx.$queryRaw<{ id: string }[]>`select id from "AuditLog" where id = ${id}`;
+    });
     expect(rows).toHaveLength(1);
   });
 

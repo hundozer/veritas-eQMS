@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import prisma from '@/lib/db';
+import { tenantRead, tenantTransaction } from '@/lib/tenant-db';
 import { getContext } from '@/lib/auth';
 import { hasPermission } from '@/lib/rbac';
 import { writeMandatoryAudit } from '@/lib/audit';
@@ -18,20 +18,20 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     const comment = typeof body.comment === 'string' ? body.comment.trim() : '';
     if (action === 'RETURN' && !comment) return NextResponse.json({ error: { code: 'ValidationFailed', message: 'A reason is required when returning a document for changes' } }, { status: 400 });
 
-    const document = await prisma.document.findFirst({ where: { id, tenantId: user.tenantId } });
+    const document = await tenantRead(user.tenantId, (tx) => tx.document.findFirst({ where: { id, tenantId: user.tenantId } }));
     if (!document) return NextResponse.json({ error: { code: 'NotFound', message: 'Document not found' } }, { status: 404 });
-    const version = await prisma.documentVersion.findUnique({ where: { documentId_versionNumber: { documentId: id, versionNumber: document.currentVersionNumber } } });
+    const version = await tenantRead(user.tenantId, (tx) => tx.documentVersion.findUnique({ where: { documentId_versionNumber: { documentId: id, versionNumber: document.currentVersionNumber } } }));
     if (!version || version.status !== 'IN_REVIEW') return NextResponse.json({ error: { code: 'InvalidTransition', message: 'Only an in-review version can be reviewed' } }, { status: 409 });
-    const route = await prisma.approvalRoute.findFirst({
+    const route = await tenantRead(user.tenantId, (tx) => tx.approvalRoute.findFirst({
       where: { documentVersionId: version.id, status: { in: ['PENDING', 'REVIEWED'] } },
       orderBy: { createdAt: 'desc' }, include: { steps: true },
-    });
+    }));
     const step = route?.steps.find((item) => item.stepType === 'REVIEW');
     if (!route || !step || step.approverId !== user.id) return NextResponse.json({ error: { code: 'NotAssignedReviewer', message: 'Only the assigned reviewer may complete this action' } }, { status: 403 });
     if (step.status !== 'PENDING') return NextResponse.json({ error: { code: 'StaleWorkflowAction', message: 'This review action has already been completed' } }, { status: 409 });
 
     if (action === 'RETURN') assertTransition(version.status, 'DRAFT');
-    await prisma.$transaction(async (tx) => {
+    await tenantTransaction(user.tenantId, async (tx) => {
       const completed = await tx.approvalRouteStep.updateMany({
         where: { id: step.id, status: 'PENDING' },
         data: { status: action === 'RETURN' ? 'RETURNED' : 'COMPLETED', completedAt: new Date(), comment: comment || null },
