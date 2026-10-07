@@ -137,11 +137,12 @@ export async function POST(req: NextRequest) {
     }
 
     const documentId = randomUUID();
-    uploadedKey = createControlledObjectKey({ tenantId: user.tenantId, documentId, versionNumber: 1 });
-    await vercelBlobStorage.putObject(uploadedKey, upload.bytes, upload.mimeType);
+    const storageKey = createControlledObjectKey({ tenantId: user.tenantId, documentId, versionNumber: 1 });
+    uploadedKey = storageKey;
+    await vercelBlobStorage.putObject(storageKey, upload.bytes, upload.mimeType);
 
     // 2. Database transaction (Outbox-equivalent in prisma: save doc + version + training config in one txn)
-    const result = await prisma.$transaction(async (tx: any) => {
+    const result = await prisma.$transaction(async (tx) => {
       // Create Document
       const document = await tx.document.create({
         data: {
@@ -162,11 +163,12 @@ export async function POST(req: NextRequest) {
       await tx.documentVersion.create({
         data: {
           documentId: document.id,
+          tenantId: user.tenantId,
           versionNumber: 1,
           status: 'DRAFT',
-          filePath: uploadedKey,
+          filePath: storageKey,
           fileData: null,
-          storageKey: uploadedKey,
+          storageKey,
           originalFileName: upload.fileName,
           mimeType: upload.mimeType,
           sizeBytes: upload.bytes.byteLength,
@@ -181,6 +183,7 @@ export async function POST(req: NextRequest) {
         await tx.trainingRequirement.create({
           data: {
             documentId: document.id,
+            tenantId: user.tenantId,
             requiredForRoles: requiredRoles, // Comma separated, e.g. "EMPLOYEE,OWNER"
             requiresQuiz: requiresQuiz === true,
             quizQuestions: quizQuestions ? JSON.stringify(quizQuestions) : null,

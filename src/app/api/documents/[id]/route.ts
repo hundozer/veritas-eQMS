@@ -149,7 +149,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     }
 
     // 2. Transactionally save everything (metadata update, new version entry, update training)
-    const updatedDoc = await prisma.$transaction(async (tx: any) => {
+    const updatedDoc = await prisma.$transaction(async (tx) => {
       // Update basic fields
       const documentUpdate = await tx.document.updateMany({
         where: { id, tenantId: user.tenantId, status: 'DRAFT', currentVersionNumber: currentVersion.versionNumber },
@@ -190,6 +190,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
           },
           create: {
             documentId: id,
+            tenantId: user.tenantId,
             requiredForRoles: requiredRoles,
             requiresQuiz: requiresQuiz === true,
             quizQuestions: quizQuestions ? JSON.stringify(quizQuestions) : null,

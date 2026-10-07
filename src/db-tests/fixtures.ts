@@ -67,10 +67,10 @@ export async function seedTenant(owner: PrismaClient, label: string, roleId: str
     },
   });
   const requirement = await owner.trainingRequirement.create({
-    data: { documentId: document.id, requiredForRoles: 'QA' },
+    data: { documentId: document.id, tenantId: tenant.id, requiredForRoles: 'QA' },
   });
   const assignment = await owner.trainingAssignment.create({
-    data: { requirementId: requirement.id, userId: user.id, status: 'ASSIGNED' },
+    data: { requirementId: requirement.id, tenantId: tenant.id, userId: user.id, status: 'ASSIGNED' },
   });
   const notification = await owner.notification.create({
     data: { tenantId: tenant.id, userId: user.id, title: `${label} notice ${run}`, message: `${label} only`, type: 'DOCUMENT_REVIEW' },
