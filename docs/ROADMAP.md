@@ -84,6 +84,12 @@ protection was verified on 6 Oct 2026.
   effective document is a signed act (meaning `RETIRED`, reason required,
   recorded with the signature in the same transaction).
 - Controlled copies default to the effective version; other versions watermarked.
+  Done (DEC-067): the viewer and file download default to the effective
+  version and serve it exactly as stored. Any other version is stamped on every
+  PDF page (or at the top of a text file) as an uncontrolled copy of its status,
+  with the version and who printed it when. A PDF that cannot be stamped is not
+  served. Word, Excel and PowerPoint files cannot be stamped and are downloaded
+  under an `UNCONTROLLED-<status>-` file name (`src/lib/controlled-copy.ts`).
 - Client-direct signed uploads to Blob.
 - Audited provisioning script; password-setup emails wired.
   Done in the application rather than as a script, because the owner works
