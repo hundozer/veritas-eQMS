@@ -13,13 +13,13 @@ a capability updates it in the same pull request. Status words:
 Decisions are referenced as `DEC-nnn` (`docs/recovery/decisions/DECISION-LOG.md`);
 the plan is `docs/ROADMAP.md`; review rules are `docs/REVIEW.md`.
 
-Last updated: 8 Oct 2026 (after PR 27).
+Last updated: 9 Oct 2026 (route groups, DEC-070).
 
 ## Platform
 
 | Area | What it is |
 | --- | --- |
-| Application | Next.js 16 (App Router; read `node_modules/next/dist/docs/` before coding), React 19, MUI 9. One client page `src/app/page.tsx` holds the signed-in app (splitting it is the last open Phase 1 item). |
+| Application | Next.js 16 (App Router; read `node_modules/next/dist/docs/` before coding), React 19, MUI 9 with `@mui/material-nextjs` so server-rendered styles hydrate cleanly. Static landing page and sign-in at `/` (`src/app/(marketing)`); signed-in workspace at `/app` (`src/app/(app)`), whose server layout redirects to `/` without a valid session; `/auth/setup-password` for invited people. |
 | Database | PostgreSQL on Neon (project `steep-meadow-61507302`), Prisma 6.19. Migrations in `prisma/migrations/`; production migrations are applied by Claude with the owner's explicit yes, plus a `_prisma_migrations` row with the file's SHA-256. |
 | Runtime role | The app connects as `veritas_app` (`prisma/maintenance/2026-10-06-app-role.sql`): data privileges only, no DDL, no migration ledger, no UPDATE/DELETE on audit tables (DEC-057). |
 | Hosting | Vercel Hobby (project `prj_tyJHLF7LPckLMOk9aw7vFY2BNRhQ`). Merging to `main` deploys production. Free plans only (owner decision). |
@@ -140,9 +140,10 @@ transaction.
 
 | Capability | Status | Where |
 | --- | --- | --- |
-| Dashboard with document counts | Live | `src/app/page.tsx` |
+| Dashboard with document counts | Live | `src/app/(app)/app/page.tsx` |
 | Own notifications | Live | `GET /api/notifications` (`notification.read_own`) |
-| Public landing page and sign-in form | Live | `src/app/page.tsx` |
+| Public landing page and sign-in form; a visitor with a session is sent on to `/app` | Live | `src/app/(marketing)/` |
+| Workspace sections offered by persisted permission (`users.read` → user access, `audit.read` → audit log) | Live | `src/lib/workspace-access.ts` |
 | Demo request form | Disabled | `POST /api/demo-request` |
 | Report export | Disabled | `GET /api/reports/export` |
 

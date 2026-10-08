@@ -1,8 +1,9 @@
+import { appPageSource } from '../test-support/app-pages';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
-const page = readFileSync(resolve('src/app/page.tsx'), 'utf8');
+const page = appPageSource();
 
 describe('user-administration UI containment', () => {
   it('USER-ADMIN-UI-T001 removes provisioning and role-change controls', () => {

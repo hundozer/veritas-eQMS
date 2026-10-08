@@ -1,8 +1,9 @@
+import { appPageSource } from '../test-support/app-pages';
 import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
-const page = readFileSync(resolve('src/app/page.tsx'), 'utf8');
+const page = appPageSource();
 
 describe('role-registry containment', () => {
   it('ROLE-REGISTRY-T001 removes the conflicting static UI policy', () => {

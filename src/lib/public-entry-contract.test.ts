@@ -1,15 +1,14 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
+import { appPageSource } from '../test-support/app-pages';
 
-const source = readFileSync(new URL('../app/page.tsx', import.meta.url), 'utf8');
-const landingStart = source.indexOf("if (viewMode === 'landing')");
-const landingEnd = source.indexOf('\n  return (', landingStart + 1);
-const landingSource = source.slice(landingStart, landingEnd);
+// The public landing page is its own component; the workspace is behind a
+// server-side session check at /app.
+const landingSource = readFileSync(new URL('../app/(marketing)/Landing.tsx', import.meta.url), 'utf8');
+const source = appPageSource();
 
 describe('public entry containment contract', () => {
   it('ENTRY-T001: exposes no self-service provisioning trigger', () => {
-    expect(landingStart).toBeGreaterThan(-1);
-    expect(landingEnd).toBeGreaterThan(landingStart);
     expect(landingSource).not.toContain('setShowOnboardingWizard(true)');
     expect(landingSource).not.toContain('setShowRegisterModal(true)');
     expect(landingSource).toContain('setShowDemoRequestModal(true)');

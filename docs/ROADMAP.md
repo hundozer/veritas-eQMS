@@ -53,6 +53,10 @@ protection was verified on 6 Oct 2026.
 
 - Split `src/app/page.tsx` into `(marketing)` and `(app)` route groups; the UI is
   gated by session permissions, never `User.role`.
+  Done (DEC-070): the static landing page and sign-in live at `/`
+  (`src/app/(marketing)`), the workspace at `/app` (`src/app/(app)`), whose
+  layout checks the session on the server before rendering. Workspace sections
+  follow persisted permissions (`src/lib/workspace-access.ts`).
 - `tenantId` on every tenant-owned row, composite `(id, tenantId)` foreign keys,
   row-level security, two-tenant isolation suite in CI.
   Done for the document and training tables (DEC-059): migration
