@@ -10,8 +10,9 @@ will rely on this code, so correctness beats speed.
 ## Start of every session
 
 1. Read `docs/ROADMAP.md` and work only on the current phase's open items.
-2. Read `docs/REVIEW.md`; every pull request must pass it before you open it.
-3. `git fetch` and branch from `main`.
+2. Read `docs/FEATURES.md` for what exists, what is disabled, and where it lives.
+3. Read `docs/REVIEW.md`; every pull request must pass it before you open it.
+4. `git fetch` and branch from `main`.
 
 ## Rules
 
@@ -32,6 +33,8 @@ will rely on this code, so correctness beats speed.
   `npm run test:db` against a disposable PostgreSQL (`TEST_DATABASE_URL`); add a
   two-tenant case in `src/db-tests/` for every new tenant-owned read or write.
 - Tick roadmap items in `docs/ROADMAP.md` in the same PR that completes them.
+- Update `docs/FEATURES.md` in the same PR that adds, removes, enables or
+  disables a capability.
 
 ## Key places
 
