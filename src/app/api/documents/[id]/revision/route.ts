@@ -3,7 +3,7 @@ import { tenantRead, tenantTransaction } from '@/lib/tenant-db';
 import { getContext } from '@/lib/auth';
 import { hasPermission } from '@/lib/rbac';
 import { writeMandatoryAudit } from '@/lib/audit';
-import { cleanupUncontrolledObject, createControlledObjectKey, decodeControlledUpload, vercelBlobStorage } from '@/lib/controlled-storage';
+import { cleanupUncontrolledObject, createControlledObjectKey, resolveControlledUpload, vercelBlobStorage } from '@/lib/controlled-storage';
 import { reportServerError } from '../../../../../lib/server-errors';
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -18,7 +18,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     if (!reason) return NextResponse.json({ error: { code: 'ValidationFailed', message: 'A revision reason or change summary is required' } }, { status: 400 });
     let upload;
     try {
-      upload = decodeControlledUpload({ contentBase64: body.contentBase64, fileName: body.fileName, mimeType: body.mimeType });
+      upload = await resolveControlledUpload(vercelBlobStorage, user.tenantId, body);
     } catch (error) {
       return NextResponse.json({ error: { code: 'ValidationFailed', message: (error as Error).message } }, { status: 400 });
     }
@@ -56,6 +56,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       return created;
     });
     uploadedKey = null;
+    // The controlled copy is committed; the browser's staging upload is no longer needed.
+    if (upload?.stagingKey) await cleanupUncontrolledObject(vercelBlobStorage, upload.stagingKey);
     return NextResponse.json({ version }, { status: 201 });
   } catch (error) {
     if (uploadedKey) await cleanupUncontrolledObject(vercelBlobStorage, uploadedKey);

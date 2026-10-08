@@ -9,6 +9,7 @@ import { documentActionsFor } from '@/lib/document-actions';
 import { REASON_REQUIRED, SIGNING_LABELS, signingRequest, type SigningMode } from '@/lib/signing-request';
 import InviteMemberPanel from '@/ui/components/InviteMemberPanel';
 import { resendInvitation } from '@/lib/invitations-client';
+import { prepareDocumentFile, sha256Hex } from '@/lib/document-file-upload';
 import {
   Dashboard as DashboardIcon,
   Description as DescriptionIcon,
@@ -156,38 +157,22 @@ export default function Home() {
   const [newQuizQ1Correct, setNewQuizQ1Correct] = useState(1);
 
   // Attached Physical File State
-  const [docFileBase64, setDocFileBase64] = useState<string | null>(null);
+  const [docFile, setDocFile] = useState<File | null>(null);
   const [docFileName, setDocFileName] = useState('');
   const [docFileSize, setDocFileSize] = useState('');
   const [docFileHash, setDocFileHash] = useState('');
-  const [docFileMime, setDocFileMime] = useState('application/pdf');
 
   const handleDocFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
+    setDocFile(file);
     setDocFileName(file.name);
-    setDocFileMime(file.type || 'application/pdf');
     setDocFileSize(`${(file.size / 1024).toFixed(1)} KB`);
-
-    // Calculate SHA-256 Hash
     try {
-      const arrayBuffer = await file.arrayBuffer();
-      const hashBuffer = await crypto.subtle.digest('SHA-256', arrayBuffer);
-      const hashArray = Array.from(new Uint8Array(hashBuffer));
-      const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-      setDocFileHash(hashHex);
-
-      const reader = new FileReader();
-      reader.onload = () => {
-        const result = reader.result as string;
-        // Strip data url prefix e.g. "data:application/pdf;base64,"
-        const base64 = result.split(',')[1] || result;
-        setDocFileBase64(base64);
-      };
-      reader.readAsDataURL(file);
-    } catch (err) {
-      console.error('File hash calculation error:', err);
+      setDocFileHash(await sha256Hex(await file.arrayBuffer()));
+    } catch {
+      setDocFileHash('');
     }
   };
 
@@ -303,23 +288,13 @@ export default function Home() {
     if (!file) return;
 
     try {
-      const contentBase64 = await new Promise<string>((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(String(reader.result).split(',')[1]);
-        reader.onerror = () => reject(new Error('Unable to read the selected file'));
-        reader.readAsDataURL(file);
-      });
+      const fileFields = await prepareDocumentFile(file);
       const res = await fetch(`/api/documents/${docId}/revision`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          reason,
-          fileName: file.name,
-          mimeType: file.type || 'application/octet-stream',
-          contentBase64,
-        }),
+        body: JSON.stringify({ reason, ...fileFields }),
       });
 
       const data = await res.json();
@@ -349,16 +324,10 @@ export default function Home() {
     });
     if (!file) return;
     try {
-      const contentBase64 = await new Promise<string>((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(String(reader.result).split(',')[1]);
-        reader.onerror = () => reject(new Error('Unable to read the selected file'));
-        reader.readAsDataURL(file);
-      });
       const res = await fetch(`/api/documents/${docId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ contentBase64, fileName: file.name, mimeType: file.type || 'application/octet-stream' }),
+        body: JSON.stringify(await prepareDocumentFile(file)),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error?.message || 'Draft replacement failed');
@@ -376,7 +345,7 @@ export default function Home() {
   // Create Document
   const handleCreateDocument = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newTitle.trim() || !docFileBase64) {
+    if (!newTitle.trim() || !docFile) {
       setErrorMessage('A source file is required for every controlled document.');
       return;
     }
@@ -391,6 +360,7 @@ export default function Home() {
         }
       ];
 
+      const fileFields = await prepareDocumentFile(docFile);
       const res = await fetch('/api/documents', {
         method: 'POST',
         headers: {
@@ -399,14 +369,12 @@ export default function Home() {
         body: JSON.stringify({
           title: newTitle,
           documentType: newDocumentType,
-          fileName: docFileName,
-          mimeType: docFileMime,
+          ...fileFields,
           description: newDesc,
           classification: newClassification,
           requiredRoles: newRequiredRoles,
           requiresQuiz: newRequiresQuiz,
           quizQuestions: newRequiresQuiz ? quizQuestionsList : null,
-          contentBase64: docFileBase64,
         }),
       });
 
@@ -420,7 +388,7 @@ export default function Home() {
         setNewClassification('CONTROLLED');
         setNewRequiredRoles('EMPLOYEE');
         setNewRequiresQuiz(false);
-        setDocFileBase64(null);
+        setDocFile(null);
         setDocFileName('');
         setDocFileSize('');
         setDocFileHash('');

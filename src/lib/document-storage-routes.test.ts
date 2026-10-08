@@ -14,6 +14,7 @@ const storageMock = vi.hoisted(() => ({
   decodeControlledUpload: vi.fn(() => ({
     bytes: new Uint8Array([1, 2, 3]), fileName: 'record.pdf', mimeType: 'application/pdf', hash: 'stored-sha256',
   })),
+  resolveControlledUpload: vi.fn(async (_storage: unknown, _tenantId: string, body: Record<string, unknown>) => (storageMock.decodeControlledUpload as (input: unknown) => unknown)(body)),
   sanitizeDisplayFileName: vi.fn((value: string) => value),
   sha256: vi.fn(() => 'stored-sha256'),
   verifyControlledObject: vi.fn(),
