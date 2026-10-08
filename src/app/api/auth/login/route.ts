@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 import { verifyPassword } from '@/lib/iam/password';
-import { createIamSession } from '@/lib/iam/session';
+import { createIamSession, identityMemberships } from '@/lib/iam/session';
+import { tenantRead } from '@/lib/tenant-db';
 
 const SESSION_COOKIE_NAME = 'iam-access-token';
 const GENERIC_AUTH_FAILURE = {
@@ -32,29 +33,7 @@ export async function POST(req: NextRequest) {
 
     const iamUser = await prisma.iamUser.findUnique({
       where: { email: email.trim().toLowerCase() },
-      include: {
-        memberships: {
-          where: { status: 'ACTIVE', organization: { status: { in: ['ACTIVE', 'TRIAL'] } } },
-          include: {
-            organization: { select: { tenantId: true, status: true } },
-            role: { select: { id: true } },
-            operationalUser: {
-              select: {
-                id: true,
-                email: true,
-                fullName: true,
-                role: true,
-                department: true,
-                clearance: true,
-                tenantId: true,
-                accountStatus: true,
-                expiresAt: true,
-                tenant: { select: { name: true } },
-              },
-            },
-          },
-        },
-      },
+      select: { id: true, accountStatus: true, passwordHash: true },
     });
 
     if (
@@ -65,14 +44,38 @@ export async function POST(req: NextRequest) {
       return authenticationFailed();
     }
 
-    if (iamUser.memberships.length > 1) {
+    const memberships = await identityMemberships(iamUser.id);
+    if (memberships.length > 1) {
       return NextResponse.json(
         { error: { code: 'MembershipSelectionRequired', message: 'Organization selection is required' } },
         { status: 409, headers: { 'Cache-Control': 'no-store' } },
       );
     }
+    if (memberships.length === 0) return authenticationFailed();
 
-    const membership = iamUser.memberships[0];
+    // The rest of the membership is read as its tenant (DEC-069).
+    const { membershipId, tenantId } = memberships[0];
+    const membership = await tenantRead(tenantId, (tx) => tx.iamMembership.findFirst({
+      where: { id: membershipId, tenantId, userId: iamUser.id },
+      include: {
+        organization: { select: { tenantId: true, status: true } },
+        role: { select: { id: true } },
+        operationalUser: {
+          select: {
+            id: true,
+            email: true,
+            fullName: true,
+            role: true,
+            department: true,
+            clearance: true,
+            tenantId: true,
+            accountStatus: true,
+            expiresAt: true,
+            tenant: { select: { name: true } },
+          },
+        },
+      },
+    }));
     if (
       !membership ||
       membership.status !== 'ACTIVE' ||
@@ -96,6 +99,7 @@ export async function POST(req: NextRequest) {
     const session = await createIamSession({
       userId: iamUser.id,
       membershipId: membership.id,
+      tenantId: membership.tenantId,
       ipAddress: req.headers.get('x-forwarded-for')?.split(',')[0]?.trim(),
       userAgent: req.headers.get('user-agent') ?? undefined,
     });

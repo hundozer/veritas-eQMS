@@ -6,14 +6,21 @@ const prismaMock = vi.hoisted(() => ({
   user: { findUnique: vi.fn(), create: vi.fn() },
   tenant: { create: vi.fn() },
   iamOrganization: { create: vi.fn() },
-  iamMembership: { create: vi.fn() },
+  iamMembership: { create: vi.fn(), findFirst: vi.fn() },
 }));
 const passwordMock = vi.hoisted(() => ({ verifyPassword: vi.fn() }));
-const sessionMock = vi.hoisted(() => ({ createIamSession: vi.fn() }));
+const sessionMock = vi.hoisted(() => ({ createIamSession: vi.fn(), identityMemberships: vi.fn() }));
 
 vi.mock('@/lib/db', () => ({ default: prismaMock }));
 vi.mock('@/lib/iam/password', () => passwordMock);
 vi.mock('@/lib/iam/session', () => sessionMock);
+const tenantReads = vi.hoisted(() => [] as string[]);
+vi.mock('@/lib/tenant-db', () => ({
+  tenantRead: (tenantId: string, work: (tx: unknown) => unknown) => {
+    tenantReads.push(tenantId);
+    return work(prismaMock);
+  },
+}));
 
 import { POST } from './route';
 
@@ -46,8 +53,17 @@ const iamUser = {
   email: 'member@example.com',
   passwordHash: '$argon2id$redacted',
   accountStatus: 'ACTIVE',
-  memberships: [membership],
 };
+
+/** The identity's memberships as the sign-in lookup returns them, and as each tenant read returns them. */
+function useMemberships(list: Array<typeof membership | Record<string, unknown>>) {
+  sessionMock.identityMemberships.mockResolvedValue(list.map((item) => ({
+    membershipId: (item as typeof membership).id,
+    organizationId: (item as typeof membership).organizationId,
+    tenantId: (item as typeof membership).tenantId,
+  })));
+  prismaMock.iamMembership.findFirst.mockImplementation(async ({ where }: { where: { id: string } }) => list.find((item) => (item as typeof membership).id === where.id) ?? null);
+}
 
 function request(body: unknown): NextRequest {
   return {
@@ -59,7 +75,9 @@ function request(body: unknown): NextRequest {
 describe('POST /api/auth/login', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    tenantReads.length = 0;
     prismaMock.iamUser.findUnique.mockResolvedValue(iamUser);
+    useMemberships([membership]);
     passwordMock.verifyPassword.mockResolvedValue(true);
     sessionMock.createIamSession.mockResolvedValue({
       sessionId: 'session-1',
@@ -77,7 +95,11 @@ describe('POST /api/auth/login', () => {
     expect(sessionMock.createIamSession).toHaveBeenCalledWith(expect.objectContaining({
       userId: iamUser.id,
       membershipId: membership.id,
+      tenantId: organization.tenantId,
     }));
+    // Only the membership ids cross tenants; the membership itself is read as its tenant.
+    expect(sessionMock.identityMemberships).toHaveBeenCalledWith(iamUser.id);
+    expect(tenantReads).toEqual([organization.tenantId]);
     expect(setCookie).toContain(`iam-access-token=${sessionToken}`);
     expect(setCookie.toLowerCase()).toContain('httponly');
     expect(setCookie.toLowerCase()).toContain('samesite=lax');
@@ -129,13 +151,19 @@ describe('POST /api/auth/login', () => {
       organization: { ...organization, status: 'SUSPENDED' },
     }],
   ])('LOGIN-T005: %s cannot authenticate', async (_name, unusableMembership) => {
-    prismaMock.iamUser.findUnique.mockResolvedValue({
-      ...iamUser,
-      memberships: [unusableMembership],
-    });
+    useMemberships([unusableMembership]);
     const response = await POST(request({ email: iamUser.email, password: 'password' }));
 
     expect(response.status).toBe(401);
+    expect(sessionMock.createIamSession).not.toHaveBeenCalled();
+  });
+
+  it('LOGIN-T009: an identity without an active membership cannot authenticate', async () => {
+    useMemberships([]);
+    const response = await POST(request({ email: iamUser.email, password: 'password' }));
+
+    expect(response.status).toBe(401);
+    expect(tenantReads).toEqual([]);
     expect(sessionMock.createIamSession).not.toHaveBeenCalled();
   });
 
@@ -147,10 +175,7 @@ describe('POST /api/auth/login', () => {
   });
 
   it('LOGIN-T007: multiple active memberships require explicit selection', async () => {
-    prismaMock.iamUser.findUnique.mockResolvedValue({
-      ...iamUser,
-      memberships: [membership, { ...membership, id: 'membership-2' }],
-    });
+    useMemberships([membership, { ...membership, id: 'membership-2' }]);
     const response = await POST(request({ email: iamUser.email, password: 'password' }));
 
     expect(response.status).toBe(409);
@@ -158,10 +183,7 @@ describe('POST /api/auth/login', () => {
   });
 
   it('LOGIN-T008: login never provisions identity or tenant records', async () => {
-    prismaMock.iamUser.findUnique.mockResolvedValue({
-      ...iamUser,
-      memberships: [{ ...membership, operationalUser: null }],
-    });
+    useMemberships([{ ...membership, operationalUser: null }]);
     const response = await POST(request({ email: iamUser.email, password: 'password' }));
 
     expect(response.status).toBe(401);

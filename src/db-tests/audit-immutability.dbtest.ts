@@ -72,11 +72,14 @@ describe('the application role is least-privileged', () => {
   });
 
   it('DBAPP-T004 can still read and write ordinary application data', async () => {
+    // "Tenant" is under row-level security (DEC-069), so act as that tenant.
     const id = randomUUID();
-    await app.$executeRaw`insert into "Tenant" (id, name) values (${id}, 'App role tenant')`;
-    await app.$executeRaw`update "Tenant" set name = 'Renamed' where id = ${id}`;
-    await app.$executeRaw`delete from "Tenant" where id = ${id}`;
-    const rows = await app.$queryRaw<{ n: bigint }[]>`select count(*) as n from "Tenant" where id = ${id}`;
+    await asTenant(app, id, async (tx) => {
+      await tx.$executeRaw`insert into "Tenant" (id, name) values (${id}, 'App role tenant')`;
+      await tx.$executeRaw`update "Tenant" set name = 'Renamed' where id = ${id}`;
+      await tx.$executeRaw`delete from "Tenant" where id = ${id}`;
+    });
+    const rows = await owner.$queryRaw<{ n: bigint }[]>`select count(*) as n from "Tenant" where id = ${id}`;
     expect(Number(rows[0].n)).toBe(0);
   });
 });

@@ -96,7 +96,8 @@ describe('audited provisioning and password setup', () => {
     const identity = await owner.iamUser.findUniqueOrThrow({ where: { email: body.email } });
     expect(identity.accountStatus).toBe('ACTIVE');
     expect(identity.lastPasswordChange).not.toBeNull();
-    expect(await owner.iamAuditTrail.count({ where: { action: 'PASSWORD_SET', objectId: identity.id } })).toBe(1);
+    // The audit row names the person's organisation, read across row-level security (DEC-069).
+    expect(await owner.iamAuditTrail.count({ where: { action: 'PASSWORD_SET', objectId: identity.id, organizationId: a.organizationId } })).toBe(1);
 
     const reused = await setup(anonymous('/api/auth/setup-password', { token, password: 'another-long-password' }));
     expect(reused.status).toBe(400);
@@ -210,6 +211,8 @@ describe('audited provisioning and password setup', () => {
     }));
     expect(new Set(answers.map((answer) => JSON.stringify(answer))).size).toBe(1);
     expect(outbox.sent).toEqual([{ to: body.email, token: expect.any(String) }]);
+    const invitee = await owner.iamUser.findUniqueOrThrow({ where: { email: body.email } });
+    expect(await owner.iamAuditTrail.count({ where: { action: 'PASSWORD_SETUP_LINK_SENT', objectId: invitee.id, organizationId: a.organizationId } })).toBe(1);
 
     const { POST: setup } = await import('@/app/api/auth/setup-password/route');
     expect((await setup(anonymous('/api/auth/setup-password', { token: firstToken, password: NEW_PASSWORD }))).status).toBe(400);

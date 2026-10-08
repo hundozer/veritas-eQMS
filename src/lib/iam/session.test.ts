@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const prismaMock = vi.hoisted(() => ({
   iamUser: { findUnique: vi.fn() },
-  iamMembership: { findUnique: vi.fn() },
+  iamMembership: { findFirst: vi.fn() },
   iamSession: {
     create: vi.fn(),
     findUnique: vi.fn(),
@@ -14,6 +14,7 @@ const prismaMock = vi.hoisted(() => ({
 
 vi.mock('server-only', () => ({}));
 vi.mock('../db', () => ({ default: prismaMock }));
+vi.mock('../tenant-db', () => ({ tenantRead: (_tenantId: string, work: (tx: unknown) => unknown) => work(prismaMock) }));
 
 import {
   createIamSession,
@@ -48,7 +49,7 @@ describe('createIamSession', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     prismaMock.iamUser.findUnique.mockResolvedValue(activeUser);
-    prismaMock.iamMembership.findUnique.mockResolvedValue(activeMembership);
+    prismaMock.iamMembership.findFirst.mockResolvedValue(activeMembership);
     prismaMock.iamSession.create.mockResolvedValue({ id: 'session-1' });
   });
 
@@ -57,6 +58,7 @@ describe('createIamSession', () => {
     const result = await createIamSession({
       userId: activeUser.id,
       membershipId: activeMembership.id,
+      tenantId: 'tenant-1',
     });
     const after = Date.now();
     const persisted = prismaMock.iamSession.create.mock.calls[0][0].data;
@@ -66,6 +68,10 @@ describe('createIamSession', () => {
     expect(persisted.tokenHash).toBe(sha256(result.sessionToken));
     expect(persisted.userId).toBe(activeUser.id);
     expect(persisted.membershipId).toBe(activeMembership.id);
+    expect(persisted.tenantId).toBe('tenant-1');
+    expect(prismaMock.iamMembership.findFirst).toHaveBeenCalledWith(expect.objectContaining({
+      where: { id: activeMembership.id, tenantId: 'tenant-1' },
+    }));
     expect(persisted.expiresAt.getTime()).toBeGreaterThanOrEqual(before + 43_200_000);
     expect(persisted.expiresAt.getTime()).toBeLessThanOrEqual(after + 43_200_000);
     expect(persisted.revokedAt).toBeNull();
@@ -74,42 +80,42 @@ describe('createIamSession', () => {
   it('SESSION-T002: rejects an inactive or suspended user', async () => {
     prismaMock.iamUser.findUnique.mockResolvedValue({ ...activeUser, accountStatus: 'SUSPENDED' });
 
-    await expect(createIamSession({ userId: activeUser.id, membershipId: activeMembership.id }))
+    await expect(createIamSession({ userId: activeUser.id, membershipId: activeMembership.id, tenantId: 'tenant-1' }))
       .rejects.toBeInstanceOf(IamSessionCreationError);
     expect(prismaMock.iamSession.create).not.toHaveBeenCalled();
   });
 
   it('SESSION-T003: rejects an inactive membership', async () => {
-    prismaMock.iamMembership.findUnique.mockResolvedValue({ ...activeMembership, status: 'SUSPENDED' });
+    prismaMock.iamMembership.findFirst.mockResolvedValue({ ...activeMembership, status: 'SUSPENDED' });
 
-    await expect(createIamSession({ userId: activeUser.id, membershipId: activeMembership.id }))
+    await expect(createIamSession({ userId: activeUser.id, membershipId: activeMembership.id, tenantId: 'tenant-1' }))
       .rejects.toBeInstanceOf(IamSessionCreationError);
     expect(prismaMock.iamSession.create).not.toHaveBeenCalled();
   });
 
   it('SESSION-T004: rejects a membership owned by another user', async () => {
-    prismaMock.iamMembership.findUnique.mockResolvedValue({ ...activeMembership, userId: 'other-user' });
+    prismaMock.iamMembership.findFirst.mockResolvedValue({ ...activeMembership, userId: 'other-user' });
 
-    await expect(createIamSession({ userId: activeUser.id, membershipId: activeMembership.id }))
+    await expect(createIamSession({ userId: activeUser.id, membershipId: activeMembership.id, tenantId: 'tenant-1' }))
       .rejects.toBeInstanceOf(IamSessionCreationError);
     expect(prismaMock.iamSession.create).not.toHaveBeenCalled();
   });
 
   it('SESSION-T005: rejects an inactive organization', async () => {
-    prismaMock.iamMembership.findUnique.mockResolvedValue({
+    prismaMock.iamMembership.findFirst.mockResolvedValue({
       ...activeMembership,
       organization: { id: 'organization-1', tenantId: 'tenant-1', status: 'SUSPENDED' },
     });
 
-    await expect(createIamSession({ userId: activeUser.id, membershipId: activeMembership.id }))
+    await expect(createIamSession({ userId: activeUser.id, membershipId: activeMembership.id, tenantId: 'tenant-1' }))
       .rejects.toBeInstanceOf(IamSessionCreationError);
     expect(prismaMock.iamSession.create).not.toHaveBeenCalled();
   });
 
   it('SESSION-T006: rejects an unknown membership', async () => {
-    prismaMock.iamMembership.findUnique.mockResolvedValue(null);
+    prismaMock.iamMembership.findFirst.mockResolvedValue(null);
 
-    await expect(createIamSession({ userId: activeUser.id, membershipId: 'unknown' }))
+    await expect(createIamSession({ userId: activeUser.id, membershipId: 'unknown', tenantId: 'tenant-1' }))
       .rejects.toBeInstanceOf(IamSessionCreationError);
     expect(prismaMock.iamSession.create).not.toHaveBeenCalled();
   });
@@ -119,8 +125,8 @@ describe('createIamSession', () => {
       .mockResolvedValueOnce({ id: 'session-1' })
       .mockResolvedValueOnce({ id: 'session-2' });
 
-    const first = await createIamSession({ userId: activeUser.id, membershipId: activeMembership.id });
-    const second = await createIamSession({ userId: activeUser.id, membershipId: activeMembership.id });
+    const first = await createIamSession({ userId: activeUser.id, membershipId: activeMembership.id, tenantId: 'tenant-1' });
+    const second = await createIamSession({ userId: activeUser.id, membershipId: activeMembership.id, tenantId: 'tenant-1' });
     const [firstWrite, secondWrite] = prismaMock.iamSession.create.mock.calls.map(call => call[0].data);
 
     expect(first.sessionToken).not.toBe(second.sessionToken);
@@ -128,7 +134,7 @@ describe('createIamSession', () => {
   });
 
   it('SESSION-T008: never passes the plaintext token into Prisma persistence', async () => {
-    const result = await createIamSession({ userId: activeUser.id, membershipId: activeMembership.id });
+    const result = await createIamSession({ userId: activeUser.id, membershipId: activeMembership.id, tenantId: 'tenant-1' });
     const serializedWrite = JSON.stringify(prismaMock.iamSession.create.mock.calls[0][0]);
 
     expect(serializedWrite).not.toContain(result.sessionToken);
@@ -139,6 +145,7 @@ describe('createIamSession', () => {
     await createIamSession({
       userId: activeUser.id,
       membershipId: activeMembership.id,
+      tenantId: 'tenant-1',
       ipAddress: '192.0.2.10',
       userAgent: 'Veritas session test',
       location: 'Prague',
@@ -152,7 +159,7 @@ describe('createIamSession', () => {
     });
     expect(Object.keys(persisted).sort()).toEqual([
       'expiresAt', 'ipAddress', 'location', 'membershipId', 'revokedAt',
-      'tokenHash', 'userAgent', 'userId',
+      'tenantId', 'tokenHash', 'userAgent', 'userId',
     ].sort());
   });
 
@@ -161,7 +168,7 @@ describe('createIamSession', () => {
       .mockRejectedValueOnce({ code: 'P2002', meta: { target: ['tokenHash'] } })
       .mockResolvedValueOnce({ id: 'session-after-collision' });
 
-    const result = await createIamSession({ userId: activeUser.id, membershipId: activeMembership.id });
+    const result = await createIamSession({ userId: activeUser.id, membershipId: activeMembership.id, tenantId: 'tenant-1' });
     const [firstWrite, secondWrite] = prismaMock.iamSession.create.mock.calls.map(call => call[0].data);
 
     expect(prismaMock.iamSession.create).toHaveBeenCalledTimes(2);
@@ -175,7 +182,7 @@ describe('createIamSession', () => {
       meta: { target: ['tokenHash'] },
     });
 
-    await expect(createIamSession({ userId: activeUser.id, membershipId: activeMembership.id }))
+    await expect(createIamSession({ userId: activeUser.id, membershipId: activeMembership.id, tenantId: 'tenant-1' }))
       .rejects.toBeInstanceOf(IamSessionCreationError);
     expect(prismaMock.iamSession.create).toHaveBeenCalledTimes(3);
     expect(prismaMock.iamSession.upsert).not.toHaveBeenCalled();
@@ -188,15 +195,16 @@ describe('validateIamSession and revokeIamSession', () => {
     id: 'session-1',
     userId: activeUser.id,
     membershipId: activeMembership.id,
+    tenantId: 'tenant-1',
     expiresAt: new Date(Date.now() + 60_000),
     revokedAt: null,
     user: { ...activeUser, email: 'existing-user@example.com' },
-    membership: activeMembership,
   };
 
   beforeEach(() => {
     vi.clearAllMocks();
     prismaMock.iamSession.findUnique.mockResolvedValue(storedSession);
+    prismaMock.iamMembership.findFirst.mockResolvedValue(activeMembership);
     prismaMock.iamSession.updateMany.mockResolvedValue({ count: 1 });
   });
 
@@ -210,18 +218,17 @@ describe('validateIamSession and revokeIamSession', () => {
       organizationId: activeMembership.organization.id,
       permissions: ['documents.read'],
     });
-    expect(prismaMock.iamSession.findUnique).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: { tokenHash: sha256(token) },
-        include: expect.objectContaining({
-          membership: expect.objectContaining({
-            include: expect.objectContaining({
-              role: { include: { permissions: { include: { permission: true } } } },
-            }),
-          }),
-        }),
+    expect(prismaMock.iamSession.findUnique).toHaveBeenCalledWith({
+      where: { tokenHash: sha256(token) },
+      include: { user: true },
+    });
+    // The membership is read as the session's tenant (DEC-069).
+    expect(prismaMock.iamMembership.findFirst).toHaveBeenCalledWith(expect.objectContaining({
+      where: { id: activeMembership.id, tenantId: 'tenant-1' },
+      include: expect.objectContaining({
+        role: { include: { permissions: { include: { permission: true } } } },
       }),
-    );
+    }));
   });
 
   it('SESSION-T012: rejects malformed and nonexistent tokens', async () => {
@@ -257,20 +264,14 @@ describe('validateIamSession and revokeIamSession', () => {
   });
 
   it('SESSION-T016: rejects a session after its membership becomes inactive', async () => {
-    prismaMock.iamSession.findUnique.mockResolvedValue({
-      ...storedSession,
-      membership: { ...activeMembership, status: 'SUSPENDED' },
-    });
+    prismaMock.iamMembership.findFirst.mockResolvedValue({ ...activeMembership, status: 'SUSPENDED' });
     await expect(validateIamSession(token)).resolves.toBeNull();
   });
 
   it('SESSION-T017: rejects a session after its organization becomes inactive', async () => {
-    prismaMock.iamSession.findUnique.mockResolvedValue({
-      ...storedSession,
-      membership: {
-        ...activeMembership,
-        organization: { ...activeMembership.organization, status: 'SUSPENDED' },
-      },
+    prismaMock.iamMembership.findFirst.mockResolvedValue({
+      ...activeMembership,
+      organization: { ...activeMembership.organization, status: 'SUSPENDED' },
     });
     await expect(validateIamSession(token)).resolves.toBeNull();
   });

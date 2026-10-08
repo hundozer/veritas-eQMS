@@ -7,6 +7,7 @@ import { tenantRead, tenantTransaction } from '../tenant-db';
 import { createCredentialActionToken } from './credential-action-token';
 import { sendCredentialActionEmail } from './credential-email';
 import { hashPassword } from './password';
+import { identityMemberships } from './session';
 
 // Audited provisioning (DEC-063). An administrator (users.create) invites a
 // person into their own organisation with one organisation role. The identity, operational user, membership
@@ -127,7 +128,7 @@ export async function inviteMember(inviter: UserContext, input: InviteInput, req
   if (!role) throw new ProvisioningError('RoleNotAssignable');
   if (!invitationEmailConfigured()) throw new ProvisioningError('InvitationEmailUnavailable');
 
-  const organization = await prisma.iamOrganization.findUnique({ where: { tenantId: inviter.tenantId }, select: { id: true } });
+  const organization = await tenantRead(inviter.tenantId, (tx) => tx.iamOrganization.findUnique({ where: { tenantId: inviter.tenantId }, select: { id: true } }));
   if (!organization) throw new ProvisioningError('NotFound');
 
   // Nobody knows this password; the identity cannot sign in until its owner sets one.
@@ -175,10 +176,10 @@ export async function inviteMember(inviter: UserContext, input: InviteInput, req
 /** Sends a fresh setup link to someone in the inviter's organisation who has not set a password yet. */
 export async function resendInvitation(inviter: UserContext, operationalUserId: string, requestUrl?: string) {
   if (!invitationEmailConfigured()) throw new ProvisioningError('InvitationEmailUnavailable');
-  const membership = await prisma.iamMembership.findFirst({
+  const membership = await tenantRead(inviter.tenantId, (tx) => tx.iamMembership.findFirst({
     where: { operationalUserId, tenantId: inviter.tenantId },
     select: { user: { select: { id: true, email: true, accountStatus: true } } },
-  });
+  }));
   if (!membership) throw new ProvisioningError('NotFound');
   if (membership.user.accountStatus !== 'INVITED') throw new ProvisioningError('AlreadyActivated');
 
@@ -199,7 +200,7 @@ export async function requestSetupLink(email: unknown, ipAddress?: string | null
   if (!address || !EMAIL_PATTERN.test(address) || !invitationEmailConfigured()) return;
   const identity = await prisma.iamUser.findUnique({
     where: { email: address },
-    select: { id: true, accountStatus: true, memberships: { select: { organizationId: true }, take: 1 } },
+    select: { id: true, accountStatus: true },
   });
   if (!identity || identity.accountStatus !== 'INVITED') return;
   try {
@@ -207,7 +208,7 @@ export async function requestSetupLink(email: unknown, ipAddress?: string | null
     await sendCredentialActionEmail(address, token, IamCredentialActionPurpose.PASSWORD_SETUP);
     await prisma.iamAuditTrail.create({
       data: {
-        organizationId: identity.memberships[0]?.organizationId ?? null, userId: identity.id, userEmail: address,
+        organizationId: (await identityMemberships(identity.id))[0]?.organizationId ?? null, userId: identity.id, userEmail: address,
         action: 'PASSWORD_SETUP_LINK_SENT', objectType: 'IamUser', objectId: identity.id,
         payload: JSON.stringify({ requestedBy: 'invitee' }), ipAddress: ipAddress ?? null,
       },
