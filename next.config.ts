@@ -11,7 +11,8 @@ const contentSecurityPolicy = [
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' blob: data:",
   "font-src 'self'",
-  "connect-src 'self'",
+  // Direct uploads go from the browser to the Vercel Blob API (DEC-068).
+  "connect-src 'self' https://vercel.com/api/blob/",
   "object-src 'none'",
   "base-uri 'self'",
   "form-action 'self'",

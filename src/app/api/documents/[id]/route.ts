@@ -7,7 +7,8 @@ import { unexpectedErrorResponse } from '../../../../lib/server-errors';
 import {
   cleanupUncontrolledObject,
   createControlledObjectKey,
-  decodeControlledUpload,
+  resolveControlledUpload,
+  type ControlledUpload,
   vercelBlobStorage,
 } from '@/lib/controlled-storage';
 import { assertTransition, lifecycleErrorResponse } from '@/lib/document-lifecycle';
@@ -129,7 +130,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     }
 
     const body = await req.json();
-    const { title, description, classification, contentBase64, fileName, mimeType, requiredRoles, requiresQuiz, quizQuestions } = body;
+    const { title, description, classification, contentBase64, uploadKey, requiredRoles, requiresQuiz, quizQuestions } = body;
 
     const currentVersion = document.versions.find((version) => version.versionNumber === document.currentVersionNumber);
     if (!currentVersion || document.status !== 'DRAFT' || currentVersion.status !== 'DRAFT') {
@@ -137,11 +138,11 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     }
 
     // 1. Process new version upload if contentBase64 is provided
-    let upload: ReturnType<typeof decodeControlledUpload> | null = null;
+    let upload: ControlledUpload | null = null;
 
-    if (contentBase64) {
+    if (contentBase64 || uploadKey) {
       try {
-        upload = decodeControlledUpload({ contentBase64, fileName, mimeType });
+        upload = await resolveControlledUpload(vercelBlobStorage, user.tenantId, body);
       } catch (error) {
         return NextResponse.json({ error: { code: 'ValidationFailed', message: (error as Error).message } }, { status: 400 });
       }
@@ -208,6 +209,8 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     });
 
     uploadedKey = null;
+    // The controlled copy is committed; the browser's staging upload is no longer needed.
+    if (upload?.stagingKey) await cleanupUncontrolledObject(vercelBlobStorage, upload.stagingKey);
     return NextResponse.json({ document: updatedDoc });
   } catch (error: any) {
     if (uploadedKey) await cleanupUncontrolledObject(vercelBlobStorage, uploadedKey);

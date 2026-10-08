@@ -91,6 +91,13 @@ protection was verified on 6 Oct 2026.
   served. Word, Excel and PowerPoint files cannot be stamped and are downloaded
   under an `UNCONTROLLED-<status>-` file name (`src/lib/controlled-copy.ts`).
 - Client-direct signed uploads to Blob.
+  Done (DEC-068): the browser uploads the file straight to private Blob storage
+  with a presigned, write-only URL for a key the server reserved in the caller's
+  tenant (`/api/documents/uploads`); creating, revising or replacing a draft then
+  sends only that key and the SHA-256 the browser computed. The server reads the
+  file back, refuses it if the hash differs, stores it under its controlled key
+  and deletes the staging upload. Files up to 3 MB may still be sent inline if
+  storage cannot be reached directly. Open: removing abandoned staging uploads.
 - Audited provisioning script; password-setup emails wired.
   Done in the application rather than as a script, because the owner works
   from an iPad (DEC-063): a holder of `users.create` (a separate administrator

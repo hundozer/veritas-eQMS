@@ -16,6 +16,7 @@ export type ServerErrorEvent =
   | 'document.revision'
   | 'document.submitReview'
   | 'document.update'
+  | 'document.upload'
   | 'document.withdrawRevision'
   | 'notification.list'
   | 'storage.cleanupFailed'

@@ -281,6 +281,27 @@ describe('document lifecycle through the real routes under row-level security', 
     expect(await owner.auditLog.count({ where: { tenantId: a.tenantId, action: 'DOCUMENT_REVISION_WITHDRAWN', payload: { contains: documentId } } })).toBe(2);
   });
 
+  it('UPL-DB-T001 a direct upload becomes the controlled file; another tenant cannot claim it', async () => {
+    const { createUploadKey, sha256, vercelBlobStorage } = await import('@/lib/controlled-storage');
+    const { POST: create } = await import('@/app/api/documents/route');
+    const bytes = new TextEncoder().encode('directly uploaded SOP');
+    const uploadKey = createUploadKey(a.tenantId);
+    await vercelBlobStorage.putObject(uploadKey, bytes, 'text/plain');
+    const fields = { title: 'Direct SOP', classification: 'CONTROLLED', documentType: 'SOP', uploadKey, sha256: sha256(bytes), fileName: 'sop.txt', mimeType: 'text/plain' };
+
+    const claimed = await create(requestAs(b, '/api/documents', { method: 'POST', body: fields }));
+    expect(claimed.status).toBe(400);
+    expect(await owner.document.count({ where: { title: 'Direct SOP' } })).toBe(0);
+
+    const created = await create(requestAs(a, '/api/documents', { method: 'POST', body: fields }));
+    expect(created.status).toBe(201);
+    const version = await owner.documentVersion.findFirstOrThrow({ where: { document: { title: 'Direct SOP' } } });
+    expect([version.tenantId, version.hash, version.sizeBytes]).toEqual([a.tenantId, sha256(bytes), bytes.byteLength]);
+    expect(version.storageKey).toMatch(new RegExp(`^tenants/${a.tenantId}/documents/`));
+    expect((await vercelBlobStorage.getObject(version.storageKey!))?.bytes).toEqual(bytes);
+    expect(await vercelBlobStorage.getObject(uploadKey)).toBeNull();
+  });
+
   it('LIFE-T004 another tenant cannot release the document', async () => {
     const { POST: release } = await import('@/app/api/documents/[id]/release/route');
     const response = await release(requestAs(b, `/api/documents/${a.documentId}/release`, { method: 'POST', body: { password: MEMBER_PASSWORD } }), params(a.documentId));

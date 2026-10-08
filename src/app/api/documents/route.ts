@@ -8,7 +8,7 @@ import { unexpectedErrorResponse } from '../../../lib/server-errors';
 import {
   cleanupUncontrolledObject,
   createControlledObjectKey,
-  decodeControlledUpload,
+  resolveControlledUpload,
   vercelBlobStorage,
 } from '@/lib/controlled-storage';
 import { generateDocumentNumber, normalizeDocumentType } from '@/lib/document-lifecycle';
@@ -116,7 +116,7 @@ export async function POST(req: NextRequest) {
     // Any authenticated tenant user can author document drafts
 
     const body = await req.json();
-    const { title, description, classification, documentType: requestedType, contentBase64, fileName, mimeType, requiredRoles, requiresQuiz, quizQuestions } = body;
+    const { title, description, classification, documentType: requestedType, requiredRoles, requiresQuiz, quizQuestions } = body;
 
     if (!title || !classification) {
       return NextResponse.json({ error: { code: 'ValidationFailed', message: 'Title and classification are required' } }, { status: 400 });
@@ -131,7 +131,7 @@ export async function POST(req: NextRequest) {
 
     let upload;
     try {
-      upload = decodeControlledUpload({ contentBase64, fileName, mimeType });
+      upload = await resolveControlledUpload(vercelBlobStorage, user.tenantId, body);
     } catch (error) {
       return NextResponse.json({ error: { code: 'ValidationFailed', message: (error as Error).message } }, { status: 400 });
     }
@@ -204,6 +204,8 @@ export async function POST(req: NextRequest) {
     });
 
     uploadedKey = null;
+    // The controlled copy is committed; the browser's staging upload is no longer needed.
+    if (upload?.stagingKey) await cleanupUncontrolledObject(vercelBlobStorage, upload.stagingKey);
     return NextResponse.json({ document: result }, { status: 201 });
   } catch (error: any) {
     if (uploadedKey) await cleanupUncontrolledObject(vercelBlobStorage, uploadedKey);

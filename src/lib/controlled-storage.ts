@@ -1,7 +1,8 @@
 import 'server-only';
 
 import { createHash, randomUUID } from 'node:crypto';
-import { del, get, head, put } from '@vercel/blob';
+import { del, get, head, issueSignedToken, put } from '@vercel/blob';
+import { handleUploadPresigned, type HandleUploadPresignedBody } from '@vercel/blob/client';
 import { reportServerError } from './server-errors';
 
 export const MAX_CONTROLLED_FILE_BYTES = 25 * 1024 * 1024;
@@ -124,14 +125,111 @@ export function decodeControlledUpload(input: {
   };
 }
 
+// Direct uploads (DEC-068). The browser sends the file straight to private Blob
+// storage under a key the server chose for the caller's tenant, so large files
+// never pass through a function request body. The server then reads the object
+// back, checks it against the SHA-256 the browser computed, and stores it under
+// its controlled key exactly as a server-side upload would be stored.
+
+export const ALLOWED_UPLOAD_TYPES: readonly string[] = [...ALLOWED_MIME_TYPES];
+const UPLOAD_KEY_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+
+function assertScopeSegment(value: string) {
+  if (!/^[A-Za-z0-9_-]+$/.test(value)) throw new Error('Invalid controlled object scope');
+}
+
+export function createUploadKey(tenantId: string): string {
+  assertScopeSegment(tenantId);
+  return `tenants/${tenantId}/uploads/${randomUUID()}`;
+}
+
+/** True only for a key this server could have issued to the given tenant. */
+export function isTenantUploadKey(tenantId: string, key: unknown): key is string {
+  if (typeof key !== 'string') return false;
+  const prefix = `tenants/${tenantId}/uploads/`;
+  return /^[A-Za-z0-9_-]+$/.test(tenantId) && key.startsWith(prefix) && UPLOAD_KEY_ID.test(key.slice(prefix.length));
+}
+
+export class DirectUploadRefused extends Error {
+  constructor() {
+    super('This upload request is not allowed');
+    this.name = 'DirectUploadRefused';
+  }
+}
+
+const DIRECT_UPLOAD_WINDOW_MS = 15 * 60 * 1000;
+
+/**
+ * Answers the Blob client's request for a presigned upload URL, scoped to one
+ * upload key of the caller's tenant, write-only, size- and type-limited, and
+ * never overwriting. Upload-completed callbacks are not used: the server reads
+ * the object back when the document is saved.
+ */
+export async function presignDirectUpload(tenantId: string, request: Request, body: unknown) {
+  const event = body as Partial<HandleUploadPresignedBody> | null;
+  if (event?.type !== 'blob.generate-presigned-url' || !isTenantUploadKey(tenantId, event.payload?.pathname)) {
+    throw new DirectUploadRefused();
+  }
+  requireStorageCredentials();
+  const limits = {
+    validUntil: Date.now() + DIRECT_UPLOAD_WINDOW_MS,
+    allowedContentTypes: [...ALLOWED_MIME_TYPES],
+    maximumSizeInBytes: MAX_CONTROLLED_FILE_BYTES,
+  };
+  const result = await handleUploadPresigned({
+    body: event as HandleUploadPresignedBody,
+    request,
+    // Required by the SDK, used only to verify completion callbacks, which are refused above.
+    webhookPublicKey: 'not-used',
+    async getSignedToken(pathname) {
+      const token = await issueSignedToken({ pathname, operations: ['put'], ...limits });
+      return { token, urlOptions: { ...limits, allowOverwrite: false, addRandomSuffix: false, cacheControlMaxAge: 60 } };
+    },
+  });
+  if (result.type !== 'blob.generate-presigned-url') throw new DirectUploadRefused();
+  return { type: result.type, presignedUrlPayload: result.presignedUrlPayload };
+}
+
+export type ControlledUpload = ReturnType<typeof decodeControlledUpload> & { stagingKey?: string };
+
+/**
+ * The file for a create, revision or draft replacement: either a direct upload
+ * (`uploadKey` and `sha256`) or, for small files, Base64 in the request body.
+ */
+export async function resolveControlledUpload(
+  storage: ControlledStorageBackend,
+  tenantId: string,
+  input: { uploadKey?: unknown; sha256?: unknown; contentBase64?: unknown; fileName?: unknown; mimeType?: unknown },
+): Promise<ControlledUpload> {
+  if (input.uploadKey === undefined || input.uploadKey === null) return decodeControlledUpload(input as Parameters<typeof decodeControlledUpload>[0]);
+  if (!isTenantUploadKey(tenantId, input.uploadKey)) throw new Error('The uploaded file reference is not valid');
+  if (typeof input.sha256 !== 'string' || !/^[0-9a-f]{64}$/.test(input.sha256)) {
+    throw new Error('The SHA-256 of the uploaded file is required');
+  }
+  const mimeType = typeof input.mimeType === 'string' ? input.mimeType.toLowerCase().trim() : '';
+  if (!ALLOWED_MIME_TYPES.has(mimeType)) throw new Error('Controlled document file type is not allowed');
+
+  let object: StoredObject | null;
+  try {
+    object = await storage.getObject(input.uploadKey);
+  } catch {
+    throw new Error('The uploaded file could not be read; upload it again');
+  }
+  if (!object) throw new Error('The uploaded file was not found; upload it again');
+  if (object.bytes.byteLength === 0 || object.bytes.byteLength > MAX_CONTROLLED_FILE_BYTES) {
+    throw new Error('Controlled document exceeds the maximum file size');
+  }
+  const hash = sha256(object.bytes);
+  if (hash !== input.sha256) throw new Error('The uploaded file does not match the file you selected; upload it again');
+  return { bytes: object.bytes, fileName: sanitizeDisplayFileName(input.fileName), mimeType, hash, stagingKey: input.uploadKey };
+}
+
 export function createControlledObjectKey(input: {
   tenantId: string;
   documentId: string;
   versionNumber: number;
 }): string {
-  for (const value of [input.tenantId, input.documentId]) {
-    if (!/^[A-Za-z0-9_-]+$/.test(value)) throw new Error('Invalid controlled object scope');
-  }
+  for (const value of [input.tenantId, input.documentId]) assertScopeSegment(value);
   if (!Number.isSafeInteger(input.versionNumber) || input.versionNumber < 1) {
     throw new Error('Invalid document version number');
   }
