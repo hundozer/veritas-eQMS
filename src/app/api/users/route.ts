@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import prisma from '@/lib/db';
+import { tenantRead } from '@/lib/tenant-db';
 import { getContext } from '@/lib/auth';
 import { hasPermission } from '../../../lib/rbac';
 import { inviteMember, pendingInvitationUserIds, ProvisioningError, type InviteInput } from '@/lib/iam/provisioning';
@@ -16,7 +16,7 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: { code: 'Forbidden', message: 'Insufficient permission' } }, { status: 403 });
     }
 
-    const users = await prisma.user.findMany({
+    const users = await tenantRead(user.tenantId, (tx) => tx.user.findMany({
       where: { tenantId: user.tenantId },
       select: {
         id: true,
@@ -31,7 +31,7 @@ export async function GET(req: NextRequest) {
         expiresAt: true,
       },
       orderBy: { fullName: 'asc' },
-    });
+    }));
     const pending = await pendingInvitationUserIds(user.tenantId);
 
     return NextResponse.json(

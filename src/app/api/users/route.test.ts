@@ -23,6 +23,7 @@ vi.mock('@/lib/iam/provisioning', () => provisioning);
 vi.mock('@/lib/db', () => ({
   default: { user: { findMany, create, update }, $transaction: transaction },
 }));
+vi.mock('@/lib/tenant-db', async () => (await import('../../../test-support/tenant-db-double')).tenantDbDouble());
 
 import { GET, POST } from './route';
 import { DELETE, PUT } from './[id]/route';

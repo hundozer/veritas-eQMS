@@ -87,7 +87,7 @@ export async function seedTenant(owner: PrismaClient, label: string, roleId: str
   });
 
   // Sessions go through the application's own session code and database role.
-  const session = await createIamSession({ userId: iamUser.id, membershipId: membership.id });
+  const session = await createIamSession({ userId: iamUser.id, membershipId: membership.id, tenantId: membership.tenantId });
 
   return {
     label,
@@ -125,7 +125,7 @@ export async function addMember(
   const membership = await owner.iamMembership.create({
     data: { userId: iamUser.id, organizationId: tenant.organizationId, tenantId: tenant.tenantId, operationalUserId: user.id, roleId, status: 'ACTIVE' },
   });
-  const session = await createIamSession({ userId: iamUser.id, membershipId: membership.id });
+  const session = await createIamSession({ userId: iamUser.id, membershipId: membership.id, tenantId: membership.tenantId });
   return { userId: user.id, sessionToken: session.sessionToken };
 }
 

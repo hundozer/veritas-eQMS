@@ -2,6 +2,7 @@ import { IamCredentialActionPurpose } from '@prisma/client';
 import prisma from '../db';
 import { consumeCredentialActionToken, CredentialActionError } from './credential-action-token';
 import { hashPassword } from './password';
+import { identityMemberships } from './session';
 
 export const MIN_PASSWORD_LENGTH = 12;
 export const MAX_PASSWORD_LENGTH = 128;
@@ -37,6 +38,8 @@ export async function completePasswordSetup(token: unknown, password: unknown, i
   }
 
   const passwordHash = await hashPassword(password);
+  // Memberships are tenant data; only the sign-in lookup may list them here (DEC-069).
+  const organizationId = (await identityMemberships(userId))[0]?.organizationId ?? null;
   await prisma.$transaction(async (tx) => {
     const activated = await tx.iamUser.updateMany({
       where: { id: userId, accountStatus: 'INVITED' },
@@ -45,11 +48,11 @@ export async function completePasswordSetup(token: unknown, password: unknown, i
     if (activated.count !== 1) throw new PasswordSetupError('InvalidLink');
     const identity = await tx.iamUser.findUniqueOrThrow({
       where: { id: userId },
-      select: { email: true, memberships: { select: { organizationId: true }, take: 1 } },
+      select: { email: true },
     });
     await tx.iamAuditTrail.create({
       data: {
-        organizationId: identity.memberships[0]?.organizationId ?? null, userId, userEmail: identity.email,
+        organizationId, userId, userEmail: identity.email,
         action: 'PASSWORD_SET', objectType: 'IamUser', objectId: userId,
         payload: JSON.stringify({ purpose: 'PASSWORD_SETUP', accountStatus: { before: 'INVITED', after: 'ACTIVE' } }),
         ipAddress: ipAddress ?? null,

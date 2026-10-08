@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import prisma from '@/lib/db';
 import { tenantRead, tenantTransaction } from '@/lib/tenant-db';
 import { getContext } from '@/lib/auth';
 import { hasPermission } from '@/lib/rbac';
@@ -30,10 +29,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     assertTransition(version.status, 'IN_REVIEW');
     await verifyLifecycleIntegrity(version);
 
-    const assignees = await prisma.user.findMany({
+    const assignees = await tenantRead(user.tenantId, (tx) => tx.user.findMany({
       where: { id: { in: [reviewerId, approverId] }, tenantId: user.tenantId, accountStatus: 'ACTIVE' },
       select: { id: true },
-    });
+    }));
     if (assignees.length !== 2) return NextResponse.json({ error: { code: 'ValidationFailed', message: 'Reviewer and approver must be active users in this tenant' } }, { status: 400 });
     if (approverId === (version.authoredById || document.ownerId)) {
       return NextResponse.json({ error: { code: 'SegregationOfDuties', message: 'The document author cannot be assigned as its approver' } }, { status: 409 });

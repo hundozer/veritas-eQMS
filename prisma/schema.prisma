@@ -628,6 +628,7 @@ model IamMembership {
 
   @@unique([userId, organizationId])
   @@unique([operationalUserId, tenantId])
+  @@unique([id, tenantId])
 }
 
 model IamProductSubscription {
@@ -673,7 +674,10 @@ model IamSession {
   user   IamUser @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   membershipId String
-  membership   IamMembership @relation(fields: [membershipId], references: [id], onDelete: Cascade)
+  // Copied from the membership so a session token can be checked before the
+  // tenant is known; the composite key keeps it equal to the membership's.
+  tenantId     String
+  membership   IamMembership @relation(fields: [membershipId, tenantId], references: [id, tenantId], onDelete: Cascade, onUpdate: Restrict)
 
   tokenHash String    @unique // SHA-256 digest only; plaintext bearer tokens must never be persisted
   expiresAt DateTime

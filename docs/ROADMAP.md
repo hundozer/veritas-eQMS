@@ -65,8 +65,13 @@ protection was verified on 6 Oct 2026.
   `ChangeRequest` and `ChangeRequestDocument` carry `tenantId` with composite
   keys and row-level security (DEC-061, migration
   `20261007160000_tenant_scoped_change_requests`).
-  Open: row-level security for `User`, `Tenant` and IAM tables (read during
-  sign-in, before the tenant is known).
+  `Tenant`, `User`, `IamOrganization` and `IamMembership` follow (DEC-069,
+  migrations `20261008120000_identity_session_tenant` and
+  `20261008130000_identity_row_level_security`): sessions carry their tenant,
+  and sign-in lists an identity's memberships only through the narrow
+  `veritas_identity_memberships` function. Identity-level tables (`IamUser`,
+  `IamSession`, credential tokens, `IamAuditTrail`) and the shared role
+  catalogue hold no tenant data and stay outside.
 - Signature service with password re-entry; multiple signatures per version.
   Done (DEC-062): review completion and approval are signed with the signer's
   own password; each signature records signer, role, meaning, time and the

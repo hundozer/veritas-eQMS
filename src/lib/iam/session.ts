@@ -2,6 +2,7 @@ import 'server-only';
 
 import { createHash, randomBytes } from 'node:crypto';
 import prisma from '../db';
+import { tenantRead } from '../tenant-db';
 
 const SESSION_RANDOM_BYTES = 32;
 const SESSION_LIFETIME_MS = 12 * 60 * 60 * 1000;
@@ -21,6 +22,7 @@ export class IamSessionCreationError extends Error {
 export type CreateIamSessionInput = {
   userId: string;
   membershipId: string;
+  tenantId: string;
   ipAddress?: string;
   userAgent?: string;
   location?: string;
@@ -54,6 +56,19 @@ function isValidSessionToken(token: unknown): token is string {
   return typeof token === 'string' && SESSION_TOKEN_PATTERN.test(token);
 }
 
+export type IdentityMembership = { membershipId: string; organizationId: string; tenantId: string };
+
+/**
+ * The active memberships of one identity, in active organisations, across
+ * tenants: the only sign-in lookup made before the tenant is known (DEC-069).
+ * Everything else about a membership is read as its tenant.
+ */
+export async function identityMemberships(identityId: string): Promise<IdentityMembership[]> {
+  const rows = await prisma.$queryRaw<Array<{ membership_id: string; organization_id: string; tenant_id: string }>>`
+    SELECT membership_id, organization_id, tenant_id FROM veritas_identity_memberships(${identityId})`;
+  return rows.map((row) => ({ membershipId: row.membership_id, organizationId: row.organization_id, tenantId: row.tenant_id }));
+}
+
 function isTokenHashCollision(error: unknown): boolean {
   if (!error || typeof error !== 'object' || !('code' in error) || error.code !== 'P2002') {
     return false;
@@ -77,10 +92,10 @@ export async function createIamSession(
       where: { id: input.userId },
       select: { id: true, accountStatus: true },
     }),
-    prisma.iamMembership.findUnique({
-      where: { id: input.membershipId },
+    tenantRead(input.tenantId, (tx) => tx.iamMembership.findFirst({
+      where: { id: input.membershipId, tenantId: input.tenantId },
       include: { organization: true, role: true },
-    }),
+    })),
   ]);
 
   if (
@@ -106,6 +121,7 @@ export async function createIamSession(
         data: {
           userId: user.id,
           membershipId: membership.id,
+          tenantId: membership.tenantId,
           tokenHash,
           expiresAt,
           revokedAt: null,
@@ -133,29 +149,30 @@ export async function validateIamSession(
   if (!isValidSessionToken(sessionToken)) return null;
 
   const now = new Date();
+  // The session itself is not tenant data; its tenant then scopes every
+  // membership read (DEC-069).
   const session = await prisma.iamSession.findUnique({
     where: { tokenHash: hashSessionToken(sessionToken) },
-    include: {
-      user: true,
-      membership: {
-        include: {
-          organization: true,
-          role: { include: { permissions: { include: { permission: true } } } },
-        },
-      },
-    },
+    include: { user: true },
   });
+  if (!session || session.revokedAt !== null || session.expiresAt <= now || session.user.accountStatus !== 'ACTIVE') {
+    return null;
+  }
+  const membership = await tenantRead(session.tenantId, (tx) => tx.iamMembership.findFirst({
+    where: { id: session.membershipId, tenantId: session.tenantId },
+    include: {
+      organization: true,
+      role: { include: { permissions: { include: { permission: true } } } },
+    },
+  }));
 
   if (
-    !session ||
-    session.revokedAt !== null ||
-    session.expiresAt <= now ||
-    session.user.accountStatus !== 'ACTIVE' ||
-    session.membership.userId !== session.userId ||
-    session.membership.status !== 'ACTIVE' ||
-    session.membership.tenantId !== session.membership.organization.tenantId ||
-    !ACCESSIBLE_ORGANIZATION_STATUSES.has(session.membership.organization.status) ||
-    !session.membership.role
+    !membership ||
+    membership.userId !== session.userId ||
+    membership.status !== 'ACTIVE' ||
+    membership.tenantId !== membership.organization.tenantId ||
+    !ACCESSIBLE_ORGANIZATION_STATUSES.has(membership.organization.status) ||
+    !membership.role
   ) {
     return null;
   }
@@ -175,12 +192,12 @@ export async function validateIamSession(
     userId: session.userId,
     userEmail: session.user.email,
     membershipId: session.membershipId,
-    operationalUserId: session.membership.operationalUserId,
-    organizationId: session.membership.organizationId,
-    tenantId: session.membership.organization.tenantId,
-    roleId: session.membership.role.id,
-    roleName: session.membership.role.name,
-    permissions: session.membership.role.permissions.map(({ permission }) => permission.name),
+    operationalUserId: membership.operationalUserId,
+    organizationId: membership.organizationId,
+    tenantId: membership.organization.tenantId,
+    roleId: membership.role.id,
+    roleName: membership.role.name,
+    permissions: membership.role.permissions.map(({ permission }) => permission.name),
     expiresAt: session.expiresAt,
   };
 }

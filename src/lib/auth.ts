@@ -1,8 +1,7 @@
 import { NextRequest } from 'next/server';
-import prisma from './db';
 import { validateIamSession } from './iam/session';
 import { reportServerError } from './server-errors';
-import { tenantTransaction } from './tenant-db';
+import { tenantRead, tenantTransaction } from './tenant-db';
 
 export interface UserContext {
   iamUserId: string;
@@ -39,10 +38,10 @@ export async function getContext(req?: NextRequest): Promise<UserContext | null>
   const session = await validateIamSession(iamToken);
   if (!session || !session.operationalUserId) return null;
 
-  const user = await prisma.user.findUnique({
-    where: { id: session.operationalUserId },
+  const user = await tenantRead(session.tenantId, (tx) => tx.user.findFirst({
+    where: { id: session.operationalUserId, tenantId: session.tenantId },
     include: { tenant: true },
-  });
+  }));
 
   if (
     !user ||

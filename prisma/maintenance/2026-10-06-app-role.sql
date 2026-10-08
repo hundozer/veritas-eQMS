@@ -32,3 +32,6 @@ REVOKE ALL ON "_prisma_migrations" FROM veritas_app;
 -- Audit-style tables added later must revoke UPDATE/DELETE in their own migration.
 ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO veritas_app;
 ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT USAGE, SELECT ON SEQUENCES TO veritas_app;
+
+-- Sign-in membership lookup (DEC-069); migration 20261008120000 grants it too when this role already exists.
+GRANT EXECUTE ON FUNCTION veritas_identity_memberships(TEXT) TO veritas_app;
