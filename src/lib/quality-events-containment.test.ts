@@ -1,3 +1,4 @@
+import { appPageSource } from '../test-support/app-pages';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
@@ -8,7 +9,7 @@ const routeFiles = [
   'src/app/api/capas/route.ts',
   'src/app/api/capas/[id]/route.ts',
 ];
-const page = readFileSync(resolve('src/app/page.tsx'), 'utf8');
+const page = appPageSource();
 
 describe('quality-event containment', () => {
   it.each([

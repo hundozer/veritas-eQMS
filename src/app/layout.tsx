@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import "@/ui/styles/liquid-glass.css";
+import { AppRouterCacheProvider } from "@mui/material-nextjs/v16-appRouter";
 import { UIThemeProvider } from "@/ui";
 
 export const metadata: Metadata = {
@@ -16,9 +17,12 @@ export default function RootLayout({
   return (
     <html lang="en" data-theme="dark">
       <body>
-        <UIThemeProvider defaultMode="dark" storageKey="theme-mode">
-          {children}
-        </UIThemeProvider>
+        {/* Collects MUI styles during server rendering so they match on hydration. */}
+        <AppRouterCacheProvider>
+          <UIThemeProvider defaultMode="dark" storageKey="theme-mode">
+            {children}
+          </UIThemeProvider>
+        </AppRouterCacheProvider>
       </body>
     </html>
   );

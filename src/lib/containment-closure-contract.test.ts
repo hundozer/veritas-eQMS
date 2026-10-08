@@ -1,8 +1,9 @@
+import { appPageSource } from '../test-support/app-pages';
 import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
-const page = readFileSync(resolve('src/app/page.tsx'), 'utf8');
+const page = appPageSource();
 const auth = readFileSync(resolve('src/lib/auth.ts'), 'utf8');
 const documentList = readFileSync(resolve('src/app/api/documents/route.ts'), 'utf8');
 const documentDetail = readFileSync(resolve('src/app/api/documents/[id]/route.ts'), 'utf8');

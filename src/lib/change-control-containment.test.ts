@@ -1,10 +1,11 @@
+import { appPageSource } from '../test-support/app-pages';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 const listRoute = readFileSync(resolve('src/app/api/change-requests/route.ts'), 'utf8');
 const approvalRoute = readFileSync(resolve('src/app/api/change-requests/[id]/approve/route.ts'), 'utf8');
-const page = readFileSync(resolve('src/app/page.tsx'), 'utf8');
+const page = appPageSource();
 
 describe('change-control containment', () => {
   it.each([

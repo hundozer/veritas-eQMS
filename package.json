@@ -15,10 +15,12 @@
     "test:db": "vitest run --config vitest.db.config.ts"
   },
   "dependencies": {
+    "@emotion/cache": "^11.14.0",
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.1",
     "@mui/icons-material": "^9.2.0",
     "@mui/material": "^9.2.0",
+    "@mui/material-nextjs": "^9.4.0",
     "@prisma/client": "^6.19.3",
     "@vercel/blob": "^2.8.0",
     "argon2": "^0.45.1",
