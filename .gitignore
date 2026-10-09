@@ -48,3 +48,6 @@ next-env.d.ts
 /prisma/dev.db-journal
 /prisma/dev.db-shm
 /prisma/dev.db-wal
+
+# Graphify output: a map of the code, rebuilt on demand (/graphify); not versioned.
+graphify-out/
