@@ -6,10 +6,11 @@ import { writeMandatoryAudit } from '@/lib/audit';
 import { assertTransition, lifecycleErrorResponse, verifyLifecycleIntegrity } from '@/lib/document-lifecycle';
 import { reportServerError } from '../../../../../lib/server-errors';
 import { clientIp, recordSignature, SignatureError, signatureFailedResponse, verifySignerOrRecordFailure } from '@/lib/signatures';
+import { assignTrainingForEffectiveVersion } from '../../../../../lib/training-assignment';
 
 // POST /api/documents/[id]/release - make the approved version effective (DEC-064).
-// The release is signed; a previously effective version is superseded in the
-// same transaction.
+// The release is signed; a previously effective version is superseded, and
+// training on the new version is assigned (DEC-073), in the same transaction.
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
@@ -61,6 +62,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
           requestUrl: req.nextUrl.pathname,
         });
       }
+      await assignTrainingForEffectiveVersion(tx, { context: user, documentId: id, version, requestUrl: req.nextUrl.pathname });
     });
     return NextResponse.json({ success: true, status: 'EFFECTIVE', version: version.versionNumber, effectiveDate });
   } catch (error) {

@@ -32,6 +32,7 @@ export async function GET(req: NextRequest) {
           status: true,
           assignedAt: true,
           completedAt: true,
+          documentVersion: { select: { versionNumber: true } },
           user: { select: { id: true, fullName: true, role: true, department: true } },
           requirement: {
             select: {
@@ -61,6 +62,7 @@ export async function GET(req: NextRequest) {
           status: true,
           assignedAt: true,
           completedAt: true,
+          documentVersion: { select: { versionNumber: true } },
           requirement: {
             select: {
               id: true,

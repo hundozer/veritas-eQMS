@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { tenantRead, tenantTransaction } from '@/lib/tenant-db';
 import { getContext, logAuditEvent } from '@/lib/auth';
 import { hasPermission } from '@/lib/rbac';
+import { parseTrainingDepartments } from '../../../lib/training-assignment';
 import { writeMandatoryAudit } from '@/lib/audit';
 import { randomUUID } from 'node:crypto';
 import { unexpectedErrorResponse } from '../../../lib/server-errors';
@@ -121,6 +122,7 @@ export async function POST(req: NextRequest) {
     if (!title || !classification) {
       return NextResponse.json({ error: { code: 'ValidationFailed', message: 'Title and classification are required' } }, { status: 400 });
     }
+    const trainingDepartments = parseTrainingDepartments(requiredRoles);
     let documentType;
     try {
       documentType = normalizeDocumentType(requestedType);
@@ -178,13 +180,13 @@ export async function POST(req: NextRequest) {
         },
       });
 
-      // Create Training Requirements if specified
-      if (requiredRoles) {
+      // Training departments, assigned when a version becomes effective (DEC-073).
+      if (trainingDepartments.length > 0) {
         await tx.trainingRequirement.create({
           data: {
             documentId: document.id,
             tenantId: user.tenantId,
-            requiredForRoles: requiredRoles, // Comma separated, e.g. "EMPLOYEE,OWNER"
+            requiredForRoles: trainingDepartments.join(', '),
             requiresQuiz: requiresQuiz === true,
             quizQuestions: quizQuestions ? JSON.stringify(quizQuestions) : null,
           },
@@ -196,7 +198,7 @@ export async function POST(req: NextRequest) {
         action: 'DOCUMENT_CREATED',
         objectType: 'Document',
         objectId: document.id,
-        payload: { documentNumber, documentType, title: document.title, classification: document.classification, status: document.status, version: 1, hash: upload.hash, requiredRoles },
+        payload: { documentNumber, documentType, title: document.title, classification: document.classification, status: document.status, version: 1, hash: upload.hash, trainingDepartments },
         requestUrl: req.nextUrl.pathname,
       });
 

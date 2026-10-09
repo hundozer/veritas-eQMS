@@ -143,7 +143,7 @@ export default function Workspace() {
   const [newDesc, setNewDesc] = useState('');
   const [newClassification, setNewClassification] = useState('CONTROLLED');
   const [newDocumentType, setNewDocumentType] = useState('SOP');
-  const [newRequiredRoles, setNewRequiredRoles] = useState('EMPLOYEE');
+  const [newRequiredRoles, setNewRequiredRoles] = useState('');
   const [newRequiresQuiz, setNewRequiresQuiz] = useState(false);
   const [newQuizQ1, setNewQuizQ1] = useState('What is the correct way to correct a handwritten error on a GxP document?');
   const [newQuizQ1Options, setNewQuizQ1Options] = useState([
@@ -376,7 +376,7 @@ export default function Workspace() {
         setNewDesc('');
         setNewDocumentType('SOP');
         setNewClassification('CONTROLLED');
-        setNewRequiredRoles('EMPLOYEE');
+        setNewRequiredRoles('');
         setNewRequiresQuiz(false);
         setDocFile(null);
         setDocFileName('');
@@ -826,7 +826,7 @@ export default function Workspace() {
                       <div className="glass" style={{ padding: '12px', background: 'rgba(99, 102, 241, 0.03)', borderColor: 'rgba(99, 102, 241, 0.15)' }}>
                         <strong>Training Profile Required:</strong>
                         <div style={{ fontSize: '13px', marginTop: '4px' }}>
-                          Roles: <span className={styles.currentBadge}>{selectedDoc.trainingRequirement.requiredForRoles}</span>
+                          Departments: <span className={styles.currentBadge}>{selectedDoc.trainingRequirement.requiredForRoles}</span>
                           {selectedDoc.trainingRequirement.requiresQuiz && <span style={{ marginLeft: '12px', color: 'var(--secondary)' }}>✓ Quiz Configured</span>}
                         </div>
                       </div>
@@ -1275,16 +1275,13 @@ export default function Workspace() {
                     </select>
                   </div>
                   <div>
-                    <label className={styles.formLabel}>Required Training Role</label>
-                    <select 
-                      className={styles.select}
+                    <label className={styles.formLabel}>Training departments</label>
+                    <input
+                      className={styles.input}
                       value={newRequiredRoles}
                       onChange={(e) => setNewRequiredRoles(e.target.value)}
-                    >
-                      <option value="EMPLOYEE">EMPLOYEE</option>
-                      <option value="OWNER,EMPLOYEE">EMPLOYEE & OWNER</option>
-                      <option value="ADMIN">ADMIN Only</option>
-                    </select>
+                      placeholder="e.g. QA, Production (blank for none)"
+                    />
                   </div>
                 </div>
 
