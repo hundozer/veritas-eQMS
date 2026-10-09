@@ -44,9 +44,13 @@ afterAll(async () => {
 
 // A member of the tenant in a given department, active unless stated.
 async function member(tenant: SeededTenant, label: string, department: string, accountStatus = 'ACTIVE') {
-  const added = await addMember(owner, tenant, label);
+  return (await trainee(tenant, label, department, accountStatus)).userId;
+}
+
+async function trainee(tenant: SeededTenant, label: string, department: string, accountStatus = 'ACTIVE', roleId?: string) {
+  const added = await addMember(owner, tenant, label, roleId);
   await owner.user.update({ where: { id: added.userId }, data: { department, accountStatus } });
-  return added.userId;
+  return added;
 }
 
 async function lifecycle(tenant: SeededTenant, requiredRoles?: string) {
@@ -78,7 +82,7 @@ async function lifecycle(tenant: SeededTenant, requiredRoles?: string) {
     signThrough,
     revise: async () => expect((await revise(requestAs(tenant, `/api/documents/${documentId}/revision`, { method: 'POST', body: { reason: 'Annual review', ...content('version two') } }), params(documentId))).status).toBe(201),
     versionId: async (versionNumber: number) => (await owner.documentVersion.findUniqueOrThrow({ where: { documentId_versionNumber: { documentId, versionNumber } } })).id,
-    assignments: () => owner.trainingAssignment.findMany({ where: { requirement: { documentId } }, select: { userId: true, status: true, documentVersionId: true, tenantId: true } }),
+    assignments: () => owner.trainingAssignment.findMany({ where: { requirement: { documentId } }, select: { id: true, userId: true, status: true, documentVersionId: true, tenantId: true } }),
   };
 }
 
@@ -142,5 +146,68 @@ describe('training assigned when a version becomes effective', () => {
     expect(await sop.assignments()).toEqual([]);
     expect(await owner.trainingRequirement.count({ where: { documentId: sop.documentId } })).toBe(0);
     expect(await owner.auditLog.count({ where: { action: 'TRAINING_ASSIGNED', objectId: await sop.versionId(1) } })).toBe(0);
+  });
+});
+
+describe('signing training as read and understood', () => {
+  const sign = async (tenant: SeededTenant, sessionToken: string, assignmentId: string, password: string) => {
+    const { POST } = await import('@/app/api/trainings/[id]/sign/route');
+    return POST(requestAs({ ...tenant, sessionToken }, `/api/trainings/${assignmentId}/sign`, { method: 'POST', body: { password } }), params(assignmentId));
+  };
+
+  it('TRN-T005 the trainee signs with their password: assignment completed, signature on the version\'s hash, audited', async () => {
+    const person = await trainee(a, 'Reader', 'Packaging');
+    const sop = await lifecycle(a, 'Packaging');
+    await sop.signThrough();
+    const v1 = await sop.versionId(1);
+    const assignment = (await sop.assignments()).find((row) => row.userId === person.userId)!;
+
+    expect((await sign(a, person.sessionToken, assignment.id, 'not-the-password')).status).toBe(403);
+    expect((await owner.trainingAssignment.findUniqueOrThrow({ where: { id: assignment.id } })).status).toBe('ASSIGNED');
+
+    const signed = await sign(a, person.sessionToken, assignment.id, MEMBER_PASSWORD);
+    expect(signed.status).toBe(200);
+    const row = await owner.trainingAssignment.findUniqueOrThrow({ where: { id: assignment.id } });
+    expect([row.status, row.completedAt]).toEqual(['COMPLETED', expect.any(Date)]);
+    const version = await owner.documentVersion.findUniqueOrThrow({ where: { id: v1 } });
+    const signature = await owner.signatureManifest.findFirstOrThrow({ where: { documentVersionId: v1, signedBy: person.userId } });
+    expect(signature).toMatchObject({ meaning: 'READ_AND_UNDERSTOOD', hashSigned: version.hash, tenantId: a.tenantId });
+    const audit = await owner.auditLog.findFirstOrThrow({ where: { tenantId: a.tenantId, action: 'TRAINING_COMPLETED', objectId: assignment.id } });
+    expect(JSON.parse(audit.payload)).toMatchObject({ before: 'ASSIGNED', after: 'COMPLETED', signatureId: signature.id, version: 1 });
+
+    expect((await sign(a, person.sessionToken, assignment.id, MEMBER_PASSWORD)).status).toBe(409);
+  });
+
+  it('TRN-T006 nobody signs another person\'s training, across or within tenants, and a permission is required', async () => {
+    const person = await trainee(a, 'Owner', 'Warehouse');
+    const colleague = await trainee(a, 'Colleague', 'Warehouse');
+    const outsider = await trainee(b, 'Outsider', 'Warehouse');
+    const readOnlyRole = await owner.iamRole.create({ data: { name: `Read only ${randomUUID()}`, description: 'test', isSystem: false } });
+    const readOwn = await owner.iamPermission.findUniqueOrThrow({ where: { name: 'training.read_own' } });
+    await owner.iamRolePermission.create({ data: { roleId: readOnlyRole.id, permissionId: readOwn.id } });
+    const unpermitted = await trainee(a, 'NoSign', 'Warehouse', 'ACTIVE', readOnlyRole.id);
+    const sop = await lifecycle(a, 'Warehouse');
+    await sop.signThrough();
+    const rows = await sop.assignments();
+    const mine = rows.find((row) => row.userId === person.userId)!;
+
+    expect((await sign(a, colleague.sessionToken, mine.id, MEMBER_PASSWORD)).status).toBe(404);
+    expect((await sign(b, outsider.sessionToken, mine.id, MEMBER_PASSWORD)).status).toBe(404);
+    const own = rows.find((row) => row.userId === unpermitted.userId)!;
+    expect((await sign(a, unpermitted.sessionToken, own.id, MEMBER_PASSWORD)).status).toBe(403);
+    expect((await owner.trainingAssignment.findMany({ where: { id: { in: [mine.id, own.id] } } })).map((row) => row.status)).toEqual(['ASSIGNED', 'ASSIGNED']);
+  });
+
+  it('TRN-T007 training on a superseded version can no longer be signed', async () => {
+    const person = await trainee(a, 'Late', 'Labelling');
+    const sop = await lifecycle(a, 'Labelling');
+    await sop.signThrough();
+    const old = (await sop.assignments()).find((row) => row.userId === person.userId)!;
+    await sop.revise();
+    await sop.signThrough();
+
+    expect((await sign(a, person.sessionToken, old.id, MEMBER_PASSWORD)).status).toBe(409);
+    const current = (await sop.assignments()).find((row) => row.userId === person.userId && row.status === 'ASSIGNED')!;
+    expect((await sign(a, person.sessionToken, current.id, MEMBER_PASSWORD)).status).toBe(200);
   });
 });

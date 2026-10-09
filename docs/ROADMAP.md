@@ -135,8 +135,9 @@ Not yet run in production; deferred by the owner (DEC-074).
   assigned that version in the release transaction, and open assignments on
   earlier versions are closed as `SUPERSEDED` (migration
   `20261009120000_training_on_effective_version`,
-  `src/db-tests/training-on-effective.dbtest.ts`). Open: the "read and
-  understood" signature and the training matrix screen.
+  `src/db-tests/training-on-effective.dbtest.ts`). "Read and understood"
+  signature done (DEC-075): the trainee signs their own assignment with their
+  password (`POST /api/trainings/[id]/sign`). Open: the training matrix screen.
 - Audit review screen with field diffs and PDF export.
 - CI-generated URS, risk assessment, traceability matrix and executed OQ per
   release.

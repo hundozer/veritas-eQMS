@@ -21,6 +21,7 @@ export type ServerErrorEvent =
   | 'notification.list'
   | 'storage.cleanupFailed'
   | 'training.list'
+  | 'training.sign'
   | 'user.invite'
   | 'user.list'
   | 'user.resendInvitation'

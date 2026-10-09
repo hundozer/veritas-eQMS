@@ -19,7 +19,7 @@ vi.mock('@/lib/db', () => ({
   },
 }));
 
-import { GET, POST } from './route';
+import { GET } from './route';
 
 const context = {
   id: 'user-1',
@@ -98,16 +98,7 @@ describe('training containment', () => {
     await expect(response.json()).resolves.toEqual({ assignments: [], isMatrix: true });
   });
 
-  it('TRAINING-T004 disables completion without identity or data processing', async () => {
-    const response = await POST();
-
-    expect(POST).toHaveLength(0);
-    expect(response.status).toBe(503);
-    expect(response.headers.get('Cache-Control')).toBe('no-store');
-    expect(response.headers.get('Retry-After')).toBe('86400');
-    expect(getContext).not.toHaveBeenCalled();
-    expect(update).not.toHaveBeenCalled();
-    expect(quizCreate).not.toHaveBeenCalled();
-    expect(transaction).not.toHaveBeenCalled();
+  it('TRAINING-T004 the list route accepts no writes; completion is a signature on its own route', async () => {
+    expect(await import('./route')).not.toHaveProperty('POST');
   });
 });
