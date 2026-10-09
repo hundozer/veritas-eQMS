@@ -5,13 +5,17 @@ const mocks = vi.hoisted(() => ({
   verifyPassword: vi.fn(),
   writeMandatoryAudit: vi.fn(),
   logSecurityEventBestEffort: vi.fn(),
+  recentFailures: vi.fn(),
 }));
 vi.mock('./db', () => ({ default: { iamUser: { findUnique: mocks.findUnique } } }));
 vi.mock('./iam/password', () => ({ verifyPassword: mocks.verifyPassword }));
 vi.mock('./audit', () => ({ writeMandatoryAudit: mocks.writeMandatoryAudit }));
 vi.mock('./auth', () => ({ logSecurityEventBestEffort: mocks.logSecurityEventBestEffort }));
+vi.mock('./tenant-db', () => ({
+  tenantRead: (tenantId: string, read: (tx: unknown) => unknown) => read({ auditLog: { count: (args: unknown) => mocks.recentFailures(tenantId, args) } }),
+}));
 
-import { recordSignature, SignatureError, verifySignerOrRecordFailure, verifySignerPassword } from './signatures';
+import { MAX_FAILED_SIGNING_ATTEMPTS, recordSignature, SignatureError, signatureFailedResponse, verifySignerOrRecordFailure, verifySignerPassword } from './signatures';
 
 const context = {
   id: 'user-1', iamUserId: 'iam-1', membershipId: 'membership-1', roleId: 'role-1', membershipRole: 'Quality Manager',
@@ -25,6 +29,7 @@ describe('electronic signatures', () => {
     vi.clearAllMocks();
     mocks.findUnique.mockResolvedValue({ passwordHash: 'hash', accountStatus: 'ACTIVE' });
     mocks.verifyPassword.mockResolvedValue(true);
+    mocks.recentFailures.mockResolvedValue(0);
   });
 
   it('ESIG-T001 checks the password of the signed-in identity only', async () => {
@@ -74,5 +79,29 @@ describe('electronic signatures', () => {
       action: 'SIGNATURE_APPLIED', objectId: 'version-1',
       payload: expect.objectContaining({ signatureId: 'signature-1', meaning: 'APPROVED', hashSigned: 'abc123' }),
     }));
+  });
+
+  it('ESIG-T005 after five wrong passwords in 15 minutes signing is refused without checking the password, and audited', async () => {
+    mocks.recentFailures.mockResolvedValue(MAX_FAILED_SIGNING_ATTEMPTS);
+
+    await expect(verifySignerOrRecordFailure(context, 'secret', 'version-1', request)).rejects.toMatchObject({ reason: 'TOO_MANY_ATTEMPTS' });
+
+    expect(mocks.verifyPassword).not.toHaveBeenCalled();
+    const [tenantId, { where }] = mocks.recentFailures.mock.calls[0];
+    expect(tenantId).toBe('tenant-a');
+    expect(where).toMatchObject({ tenantId: 'tenant-a', userId: 'user-1', action: 'SIGNATURE_FAILED', payload: { contains: 'PASSWORD_MISMATCH' } });
+    expect(Date.now() - where.timestamp.gte.getTime()).toBeCloseTo(15 * 60 * 1000, -3);
+    expect(mocks.logSecurityEventBestEffort).toHaveBeenCalledWith(expect.objectContaining({
+      action: 'SIGNATURE_FAILED', payload: { reason: 'TOO_MANY_ATTEMPTS' },
+    }));
+    expect(signatureFailedResponse(new SignatureError('TOO_MANY_ATTEMPTS')).status).toBe(429);
+  });
+
+  it('ESIG-T006 below the limit the password is checked as usual', async () => {
+    mocks.recentFailures.mockResolvedValue(MAX_FAILED_SIGNING_ATTEMPTS - 1);
+
+    await expect(verifySignerOrRecordFailure(context, 'secret', 'version-1', request)).resolves.toBeUndefined();
+    expect(mocks.verifyPassword).toHaveBeenCalledWith('secret', 'hash');
+    expect(signatureFailedResponse(new SignatureError('PASSWORD_MISMATCH')).status).toBe(403);
   });
 });

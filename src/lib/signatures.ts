@@ -4,6 +4,7 @@ import prisma from './db';
 import { logSecurityEventBestEffort, type UserContext } from './auth';
 import { writeMandatoryAudit } from './audit';
 import { verifyPassword } from './iam/password';
+import { tenantRead } from './tenant-db';
 
 // Electronic signatures (DEC-062). The signer re-enters their own password; the
 // signature records who signed, as they were at that moment, what the signature
@@ -22,7 +23,12 @@ export type SignatureMeaning = keyof typeof SIGNATURE_MEANINGS;
 const SIGNATURE_FAILURE_MESSAGES = {
   PASSWORD_REQUIRED: 'Your password is required to sign',
   PASSWORD_MISMATCH: 'The password did not match; nothing was signed',
+  TOO_MANY_ATTEMPTS: 'Too many wrong passwords; signing is paused for 15 minutes',
 } as const;
+
+// Wrong passwords counted per signer, from their own SIGNATURE_FAILED audit rows.
+export const MAX_FAILED_SIGNING_ATTEMPTS = 5;
+const FAILED_SIGNING_WINDOW_MS = 15 * 60 * 1000;
 
 export class SignatureError extends Error {
   constructor(readonly reason: keyof typeof SIGNATURE_FAILURE_MESSAGES) {
@@ -34,7 +40,7 @@ export class SignatureError extends Error {
 export function signatureFailedResponse(failure: SignatureError) {
   return NextResponse.json(
     { error: { code: 'SignatureFailed', message: SIGNATURE_FAILURE_MESSAGES[failure.reason] } },
-    { status: 403 },
+    { status: failure.reason === 'TOO_MANY_ATTEMPTS' ? 429 : 403 },
   );
 }
 
@@ -60,6 +66,16 @@ export async function verifySignerOrRecordFailure(
   request: { headers: Headers; nextUrl: { pathname: string } },
 ): Promise<void> {
   try {
+    const recentMismatches = await tenantRead(context.tenantId, (tx) => tx.auditLog.count({
+      where: {
+        tenantId: context.tenantId,
+        userId: context.id,
+        action: 'SIGNATURE_FAILED',
+        payload: { contains: 'PASSWORD_MISMATCH' },
+        timestamp: { gte: new Date(Date.now() - FAILED_SIGNING_WINDOW_MS) },
+      },
+    }));
+    if (recentMismatches >= MAX_FAILED_SIGNING_ATTEMPTS) throw new SignatureError('TOO_MANY_ATTEMPTS');
     await verifySignerPassword(context, password);
   } catch (error) {
     if (error instanceof SignatureError) {
