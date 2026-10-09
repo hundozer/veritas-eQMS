@@ -97,27 +97,28 @@ model Document {
 }
 
 model DocumentVersion {
-  id               String              @id @default(uuid())
-  documentId       String
-  tenantId         String
-  document         Document            @relation(fields: [documentId, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: Restrict)
-  versionNumber    Int
-  status           String              @default("DRAFT")
-  effectiveDate    DateTime?
-  changeSummary    String?
-  filePath         String // Legacy filesystem path; retained for inherited records
-  fileData         String? // Legacy Base64 content; new versions use private object storage
-  storageKey       String?             @unique
-  originalFileName String?
-  mimeType         String?
-  sizeBytes        Int?
-  hash             String // SHA-256 content-integrity evidence
-  createdAt        DateTime            @default(now())
-  createdBy        String
-  authoredById     String?
-  authoredBy       User?               @relation("DocumentVersionAuthor", fields: [authoredById, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: Restrict)
-  signatures       SignatureManifest[]
-  approvalRoutes   ApprovalRoute[]
+  id                  String               @id @default(uuid())
+  documentId          String
+  tenantId            String
+  document            Document             @relation(fields: [documentId, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: Restrict)
+  versionNumber       Int
+  status              String               @default("DRAFT")
+  effectiveDate       DateTime?
+  changeSummary       String?
+  filePath            String // Legacy filesystem path; retained for inherited records
+  fileData            String? // Legacy Base64 content; new versions use private object storage
+  storageKey          String?              @unique
+  originalFileName    String?
+  mimeType            String?
+  sizeBytes           Int?
+  hash                String // SHA-256 content-integrity evidence
+  createdAt           DateTime             @default(now())
+  createdBy           String
+  authoredById        String?
+  authoredBy          User?                @relation("DocumentVersionAuthor", fields: [authoredById, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: Restrict)
+  signatures          SignatureManifest[]
+  trainingAssignments TrainingAssignment[]
+  approvalRoutes      ApprovalRoute[]
 
   @@unique([documentId, versionNumber])
   @@unique([id, tenantId])
@@ -188,19 +189,24 @@ model TrainingRequirement {
 }
 
 model TrainingAssignment {
-  id            String              @id @default(uuid())
-  requirementId String
-  tenantId      String
-  requirement   TrainingRequirement @relation(fields: [requirementId, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: Restrict)
-  userId        String
-  user          User                @relation(fields: [userId, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: Restrict)
-  status        String // e.g. "ASSIGNED", "COMPLETED", "OVERDUE"
-  assignedAt    DateTime            @default(now())
-  completedAt   DateTime?
-  quizResultId  String?             @unique
-  quizResult    QuizResult?         @relation(fields: [quizResultId, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: Restrict)
+  id                String              @id @default(uuid())
+  requirementId     String
+  tenantId          String
+  requirement       TrainingRequirement @relation(fields: [requirementId, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: Restrict)
+  userId            String
+  user              User                @relation(fields: [userId, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: Restrict)
+  status            String // ASSIGNED, COMPLETED, SUPERSEDED (DEC-073); older rows may hold OVERDUE
+  assignedAt        DateTime            @default(now())
+  completedAt       DateTime?
+  quizResultId      String?             @unique
+  quizResult        QuizResult?         @relation(fields: [quizResultId, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: Restrict)
+  // The effective version this assignment trains on (DEC-073); null on rows from before it.
+  documentVersionId String?
+  documentVersion   DocumentVersion?    @relation(fields: [documentVersionId, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: Restrict)
 
   @@unique([quizResultId, tenantId])
+  @@unique([documentVersionId, userId])
+  @@index([tenantId, userId])
 }
 
 model QuizResult {

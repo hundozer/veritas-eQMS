@@ -35,6 +35,8 @@ vi.mock('@/lib/rbac', () => rbacMock);
 vi.mock('@/lib/audit', () => auditMock);
 vi.mock('@/lib/document-lifecycle', () => lifecycleMock);
 vi.mock('@/lib/signatures', () => signatureMock);
+const trainingMock = vi.hoisted(() => ({ assignTrainingForEffectiveVersion: vi.fn() }));
+vi.mock('./training-assignment', () => trainingMock);
 
 const context = {
   id: 'approver-1', email: 'qa@example.invalid', fullName: 'QA', role: 'EMPLOYEE', department: 'QA',
@@ -259,6 +261,7 @@ describe('document lifecycle routes', () => {
     expect(signatureMock.recordSignature).toHaveBeenCalledWith(tx, expect.objectContaining({ meaning: 'RELEASED' }));
     expect(auditMock.writeMandatoryAudit).toHaveBeenCalledWith(tx, expect.objectContaining({ action: 'DOCUMENT_RELEASED' }));
     expect(auditMock.writeMandatoryAudit).toHaveBeenCalledWith(tx, expect.objectContaining({ action: 'DOCUMENT_SUPERSEDED', objectId: 'version-1' }));
+    expect(trainingMock.assignTrainingForEffectiveVersion).toHaveBeenCalledWith(tx, expect.objectContaining({ documentId: 'doc-1', version: expect.objectContaining({ id: 'version-2' }) }));
   });
 
   it('REL-T004 only an approved current version can be released', async () => {

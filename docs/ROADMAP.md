@@ -7,7 +7,11 @@ previous gate has passed.
 
 Full audit and rationale: "Veritas eQMS — Code Audit & Roadmap" (5 Oct 2026).
 
-## Current phase: 1 — Document control slice
+## Current phase: 2 — Training and validation pack
+
+The owner started Phase 2 on 9 Oct 2026 with the Phase 1 gate not yet run in
+production (DEC-074); the gate stays open and is run when a second person is
+invited.
 
 ## Phase 0 — Unblock production (weeks 1–2)
 
@@ -120,11 +124,19 @@ protection was verified on 6 Oct 2026.
 
 **Gate:** an SOP goes draft → signed → effective → superseded in production, and
 the isolation suite passes.
+Not yet run in production; deferred by the owner (DEC-074).
 
 ## Phase 2 — Training and validation pack (months 3–5)
 
 - Retraining assigned when a version becomes effective; "read and understood"
   signature; training matrix.
+  Assignment done (DEC-073): a document names its training departments; when a
+  version becomes effective, every active member of those departments is
+  assigned that version in the release transaction, and open assignments on
+  earlier versions are closed as `SUPERSEDED` (migration
+  `20261009120000_training_on_effective_version`,
+  `src/db-tests/training-on-effective.dbtest.ts`). Open: the "read and
+  understood" signature and the training matrix screen.
 - Audit review screen with field diffs and PDF export.
 - CI-generated URS, risk assessment, traceability matrix and executed OQ per
   release.

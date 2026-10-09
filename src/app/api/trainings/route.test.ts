@@ -39,6 +39,7 @@ const assignmentProjection = {
   status: true,
   assignedAt: true,
   completedAt: true,
+  documentVersion: { select: { versionNumber: true } },
   requirement: {
     select: {
       id: true,
