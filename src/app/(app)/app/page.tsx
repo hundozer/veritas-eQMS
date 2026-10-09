@@ -81,6 +81,7 @@ interface TrainingAssignment {
   status: string;
   assignedAt: string;
   completedAt: string | null;
+  documentVersion?: { versionNumber: number } | null;
   user: User;
   requirement: {
     id: string;
@@ -136,6 +137,7 @@ export default function Workspace() {
   // Forms / Modals
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [signingMode, setSigningMode] = useState<SigningMode | null>(null);
+  const [signingTraining, setSigningTraining] = useState<{ id: string; title: string; versionNumber: number } | null>(null);
   const [signPassword, setSignPassword] = useState('');
 
   // Document creation form state
@@ -399,14 +401,16 @@ export default function Workspace() {
   // Review completion and approval are signed with the signer's own password.
   const closeSigning = () => {
     setSigningMode(null);
+    setSigningTraining(null);
     setSignPassword('');
     setEsignComment('');
   };
 
   const handleSignDocument = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedDocId || !signingMode) return;
-    const { path, method, body } = signingRequest(signingMode, selectedDocId, esignComment, signPassword);
+    const targetId = signingMode === 'READ' ? signingTraining?.id : selectedDocId;
+    if (!targetId || !signingMode) return;
+    const { path, method, body } = signingRequest(signingMode, targetId, esignComment, signPassword);
     setSignPassword('');
 
     try {
@@ -420,7 +424,9 @@ export default function Workspace() {
 
       const data = await res.json();
       if (res.ok) {
-        setSuccessMessage(signingMode === 'REVIEW'
+        setSuccessMessage(signingMode === 'READ'
+          ? 'Training signed as read and understood.'
+          : signingMode === 'REVIEW'
           ? 'Review signed; assigned approval is now available.'
           : signingMode === 'APPROVE'
             ? 'Approval signed. The document must still be released to become effective.'
@@ -935,7 +941,7 @@ export default function Workspace() {
                         </span>
                       </div>
                       <p style={{ fontSize: '13px', color: 'var(--text-muted)' }}>
-                        {tr.requirement?.document?.description || 'Mandatory training for 21 CFR Part 11 / ISO 13485 compliance.'}
+                        {tr.documentVersion ? `Version ${tr.documentVersion.versionNumber}. ` : ''}{tr.requirement?.document?.description || 'Read the effective version, then sign that you have read and understood it.'}
                       </p>
                       
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '16px' }}>
@@ -944,9 +950,26 @@ export default function Workspace() {
                           {tr.completedAt && ` | Completed: ${new Date(tr.completedAt).toLocaleDateString()}`}
                         </span>
                         
-                        {tr.status === 'ASSIGNED' ? (
+                        {tr.status === 'ASSIGNED' && tr.documentVersion ? (
+                          <div style={{ display: 'flex', gap: '8px' }}>
+                            <a className={`${styles.btn} ${styles.btnSecondary}`} href={`/api/documents/${tr.requirement.document.id}/pdf`} target="_blank" rel="noreferrer">Open document</a>
+                            <button
+                              className={`${styles.btn} ${styles.btnPrimary}`}
+                              onClick={() => {
+                                setSigningTraining({ id: tr.id, title: tr.requirement.document.title, versionNumber: tr.documentVersion!.versionNumber });
+                                setSigningMode('READ');
+                              }}
+                            >
+                              Sign as Read and Understood
+                            </button>
+                          </div>
+                        ) : tr.status === 'ASSIGNED' ? (
                           <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
-                            Quiz and sign-off unavailable during recovery
+                            Waiting for the next effective version
+                          </span>
+                        ) : tr.status === 'SUPERSEDED' ? (
+                          <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+                            Replaced by training on a newer version
                           </span>
                         ) : (
                           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#10B981', fontWeight: '600', fontSize: '13px' }}>
@@ -1351,7 +1374,7 @@ export default function Workspace() {
       )}
 
       {/* MODAL 2: SIGN REVIEW OR APPROVAL */}
-      {signingMode && selectedDoc && (
+      {signingMode && (signingMode === 'READ' ? signingTraining : selectedDoc) && (
         <div className={styles.modalOverlay}>
           <div className={styles.modalContent} style={{ maxWidth: '500px' }}>
             <div className={styles.modalHeader}>
@@ -1366,10 +1389,11 @@ export default function Workspace() {
                   </div>
                 )}
                 <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '16px' }}>
-                  You are signing <strong style={{ color: '#fff' }}>{selectedDoc.title}</strong> (Version {selectedDoc.currentVersionNumber}.0) with the meaning <strong style={{ color: '#fff' }}>{SIGNING_LABELS[signingMode].meaning}</strong>. Your signature records your name, role, the time and the SHA-256 of this version&apos;s file.
+                  You are signing <strong style={{ color: '#fff' }}>{signingMode === 'READ' ? signingTraining?.title : selectedDoc?.title}</strong> (Version {signingMode === 'READ' ? signingTraining?.versionNumber : selectedDoc?.currentVersionNumber}.0) with the meaning <strong style={{ color: '#fff' }}>{SIGNING_LABELS[signingMode].meaning}</strong>. Your signature records your name, role, the time and the SHA-256 of this version&apos;s file.
                   {signingMode === 'APPROVE' && ' Approval does not make the document effective.'}
                   {signingMode === 'RELEASE' && ' Releasing makes this version effective now and supersedes the previously effective version.'}
                   {signingMode === 'RETIRE' && ' Retiring takes the document out of use; its versions and records are kept.'}
+                  {signingMode === 'READ' && ' Your training on this version is then complete.'}
                 </div>
 
                 <div className={styles.formGroup}>

@@ -25,4 +25,10 @@ describe('signing request from the document screen', () => {
       path: '/api/documents/doc-1', method: 'DELETE', body: { reason: 'replaced by SOP-200', password: 'pw' },
     });
   });
+
+  it('SIGNREQ-T005 a training signature goes to the assignment\'s signing route with the password', () => {
+    expect(signingRequest('READ', 'assignment-1', ' ', 'pw')).toEqual({
+      path: '/api/trainings/assignment-1/sign', method: 'POST', body: { comment: '', password: 'pw' },
+    });
+  });
 });

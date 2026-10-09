@@ -30,21 +30,6 @@ export function userAdministrationMutationDisabled() {
   );
 }
 
-export function trainingCompletionDisabled() {
-  return NextResponse.json(
-    {
-      error: {
-        code: 'TrainingCompletionDisabled',
-        message: 'Training quiz and sign-off completion are temporarily unavailable',
-      },
-    },
-    {
-      status: 503,
-      headers: { 'Cache-Control': 'no-store', 'Retry-After': '86400' },
-    },
-  );
-}
-
 export function changeControlDisabled() {
   return NextResponse.json(
     {

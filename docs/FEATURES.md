@@ -106,14 +106,14 @@ transaction.
 
 - Password re-entry by the signer; checked against their own identity
   (`src/lib/signatures.ts`, DEC-062).
-- Meanings: `REVIEWED`, `APPROVED`, `RELEASED`, `RETIRED`.
+- Meanings: `REVIEWED`, `APPROVED`, `RELEASED`, `RETIRED`, and `READ_AND_UNDERSTOOD` for training.
 - Each signature row stores signer, printed name and role at that moment,
   meaning, server time, client IP, optional comment (the reason for
   retirement) and the SHA-256 of the signed file. It is written with its
   `SIGNATURE_APPLIED` audit row in the same transaction as the state change.
 - Signature rows are append-only by trigger. A failed attempt changes nothing
   and leaves a `SIGNATURE_FAILED` audit row.
-- UI: one signing dialog for all four meanings (`src/lib/signing-request.ts`).
+- UI: one signing dialog for all five meanings (`src/lib/signing-request.ts`).
 - After five wrong passwords within 15 minutes, a signer's next attempts are
   refused with HTTP 429 without checking the password, until the oldest falls
   out of the window. Counted per signer from their own `SIGNATURE_FAILED`
@@ -136,10 +136,11 @@ transaction.
 | --- | --- | --- |
 | Training requirements attached to documents; assignments per person | Live (read) | tables `TrainingRequirement`, `TrainingAssignment` |
 | Training Hub: own assignments, or the tenant matrix with `training.read_all`, each with the version to train on | Live (read) | `GET /api/trainings` |
-| Completing training / quizzes | Disabled | `POST /api/trainings` |
+| Quizzes (stored answer keys) | Out of scope; no completion route | — |
 | Training departments set on a new document (comma-separated; blank for none) | Live | `POST /api/documents` |
 | Training assigned on release: active members of the training departments get the new effective version; open assignments on earlier versions become `SUPERSEDED`; `TRAINING_ASSIGNED` audit row | Live | `POST /api/documents/[id]/release`, `src/lib/training-assignment.ts` (DEC-073) |
-| "Read and understood" signature, training matrix screen | Not built (Phase 2) | — |
+| "Read and understood" signature: the trainee opens the effective version and signs their own open assignment with their password; assignment `COMPLETED`, signature on the version's SHA-256, `TRAINING_COMPLETED` audit row, one transaction. Assignments on superseded versions cannot be signed | Live | `POST /api/trainings/[id]/sign` (`training.complete_own`, DEC-075) |
+| Training matrix screen | Not built (Phase 2) | — |
 
 ## Other screens and routes
 

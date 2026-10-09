@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import { tenantRead } from '@/lib/tenant-db';
 import { getContext } from '@/lib/auth';
 import { hasPermission } from '../../../lib/rbac';
-import { trainingCompletionDisabled } from '../../../lib/recovery-disabled';
 import { unexpectedErrorResponse } from '../../../lib/server-errors';
 
 
@@ -83,6 +82,4 @@ export async function GET(req: NextRequest) {
   }
 }
 
-// Completion remains unavailable until IAM reauthentication, server-only answer
-// keys, controlled document/version binding, attempt rules, and audit are validated.
-export const POST = trainingCompletionDisabled;
+// Training is completed by signing it: POST /api/trainings/[id]/sign (DEC-075).
