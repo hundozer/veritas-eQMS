@@ -167,9 +167,10 @@ Biotech" and "BioLabs Inc" as read-only history (DEC-056).
 
 ## Backlog and known gaps
 
-- Invitation email in production: set `EMAIL_FROM` to a sender on a domain
-  verified in Resend, then create the owner's separate administrator account
-  (parked by the owner, see `docs/ROADMAP.md` Backlog).
+- Invitation email in production: `EMAIL_FROM` is set (`contact@simpleafied.app`);
+  the administrator account is created by a reviewed maintenance step
+  (DEC-071). Live once both are in place and `simpleafied.app` is verified in
+  Resend (see `docs/ROADMAP.md` Backlog).
 - Abandoned direct-upload staging objects are not cleaned up (DEC-068).
 - Office files cannot be stamped as uncontrolled copies; only their file name
   is marked (DEC-067).

@@ -146,11 +146,14 @@ the isolation suite passes.
 
 Parked by the owner; not part of any phase gate until taken up again.
 
-- Invitation email in production (owner, 7 Oct 2026). Set `EMAIL_FROM` in
-  Production to a sender on a domain verified in Resend (the first value was
-  wrong and was removed from Production), then create the owner's separate
-  administrator account (Organization Owner role, DEC-063) with a reviewed
-  maintenance step. Until then invitations are refused and nothing is created.
+- Invitation email in production (owner, 7 Oct 2026; taken up again 9 Oct 2026).
+  `EMAIL_FROM` is set in Production to `Simpleafied Veritas
+  <contact@simpleafied.app>` (9 Oct 2026); `simpleafied.app` must be verified in
+  Resend. The separate administrator account `contact@simpleafied.app`
+  (Organization Owner) is created by
+  `prisma/maintenance/2026-10-09-administrator-account.sql` (DEC-071), applied
+  with the owner's approval after this change is deployed; the owner then sets
+  its password from a link requested at `/auth/setup-password`.
 
 ## Out of scope
 
