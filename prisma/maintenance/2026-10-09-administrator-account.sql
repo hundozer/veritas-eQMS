@@ -37,7 +37,9 @@ BEGIN
     WHERE "userId" = owner_iam.id AND "organizationId" = org.id AND status = 'ACTIVE';
   SELECT * INTO STRICT owner_user FROM "User" WHERE id = owner_member."operationalUserId";
   SELECT * INTO STRICT owner_role FROM "IamRole" WHERE id = owner_member."roleId";
-  SELECT * INTO STRICT admin_role FROM "IamRole" WHERE name = 'Organization Owner' AND NOT "isSystem";
+  -- Roles are seeded with isSystem = true in production; platform roles are
+  -- excluded by name (src/lib/iam/provisioning.ts), so select by name only.
+  SELECT * INTO STRICT admin_role FROM "IamRole" WHERE name = 'Organization Owner';
 
   IF EXISTS (SELECT 1 FROM "IamUser" WHERE lower(email) = admin_email)
      OR EXISTS (SELECT 1 FROM "User" WHERE lower(email) = admin_email) THEN
