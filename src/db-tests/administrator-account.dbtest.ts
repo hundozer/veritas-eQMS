@@ -38,8 +38,9 @@ beforeAll(async () => {
   // Production shape: the owner's organisation and identity by name.
   await owner.iamOrganization.update({ where: { id: operations.organizationId }, data: { companyName: 'Simpleafied Operations' } });
   await owner.iamUser.update({ where: { email: operations.email }, data: { email: 'god@simpleafied.app' } });
+  // As in production, the role is a seeded system role (isSystem = true).
   const adminRole = await owner.iamRole.upsert({
-    where: { name: 'Organization Owner' }, update: {}, create: { name: 'Organization Owner', description: 'Tenant administration', isSystem: false },
+    where: { name: 'Organization Owner' }, update: { isSystem: true }, create: { name: 'Organization Owner', description: 'Tenant administration', isSystem: true },
   });
   const permissions = await owner.iamPermission.findMany({ where: { name: { in: ['users.create', 'users.read', 'documents.read', 'audit.read'] } } });
   await owner.iamRolePermission.createMany({ data: permissions.map((p) => ({ roleId: adminRole.id, permissionId: p.id })), skipDuplicates: true });
