@@ -114,7 +114,10 @@ transaction.
 - Signature rows are append-only by trigger. A failed attempt changes nothing
   and leaves a `SIGNATURE_FAILED` audit row.
 - UI: one signing dialog for all four meanings (`src/lib/signing-request.ts`).
-- Not built: rate limiting of failed signing attempts (Phase 2).
+- After five wrong passwords within 15 minutes, a signer's next attempts are
+  refused with HTTP 429 without checking the password, until the oldest falls
+  out of the window. Counted per signer from their own `SIGNATURE_FAILED`
+  audit rows; each refusal is audited too (DEC-072).
 
 ## Audit trail
 

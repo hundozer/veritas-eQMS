@@ -7,7 +7,7 @@ previous gate has passed.
 
 Full audit and rationale: "Veritas eQMS — Code Audit & Roadmap" (5 Oct 2026).
 
-## Current phase: 0 — Unblock production
+## Current phase: 1 — Document control slice
 
 ## Phase 0 — Unblock production (weeks 1–2)
 
@@ -80,8 +80,10 @@ protection was verified on 6 Oct 2026.
   Done (DEC-062): review completion and approval are signed with the signer's
   own password; each signature records signer, role, meaning, time and the
   SHA-256 signed; signatures are append-only (`src/lib/signatures.ts`,
-  migration `20261007180000_electronic_signatures`). Open: rate limiting of
-  failed signing attempts, with login rate limiting in Phase 2.
+  migration `20261007180000_electronic_signatures`). Failed signing attempts
+  are limited to five per signer in 15 minutes (DEC-072,
+  `src/db-tests/signing-attempt-limit.dbtest.ts`); login rate limiting stays
+  in Phase 2.
 - Release (`documents.release`), supersession, withdraw-revision, retire.
   Release and supersession done (DEC-064): a signed release (meaning
   `RELEASED`, never by the author) makes the approved version effective and
@@ -150,10 +152,10 @@ Parked by the owner; not part of any phase gate until taken up again.
   `EMAIL_FROM` is set in Production to `Simpleafied Veritas
   <contact@simpleafied.app>` (9 Oct 2026); `simpleafied.app` must be verified in
   Resend. The separate administrator account `contact@simpleafied.app`
-  (Organization Owner) is created by
-  `prisma/maintenance/2026-10-09-administrator-account.sql` (DEC-071), applied
-  with the owner's approval after this change is deployed; the owner then sets
-  its password from a link requested at `/auth/setup-password`.
+  (Organization Owner) was created in production on 9 Oct 2026 by
+  `prisma/maintenance/2026-10-09-administrator-account.sql` (DEC-071), with the
+  owner's approval; the owner then sets its password from a link requested at
+  `/auth/setup-password`.
 
 ## Out of scope
 
