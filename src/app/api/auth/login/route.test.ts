@@ -14,6 +14,13 @@ const sessionMock = vi.hoisted(() => ({ createIamSession: vi.fn(), identityMembe
 vi.mock('@/lib/db', () => ({ default: prismaMock }));
 vi.mock('@/lib/iam/password', () => passwordMock);
 vi.mock('@/lib/iam/session', () => sessionMock);
+const throttleMock = vi.hoisted(() => ({
+  isLoginThrottled: vi.fn(async () => false),
+  recordLoginFailure: vi.fn(),
+  recordLoginSuccess: vi.fn(),
+  clientAddress: () => null,
+}));
+vi.mock('../../../../lib/iam/login-throttle', () => throttleMock);
 const tenantReads = vi.hoisted(() => [] as string[]);
 vi.mock('@/lib/tenant-db', () => ({
   tenantRead: (tenantId: string, work: (tx: unknown) => unknown) => {
