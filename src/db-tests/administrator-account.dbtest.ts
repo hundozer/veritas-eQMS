@@ -3,6 +3,7 @@ import { resolve } from 'node:path';
 import { PrismaClient } from '@prisma/client';
 import { NextRequest } from 'next/server';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
+import { signIn } from './sign-in';
 import { ownerDatabaseUrl } from './connections';
 import { createFullAccessRole, requestAs, seedTenant, type SeededTenant } from './fixtures';
 
@@ -70,13 +71,12 @@ describe('separate administrator account (maintenance step)', () => {
   it('ADMIN-T002 the administrator sets their own password from a requested link, signs in, and may invite, but not sign documents', async () => {
     const { POST: requestLink } = await import('@/app/api/auth/setup-password/request/route');
     const { POST: setup } = await import('@/app/api/auth/setup-password/route');
-    const { POST: login } = await import('@/app/api/auth/login/route');
 
     expect((await requestLink(anonymous('/api/auth/setup-password/request', { email: ADMIN }))).status).toBe(200);
     expect(outbox.sent.map((mail) => mail.to)).toEqual([ADMIN]);
     expect((await setup(anonymous('/api/auth/setup-password', { token: outbox.sent[0].token, password: 'administrator-password' }))).status).toBe(200);
 
-    const signedIn = await login(anonymous('/api/auth/login', { email: ADMIN, password: 'administrator-password' }));
+    const signedIn = await signIn(owner, ADMIN, 'administrator-password');
     expect(signedIn.status).toBe(200);
     const sessionToken = /iam-access-token=([^;]+)/.exec(signedIn.headers.get('set-cookie') ?? '')?.[1];
     expect(sessionToken).toBeTruthy();
