@@ -133,6 +133,7 @@ export default function Workspace() {
   const [trainingMatrixView, setTrainingMatrixView] = useState(false);
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
   const [notifications, setNotifications] = useState<any[]>([]);
+  const [dataStatus, setDataStatus] = useState<'loading' | 'ready' | 'failed'>('loading');
 
   // Selected Detail views
   const [selectedDocId, setSelectedDocId] = useState<string | null>(null);
@@ -273,8 +274,10 @@ export default function Workspace() {
       const notifRes = await fetch('/api/notifications');
       const notifData = await notifRes.json();
       if (notifData.notifications) setNotifications(notifData.notifications);
+      setDataStatus(docRes.ok && trRes.ok ? 'ready' : 'failed');
     } catch (err) {
       console.error('Fetch data error:', err);
+      setDataStatus('failed');
     }
   }, [currentUser, auditActionFilter, auditTypeFilter]);
 
@@ -576,27 +579,19 @@ export default function Workspace() {
     }
   ];
 
-  const headerActions = (
-    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-      {currentUser && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <span className="glass" style={{ padding: '4px 10px', borderRadius: '16px', fontSize: '12px', color: 'var(--primary)', fontWeight: '600', border: '1px solid rgba(16,185,129,0.3)' }}>
-            🏢 {currentUser.tenantName || 'Acme Biotech'}
-          </span>
-
-          <span style={{ fontSize: '12px', padding: '6px 12px' }}>
-            👤 <strong>{currentUser.fullName}</strong>
-          </span>
-
-          <button
-            className={`${styles.btn} ${styles.btnDanger}`}
-            onClick={handleSignOut}
-            style={{ fontSize: '12px', padding: '6px 12px' }}
-          >
-            🔒 Sign Out
-          </button>
-        </div>
+  const headerActions = currentUser && (
+    <div style={{ display: 'flex', alignItems: 'center', gap: '16px', fontSize: '13px' }}>
+      {(currentUser.tenantName || currentUser.tenant?.name) && (
+        <span style={{ color: 'var(--t2)' }}>{currentUser.tenantName || currentUser.tenant?.name}</span>
       )}
+      <span style={{ fontWeight: 600 }}>{currentUser.fullName}</span>
+      <button
+        type="button"
+        onClick={handleSignOut}
+        style={{ minHeight: '32px', padding: '0 12px', borderRadius: '3px', border: '1px solid var(--border)', background: 'transparent', color: 'var(--t1)', font: 'inherit', fontWeight: 500, cursor: 'pointer' }}
+      >
+        Sign out
+      </button>
     </div>
   );
 
@@ -639,6 +634,7 @@ export default function Workspace() {
         {activeTab === 'dashboard' && currentUser && (
           <Dashboard
             user={currentUser}
+            status={dataStatus}
             documents={documents}
             trainings={trainings}
             auditEntries={sections.includes('audit') && !auditActionFilter && !auditTypeFilter ? auditLogs : null}
