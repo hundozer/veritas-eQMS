@@ -32,7 +32,7 @@ export async function GET(req: NextRequest) {
           assignedAt: true,
           completedAt: true,
           documentVersion: { select: { versionNumber: true } },
-          user: { select: { id: true, fullName: true, role: true, department: true } },
+          user: { select: { id: true, fullName: true, department: true } },
           requirement: {
             select: {
               id: true,

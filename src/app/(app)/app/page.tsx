@@ -7,6 +7,7 @@ import { AppShell, useThemeMode } from '@/ui';
 import type { NavGroup } from '@/ui';
 import { documentActionsFor } from '@/lib/document-actions';
 import { workspaceSections } from '@/lib/workspace-access';
+import { buildTrainingMatrix } from '@/lib/training-matrix';
 import { REASON_REQUIRED, SIGNING_LABELS, signingRequest, type SigningMode } from '@/lib/signing-request';
 import InviteMemberPanel from '@/ui/components/InviteMemberPanel';
 import { resendInvitation } from '@/lib/invitations-client';
@@ -128,6 +129,7 @@ export default function Workspace() {
   // App Data
   const [documents, setDocuments] = useState<Document[]>([]);
   const [trainings, setTrainings] = useState<TrainingAssignment[]>([]);
+  const [trainingMatrixView, setTrainingMatrixView] = useState(false);
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
   const [notifications, setNotifications] = useState<any[]>([]);
 
@@ -240,6 +242,7 @@ export default function Workspace() {
       const trRes = await fetch('/api/trainings');
       const trData = await trRes.json();
       if (trData.assignments) setTrainings(trData.assignments);
+      setTrainingMatrixView(trData.isMatrix === true);
 
       // Fetch Audit logs (if compliance role)
       if (workspaceSections(currentUser.permissions).includes('audit')) {
@@ -987,52 +990,60 @@ export default function Workspace() {
               </div>
             </div>
 
-            {/* Complete Training Matrix for managers */}
-            <div>
-              <h2>eQMS Training Compliance Matrix</h2>
-              <div className={styles.card} style={{ marginTop: '16px' }}>
-                <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '16px' }}>
-                  Tenant assignment status view. Completeness and regulatory suitability have not been independently validated.
-                </div>
-
-                <div className={styles.tableWrapper}>
-                  <table className={styles.table}>
-                    <thead>
-                      <tr>
-                        <th>User</th>
-                        <th>Role</th>
-                        <th>Required SOP</th>
-                        <th>Status</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {trainings && trainings.length > 0 ? (
-                        trainings.map((tr) => (
-                          <tr key={tr.id} className={styles.tableRow}>
-                            <td style={{ fontWeight: '600' }}>{tr.user?.fullName || 'Tenant User'}</td>
-                            <td><span className={styles.currentBadge}>{tr.user?.role || 'EMPLOYEE'}</span></td>
-                            <td>{(tr.requirement?.document?.title || 'SOP-001').split(':')[0]}</td>
-                            <td>
-                              <span className={`${styles.badge} ${
-                                tr.status === 'COMPLETED' ? styles.badgeEffective : styles.badgeReview
-                              }`}>
-                                {tr.status || 'ASSIGNED'}
-                              </span>
-                            </td>
+            {/* Training matrix: everyone's training, for holders of training.read_all (DEC-076) */}
+            {trainingMatrixView && (() => {
+              const matrix = buildTrainingMatrix(trainings);
+              return (
+                <div>
+                  <h2>Training Matrix</h2>
+                  <div className={styles.card} style={{ marginTop: '16px' }}>
+                    <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '16px' }}>
+                      Each cell shows a person&apos;s training on the newest version they were assigned. {matrix.totals.open} open, {matrix.totals.completed} completed.
+                    </div>
+                    <div className={styles.tableWrapper}>
+                      <table className={styles.table}>
+                        <thead>
+                          <tr>
+                            <th>Person</th>
+                            <th>Department</th>
+                            {matrix.documents.map((document) => (
+                              <th key={document.id} title={document.title}>{document.documentNumber ?? document.title}</th>
+                            ))}
                           </tr>
-                        ))
-                      ) : (
-                        <tr>
-                          <td colSpan={4} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '24px' }}>
-                            No active training records in matrix.
-                          </td>
-                        </tr>
-                      )}
-                    </tbody>
-                  </table>
+                        </thead>
+                        <tbody>
+                          {matrix.people.length > 0 ? matrix.people.map((person) => (
+                            <tr key={person.id} className={styles.tableRow}>
+                              <td style={{ fontWeight: '600' }}>{person.fullName}</td>
+                              <td>{person.department}</td>
+                              {matrix.documents.map((document) => {
+                                const cell = person.cells[document.id];
+                                if (!cell) return <td key={document.id} style={{ color: 'var(--text-muted)' }}>—</td>;
+                                const version = cell.versionNumber ? `v${cell.versionNumber} ` : '';
+                                return (
+                                  <td key={document.id}>
+                                    <span className={`${styles.badge} ${cell.status === 'COMPLETED' ? styles.badgeEffective : styles.badgeReview}`}>
+                                      {cell.status === 'COMPLETED' ? `${version}trained` : `${version}open`}
+                                    </span>
+                                    {cell.completedAt && <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{new Date(cell.completedAt).toLocaleDateString()}</div>}
+                                  </td>
+                                );
+                              })}
+                            </tr>
+                          )) : (
+                            <tr>
+                              <td colSpan={2 + matrix.documents.length} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '24px' }}>
+                                No training assigned yet.
+                              </td>
+                            </tr>
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
                 </div>
-              </div>
-            </div>
+              );
+            })()}
           </div>
         )}
 
