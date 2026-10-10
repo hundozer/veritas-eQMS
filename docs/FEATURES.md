@@ -140,7 +140,7 @@ transaction.
 | Training departments set on a new document (comma-separated; blank for none) | Live | `POST /api/documents` |
 | Training assigned on release: active members of the training departments get the new effective version; open assignments on earlier versions become `SUPERSEDED`; `TRAINING_ASSIGNED` audit row | Live | `POST /api/documents/[id]/release`, `src/lib/training-assignment.ts` (DEC-073) |
 | "Read and understood" signature: the trainee opens the effective version and signs their own open assignment with their password; assignment `COMPLETED`, signature on the version's SHA-256, `TRAINING_COMPLETED` audit row, one transaction. Assignments on superseded versions cannot be signed | Live | `POST /api/trainings/[id]/sign` (`training.complete_own`, DEC-075) |
-| Training matrix screen | Not built (Phase 2) | — |
+| Training matrix: people × documents; each cell is the person's training on the newest version assigned (open or trained, with date); superseded assignments are left out; totals of open and completed | Live, `training.read_all` | Training Hub, `src/lib/training-matrix.ts` (DEC-076) |
 
 ## Other screens and routes
 

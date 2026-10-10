@@ -128,7 +128,7 @@ Not yet run in production; deferred by the owner (DEC-074).
 
 ## Phase 2 — Training and validation pack (months 3–5)
 
-- Retraining assigned when a version becomes effective; "read and understood"
+- [x] Retraining assigned when a version becomes effective; "read and understood"
   signature; training matrix.
   Assignment done (DEC-073): a document names its training departments; when a
   version becomes effective, every active member of those departments is
@@ -137,7 +137,8 @@ Not yet run in production; deferred by the owner (DEC-074).
   `20261009120000_training_on_effective_version`,
   `src/db-tests/training-on-effective.dbtest.ts`). "Read and understood"
   signature done (DEC-075): the trainee signs their own assignment with their
-  password (`POST /api/trainings/[id]/sign`). Open: the training matrix screen.
+  password (`POST /api/trainings/[id]/sign`). Training matrix done (DEC-076):
+  people × documents in the Training Hub for holders of `training.read_all`.
 - Audit review screen with field diffs and PDF export.
 - CI-generated URS, risk assessment, traceability matrix and executed OQ per
   release.

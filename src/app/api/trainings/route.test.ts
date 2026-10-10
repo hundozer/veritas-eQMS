@@ -91,7 +91,7 @@ describe('training containment', () => {
       where: { user: { tenantId: 'tenant-1' } },
       select: {
         ...assignmentProjection,
-        user: { select: { id: true, fullName: true, role: true, department: true } },
+        user: { select: { id: true, fullName: true, department: true } },
       },
       orderBy: { assignedAt: 'desc' },
     });
