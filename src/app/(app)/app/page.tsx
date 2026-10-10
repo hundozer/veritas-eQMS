@@ -8,6 +8,7 @@ import type { NavGroup } from '@/ui';
 import { documentActionsFor } from '@/lib/document-actions';
 import { workspaceSections } from '@/lib/workspace-access';
 import { buildTrainingMatrix } from '@/lib/training-matrix';
+import { AUDIT_ACTIONS, type AuditChange, type AuditDetail } from '@/lib/audit-review';
 import { REASON_REQUIRED, SIGNING_LABELS, signingRequest, type SigningMode } from '@/lib/signing-request';
 import InviteMemberPanel from '@/ui/components/InviteMemberPanel';
 import { resendInvitation } from '@/lib/invitations-client';
@@ -107,10 +108,9 @@ interface AuditLog {
   action: string;
   objectType: string;
   objectId: string | null;
-  payload: string;
   status: string;
-  sourceIp: string | null;
-  requestUrl: string | null;
+  changes: AuditChange[];
+  details: AuditDetail[];
 }
 
 // The signed-in workspace (/app). The (app) layout has already checked the
@@ -1148,12 +1148,11 @@ export default function Workspace() {
           <div className={styles.card}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
               <div>
-                <h2>Tenant Audit Event Index</h2>
+                <h2>Audit Review</h2>
                 <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '4px' }}>
-                  A bounded operational event view. Append-only storage, completeness, retention, and regulatory validation are not yet evidenced.
+                  The newest 200 audit entries matching the filters, with what changed. Audit entries cannot be edited or deleted.
                 </p>
               </div>
-              <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>CSV export disabled</span>
             </div>
 
             {/* Filter controls */}
@@ -1166,11 +1165,7 @@ export default function Workspace() {
                   onChange={(e) => setAuditActionFilter(e.target.value)}
                 >
                   <option value="">All Actions</option>
-                  <option value="Document.Create">Document.Create</option>
-                  <option value="Document.View">Document.View</option>
-                  <option value="Document.Approve">Document.Approve</option>
-                  <option value="Training.Complete">Training.Complete</option>
-                  <option value="AuditTrail.Query">AuditTrail.Query</option>
+                  {AUDIT_ACTIONS.map((action) => <option key={action} value={action}>{action}</option>)}
                 </select>
               </div>
               
@@ -1183,8 +1178,9 @@ export default function Workspace() {
                 >
                   <option value="">All Types</option>
                   <option value="Document">Document</option>
+                  <option value="DocumentVersion">DocumentVersion</option>
                   <option value="TrainingAssignment">TrainingAssignment</option>
-                  <option value="AuditLog">AuditLog</option>
+                  <option value="User">User</option>
                 </select>
               </div>
             </div>
@@ -1199,16 +1195,30 @@ export default function Workspace() {
                   >
                     <div className={styles.auditHeader}>
                       <div>
-                        <span className={styles.currentBadge} style={{ marginLeft: '8px', fontSize: '10px' }}>{log.userRole}</span>
-                        <span style={{ marginLeft: '12px' }}>executed</span>
-                        <span className={styles.auditAction} style={{ marginLeft: '8px' }}>{log.action}</span>
+                        <span className={styles.auditAction}>{log.action}</span>
+                        <span style={{ marginLeft: '8px' }}>by {log.userEmail || 'unknown'}</span>
+                        {log.userRole && <span className={styles.currentBadge} style={{ marginLeft: '8px', fontSize: '10px' }}>{log.userRole}</span>}
                       </div>
                       <span className={styles.auditTime}>{new Date(log.timestamp).toLocaleString()}</span>
                     </div>
-                    
-                    <div style={{ color: log.status === 'Success' ? '#10B981' : '#F87171', fontWeight: '600', fontSize: '11px', marginTop: '4px' }}>
-                      STATUS: {log.status} | EVENT_ID: {log.eventId}
+                    <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '4px' }}>
+                      {log.objectType}{log.objectId ? ` ${log.objectId}` : ''} · <span style={{ color: log.status === 'Success' ? '#10B981' : '#F87171', fontWeight: '600' }}>{log.status}</span> · event {log.eventId}
                     </div>
+                    {log.changes.length > 0 && (
+                      <table className={styles.table} style={{ marginTop: '8px', fontSize: '12px' }}>
+                        <thead><tr><th>Field</th><th>Before</th><th>After</th></tr></thead>
+                        <tbody>
+                          {log.changes.map((change) => (
+                            <tr key={change.field}><td>{change.field}</td><td>{change.before || '—'}</td><td>{change.after || '—'}</td></tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    )}
+                    {log.details.length > 0 && (
+                      <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '6px' }}>
+                        {log.details.map((detail) => `${detail.field}: ${detail.value || '—'}`).join(' · ')}
+                      </div>
+                    )}
                   </div>
                 ))
               ) : (
