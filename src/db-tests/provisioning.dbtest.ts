@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { PrismaClient } from '@prisma/client';
 import { NextRequest } from 'next/server';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { signIn } from './sign-in';
 import { ownerDatabaseUrl } from './connections';
 import { addMember, createFullAccessRole, requestAs, seedTenant, type SeededTenant } from './fixtures';
 
@@ -102,7 +103,7 @@ describe('audited provisioning and password setup', () => {
     const reused = await setup(anonymous('/api/auth/setup-password', { token, password: 'another-long-password' }));
     expect(reused.status).toBe(400);
 
-    const signedIn = await login(anonymous('/api/auth/login', { email: body.email, password: NEW_PASSWORD }));
+    const signedIn = await signIn(owner, body.email, NEW_PASSWORD);
     expect(signedIn.status).toBe(200);
     expect(signedIn.headers.get('set-cookie')).toContain('iam-access-token=');
   });

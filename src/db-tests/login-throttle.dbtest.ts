@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { PrismaClient } from '@prisma/client';
 import { NextRequest } from 'next/server';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { signIn } from './sign-in';
 import { ownerDatabaseUrl } from './connections';
 import { addMember, createFullAccessRole, MEMBER_PASSWORD, seedTenant, type SeededTenant } from './fixtures';
 
@@ -68,13 +69,13 @@ describe('limit on failed sign-ins', () => {
     expect(await owner.iamAuditTrail.count({ where: { userEmail: unknown, reason: 'UNKNOWN_ACCOUNT' } })).toBe(5);
   });
 
-  it('LOGIN-LIM-T003 a successful sign-in clears the count, and the success is audited', async () => {
+  it('LOGIN-LIM-T003 a completed sign-in (password and code) clears the count, and the success is audited', async () => {
     const email = await member(`Forgetful${randomUUID().slice(0, 4)}`);
     const ip = address();
     for (let attempt = 0; attempt < 4; attempt += 1) await login(email, 'typo', ip);
-    expect((await login(email, MEMBER_PASSWORD, ip)).status).toBe(200);
+    expect((await signIn(owner, email, MEMBER_PASSWORD, ip)).status).toBe(200);
     for (let attempt = 0; attempt < 4; attempt += 1) await login(email, 'typo', ip);
-    expect((await login(email, MEMBER_PASSWORD, ip)).status).toBe(200);
+    expect((await signIn(owner, email, MEMBER_PASSWORD, ip)).status).toBe(200);
     const succeeded = await owner.iamAuditTrail.findMany({ where: { userEmail: email, action: 'LOGIN_SUCCEEDED' } });
     expect(succeeded).toHaveLength(2);
     expect(succeeded[0]).toMatchObject({ organizationId: a.organizationId, status: 'SUCCESS', ipAddress: ip });

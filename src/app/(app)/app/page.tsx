@@ -11,7 +11,7 @@ import { buildTrainingMatrix } from '@/lib/training-matrix';
 import { AUDIT_ACTIONS, type AuditChange, type AuditDetail } from '@/lib/audit-review';
 import { REASON_REQUIRED, SIGNING_LABELS, signingRequest, type SigningMode } from '@/lib/signing-request';
 import InviteMemberPanel from '@/ui/components/InviteMemberPanel';
-import { resendInvitation } from '@/lib/invitations-client';
+import { resendInvitation, resetTwoStepVerification } from '@/lib/invitations-client';
 import { prepareDocumentFile, sha256Hex } from '@/lib/document-file-upload';
 import {
   Dashboard as DashboardIcon,
@@ -199,6 +199,19 @@ export default function Workspace() {
   const handleResendInvitation = async (userId: string) => {
     const result = await resendInvitation(userId);
     if (result.ok) setSuccessMessage('A new invitation link was sent.');
+    else setErrorMessage(result.message);
+    setTimeout(() => {
+      setSuccessMessage(null);
+      setErrorMessage(null);
+    }, 5000);
+  };
+
+  // Lost phone: an administrator resets a member's two-step verification (DEC-080).
+  const handleResetMfa = async (userId: string, name: string) => {
+    const reason = window.prompt(`Reset two-step verification for ${name}? They set it up again at their next sign-in. Reason:`);
+    if (!reason?.trim()) return;
+    const result = await resetTwoStepVerification(userId, reason);
+    if (result.ok) setSuccessMessage(`Two-step verification was reset for ${name}.`);
     else setErrorMessage(result.message);
     setTimeout(() => {
       setSuccessMessage(null);
@@ -530,6 +543,7 @@ export default function Workspace() {
     canWithdrawRevision: canWithdrawRevisions,
   } = documentActionsFor(currentUser?.permissions);
   const canInviteUsers = Boolean(currentUser?.permissions?.includes('users.create'));
+  const canResetMfa = Boolean(currentUser?.permissions?.includes('users.update'));
   const canExportAudit = Boolean(currentUser?.permissions?.includes('audit.read') && currentUser?.permissions?.includes('audit.export'));
   const auditExportHref = `/api/audit/export?${new URLSearchParams({
     ...(auditActionFilter && { action: auditActionFilter }),
@@ -1123,7 +1137,12 @@ export default function Workspace() {
                               )}
                             </>
                           ) : (
-                            <span className={styles.badge}>Active</span>
+                            <>
+                              <span className={styles.badge}>Active</span>
+                              {canResetMfa && u.id !== currentUser?.id && (
+                                <button type="button" className={`${styles.btn} ${styles.btnSecondary}`} style={{ marginLeft: '8px', padding: '4px 10px', fontSize: '12px' }} onClick={() => handleResetMfa(u.id, u.fullName)}>Reset 2-step</button>
+                              )}
+                            </>
                           )}
                         </td>
                       </tr>

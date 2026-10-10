@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/db';
 import { verifyPassword } from '@/lib/iam/password';
-import { createIamSession, identityMemberships } from '@/lib/iam/session';
-import { tenantRead } from '@/lib/tenant-db';
-import { clientAddress, isLoginThrottled, recordLoginFailure, recordLoginSuccess } from '../../../../lib/iam/login-throttle';
+import { clientAddress, isLoginThrottled, recordLoginFailure } from '../../../../lib/iam/login-throttle';
+import { prepareChallenge } from '../../../../lib/iam/mfa';
+import { MfaNotConfiguredError, PENDING_SIGN_IN_SECONDS, signPendingSignIn } from '../../../../lib/iam/mfa-crypto';
+import { resolveSignInMembership, setPendingSignIn } from '../../../../lib/iam/sign-in';
 
-const SESSION_COOKIE_NAME = 'iam-access-token';
 const GENERIC_AUTH_FAILURE = {
   error: { code: 'Unauthorized', message: 'Invalid email or password' },
 };
@@ -24,6 +24,9 @@ function authenticationFailed() {
   });
 }
 
+// POST /api/auth/login - the password step. A correct password never opens a
+// session by itself: it answers with the second step, two-step verification
+// (DEC-080), and a short-lived pending cookie for POST /api/auth/mfa.
 export async function POST(req: NextRequest) {
   try {
     const body: unknown = await req.json();
@@ -62,91 +65,38 @@ export async function POST(req: NextRequest) {
       return authenticationFailed();
     }
 
-    const memberships = await identityMemberships(iamUser.id);
-    if (memberships.length > 1) {
+    const resolution = await resolveSignInMembership(iamUser.id);
+    if (!resolution.ok && resolution.reason === 'SelectionRequired') {
       return NextResponse.json(
         { error: { code: 'MembershipSelectionRequired', message: 'Organization selection is required' } },
         { status: 409, headers: { 'Cache-Control': 'no-store' } },
       );
     }
-    if (memberships.length === 0) return authenticationFailed();
+    if (!resolution.ok) return authenticationFailed();
 
-    // The rest of the membership is read as its tenant (DEC-069).
-    const { membershipId, tenantId } = memberships[0];
-    const membership = await tenantRead(tenantId, (tx) => tx.iamMembership.findFirst({
-      where: { id: membershipId, tenantId, userId: iamUser.id },
-      include: {
-        organization: { select: { tenantId: true, status: true } },
-        role: { select: { id: true } },
-        operationalUser: {
-          select: {
-            id: true,
-            email: true,
-            fullName: true,
-            role: true,
-            department: true,
-            clearance: true,
-            tenantId: true,
-            accountStatus: true,
-            expiresAt: true,
-            tenant: { select: { name: true } },
-          },
-        },
-      },
-    }));
-    if (
-      !membership ||
-      membership.status !== 'ACTIVE' ||
-      membership.tenantId !== membership.organization.tenantId ||
-      !['ACTIVE', 'TRIAL'].includes(membership.organization.status) ||
-      !membership.role
-    ) {
-      return authenticationFailed();
+    const challenge = await prepareChallenge(iamUser.id, normalizedEmail);
+    if (challenge.mfa === 'RESET_REQUIRED') {
+      return NextResponse.json(
+        { error: { code: 'MfaResetRequired', message: 'Your two-step verification must be reset by an administrator' } },
+        { status: 409, headers: { 'Cache-Control': 'no-store' } },
+      );
     }
-
-    const operationalUser = membership.operationalUser;
-    if (
-      !operationalUser ||
-      operationalUser.accountStatus !== 'ACTIVE' ||
-      (operationalUser.expiresAt !== null && operationalUser.expiresAt <= new Date()) ||
-      operationalUser.tenantId !== membership.organization.tenantId
-    ) {
-      return authenticationFailed();
-    }
-
-    const session = await createIamSession({
-      userId: iamUser.id,
-      membershipId: membership.id,
-      tenantId: membership.tenantId,
-      ipAddress: ipAddress ?? undefined,
-      userAgent: req.headers.get('user-agent') ?? undefined,
+    const token = signPendingSignIn({
+      iamUserId: iamUser.id,
+      membershipId: resolution.membership.id,
+      tenantId: resolution.membership.tenantId,
+      enrolling: challenge.mfa === 'ENROLL',
     });
-
-    await recordLoginSuccess({ email: normalizedEmail, ipAddress, userId: iamUser.id, organizationId: membership.organizationId, membershipId: membership.id });
-
-    const response = NextResponse.json({
-      user: {
-        id: operationalUser.id,
-        email: operationalUser.email,
-        fullName: operationalUser.fullName,
-        role: operationalUser.role,
-        department: operationalUser.department,
-        clearance: operationalUser.clearance,
-        tenantId: operationalUser.tenantId,
-        tenantName: operationalUser.tenant.name,
-      },
-    }, { headers: { 'Cache-Control': 'no-store' } });
-    response.cookies.set(SESSION_COOKIE_NAME, session.sessionToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      path: '/',
-      expires: session.expiresAt,
-      maxAge: Math.max(0, Math.floor((session.expiresAt.getTime() - Date.now()) / 1000)),
-    });
-    response.cookies.delete('user-email');
+    const response = NextResponse.json(challenge, { headers: { 'Cache-Control': 'no-store' } });
+    setPendingSignIn(response, token, PENDING_SIGN_IN_SECONDS);
     return response;
-  } catch {
+  } catch (error) {
+    if (error instanceof MfaNotConfiguredError) {
+      return NextResponse.json(
+        { error: { code: 'MfaUnavailable', message: 'Sign-in is unavailable: two-step verification is not configured' } },
+        { status: 503, headers: { 'Cache-Control': 'no-store' } },
+      );
+    }
     return authenticationFailed();
   }
 }

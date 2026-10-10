@@ -24,3 +24,14 @@ export async function resendInvitation(userId: string, send: typeof fetch = fetc
   const data = await response.json().catch(() => null);
   return { ok: false, message: data?.error?.message ?? 'The invitation could not be resent.' };
 }
+
+export async function resetTwoStepVerification(userId: string, reason: string, send: typeof fetch = fetch): Promise<{ ok: true } | { ok: false; message: string }> {
+  const response = await send(`/api/users/${encodeURIComponent(userId)}/mfa-reset`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ reason: reason.trim() }),
+  });
+  if (response.ok) return { ok: true };
+  const data = await response.json().catch(() => null);
+  return { ok: false, message: data?.error?.message ?? 'Two-step verification could not be reset.' };
+}

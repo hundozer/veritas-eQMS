@@ -37,7 +37,7 @@ describe('API unexpected-error containment', () => {
     const source = routeFiles(apiRoot).map((file) => readFileSync(file, 'utf8')).join('\n');
     const helper = readFileSync(resolve('src/lib/server-errors.ts'), 'utf8');
 
-    expect(source.match(/unexpectedErrorResponse\(/g)).toHaveLength(16);
+    expect(source.match(/unexpectedErrorResponse\(/g)).toHaveLength(17);
     expect(helper.match(/message: 'An unexpected error occurred'/g)).toHaveLength(1);
     expect(source).not.toContain('Error loading document PDF: ${error.message}');
   });
