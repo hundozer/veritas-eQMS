@@ -144,8 +144,13 @@ Not yet run in production; deferred by the owner (DEC-074).
   (before → after) and the recorded details (`src/lib/audit-review.ts`,
   `src/db-tests/audit-review.dbtest.ts`). PDF export done (DEC-078):
   `GET /api/audit/export` with the same filters, audited as `AUDIT_EXPORTED`.
-- CI-generated URS, risk assessment, traceability matrix and executed OQ per
+- [x] CI-generated URS, risk assessment, traceability matrix and executed OQ per
   release.
+  Done (DEC-081): every CI run builds the pack from
+  `docs/validation/requirements.json` (28 requirements, each with its risk
+  rating and verifying test IDs) and both test runs; the job fails when a
+  requirement is not verified; the pack is a 90-day artifact
+  (`docs/validation/README.md`).
 - MFA at login, login rate limiting, external penetration test.
   Login rate limiting done (DEC-079): 5 failed sign-ins per email or 20 per
   network address in 15 minutes, recorded in the identity audit trail

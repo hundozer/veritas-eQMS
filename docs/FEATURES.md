@@ -26,7 +26,7 @@ Last updated: 9 Oct 2026 (route groups, DEC-070).
 | File storage | Private Vercel Blob store (Frankfurt), reached with Vercel OIDC in production (DEC-054/055). `src/lib/controlled-storage.ts`. |
 | Email | Resend, via `src/lib/iam/credential-email.ts`. Not configured in production (see Backlog). |
 | Security headers | CSP, HSTS, frame and referrer policies in `next.config.ts`; the PDF viewer route may be framed by the same origin only. |
-| CI | `.github/workflows/ci.yml`: unit tests, `tsc`, `eslint`; and a PostgreSQL 16 job that checks migration drift and runs `npm run test:db`. |
+| CI | `.github/workflows/ci.yml`: unit tests, `tsc`, `eslint`; a PostgreSQL 16 job that checks migration drift and runs `npm run test:db`; and a validation pack job that builds URS, risk assessment, traceability matrix and executed OQ for the commit from `docs/validation/requirements.json` and both test runs, fails when a requirement is not verified by passing tests, and keeps the pack as an artifact for 90 days (DEC-081, `docs/validation/README.md`). |
 
 ## Multi-tenancy and isolation (Live)
 
