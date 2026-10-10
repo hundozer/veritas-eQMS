@@ -126,9 +126,9 @@ transaction.
 | Mandatory tenant audit rows for every regulated mutation, in the same transaction | Live | `src/lib/audit.ts`, table `AuditLog` |
 | Identity audit rows (invitations, password set, setup links) | Live | table `IamAuditTrail` |
 | Append-only: UPDATE, DELETE and TRUNCATE rejected by trigger for every role | Live | migration `20261006120000_audit_append_only` (DEC-057) |
-| Audit log screen with filters (action, object, user, dates) | Live | `GET /api/audit` (`audit.read`), "Compliance Audit Logs" in the UI |
+| Audit review screen: newest 200 entries matching the filters (action, object, user, dates), each with who, the field changes (before → after) and the other recorded details; the raw payload is not sent | Live | `GET /api/audit` (`audit.read`), `src/lib/audit-review.ts` (DEC-077), "Audit Review" in the UI |
 | Audit export | Disabled | `GET /api/audit/export` |
-| Field-level diffs and PDF export | Not built (Phase 2) | — |
+| PDF export of the audit review | Not built (Phase 2) | — |
 
 ## Training
 

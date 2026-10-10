@@ -11,6 +11,6 @@ describe('audit UI claims containment', () => {
     expect(page).not.toContain('/api/reports/export?');
     expect(page).not.toContain('Immutable chronological ledger of all CUD and READ actions');
     expect(page).not.toContain('Veritas automatically enforces EU Annex 11 & 21 CFR Part 11 SoD policies');
-    expect(page).toContain('Append-only storage, completeness, retention, and regulatory validation are not yet evidenced.');
+    expect(page).toContain('Audit entries cannot be edited or deleted.');
   });
 });

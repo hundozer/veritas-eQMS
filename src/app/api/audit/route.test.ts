@@ -44,7 +44,7 @@ describe('audit event index containment', () => {
   });
 
   it('AUDIT-INDEX-T003 returns a bounded, minimized tenant event view', async () => {
-    const logs = [{ id: 'log-1', eventId: 'event-1', action: 'Document.View' }];
+    const logs = [{ id: 'log-1', eventId: 'event-1', action: 'Document.View', payload: JSON.stringify({ before: 'DRAFT', after: 'IN_REVIEW', version: 1 }) }];
     getContext.mockResolvedValue(context);
     findMany.mockResolvedValue(logs);
 
@@ -58,15 +58,22 @@ describe('audit event index containment', () => {
         id: true,
         eventId: true,
         timestamp: true,
+        userEmail: true,
         userRole: true,
         action: true,
         objectType: true,
         objectId: true,
         status: true,
+        payload: true,
       },
       orderBy: { timestamp: 'desc' },
       take: 200,
     });
-    await expect(response.json()).resolves.toEqual({ logs });
+    // The raw payload is not returned; its field changes and details are.
+    await expect(response.json()).resolves.toEqual({ logs: [{
+      id: 'log-1', eventId: 'event-1', action: 'Document.View',
+      changes: [{ field: 'status', before: 'DRAFT', after: 'IN_REVIEW' }],
+      details: [{ field: 'version', value: '1' }],
+    }] });
   });
 });

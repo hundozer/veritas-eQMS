@@ -3,8 +3,9 @@ import { tenantRead } from '@/lib/tenant-db';
 import { getContext } from '@/lib/auth';
 import { hasPermission } from '../../../lib/rbac';
 import { unexpectedErrorResponse } from '../../../lib/server-errors';
+import { describeAuditPayload } from '../../../lib/audit-review';
 
-// GET /api/audit - Query the audit index (tenant-scoped, auditor/admin-only)
+// GET /api/audit - the audit review list (tenant-scoped, audit.read), newest first, at most 200
 export async function GET(req: NextRequest) {
   try {
     const user = await getContext(req);
@@ -58,17 +59,21 @@ export async function GET(req: NextRequest) {
         id: true,
         eventId: true,
         timestamp: true,
+        userEmail: true,
         userRole: true,
         action: true,
         objectType: true,
         objectId: true,
         status: true,
+        payload: true,
       },
       orderBy: { timestamp: 'desc' },
       take: 200, // safety cap
     }));
 
-    return NextResponse.json({ logs }, { headers: { 'Cache-Control': 'no-store' } });
+    // Reviewers see field changes and recorded details, not the raw payload (DEC-077).
+    const entries = logs.map(({ payload, ...log }) => ({ ...log, ...describeAuditPayload(payload) }));
+    return NextResponse.json({ logs: entries }, { headers: { 'Cache-Control': 'no-store' } });
   } catch (error: any) {
     return unexpectedErrorResponse('audit.query');
   }
