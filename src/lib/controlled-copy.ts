@@ -54,7 +54,8 @@ export class CopyMarkingError extends Error {
   }
 }
 
-function encodable(font: PDFFont, text: string): string {
+/** Replaces characters the standard PDF font cannot draw with "?". */
+export function encodable(font: PDFFont, text: string): string {
   const supported = new Set(font.getCharacterSet());
   return Array.from(text, (character) => (supported.has(character.codePointAt(0)!) ? character : '?')).join('');
 }

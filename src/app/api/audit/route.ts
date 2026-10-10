@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { tenantRead } from '@/lib/tenant-db';
 import { getContext } from '@/lib/auth';
 import { hasPermission } from '../../../lib/rbac';
 import { unexpectedErrorResponse } from '../../../lib/server-errors';
-import { describeAuditPayload } from '../../../lib/audit-review';
+import { parseAuditFilters, readAuditEntries } from '../../../lib/audit-query';
 
 // GET /api/audit - the audit review list (tenant-scoped, audit.read), newest first, at most 200
 export async function GET(req: NextRequest) {
@@ -17,64 +16,14 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: { code: 'Forbidden', message: 'Audit read permission is required' } }, { status: 403 });
     }
 
-    const { searchParams } = req.nextUrl;
-    const action = searchParams.get('action');
-    const objectType = searchParams.get('objectType');
-    const objectId = searchParams.get('objectId');
-    const userId = searchParams.get('userId');
-    const startDate = searchParams.get('startDate');
-    const endDate = searchParams.get('endDate');
-
-    const parsedStartDate = startDate ? new Date(startDate) : null;
-    const parsedEndDate = endDate ? new Date(endDate) : null;
-    if (
-      (parsedStartDate && Number.isNaN(parsedStartDate.getTime())) ||
-      (parsedEndDate && Number.isNaN(parsedEndDate.getTime()))
-    ) {
-      return NextResponse.json(
-        { error: { code: 'ValidationFailed', message: 'Audit date filters must be valid dates' } },
-        { status: 400 },
-      );
+    const parsed = parseAuditFilters(req.nextUrl.searchParams);
+    if ('error' in parsed) {
+      return NextResponse.json({ error: { code: 'ValidationFailed', message: parsed.error } }, { status: 400 });
     }
 
-    // Build Prisma query filters
-    const where: Record<string, any> = {
-      tenantId: user.tenantId,
-    };
-
-    if (action) where.action = action;
-    if (objectType) where.objectType = objectType;
-    if (objectId) where.objectId = objectId;
-    if (userId) where.userId = userId;
-    
-    if (startDate || endDate) {
-      where.timestamp = {};
-      if (parsedStartDate) where.timestamp.gte = parsedStartDate;
-      if (parsedEndDate) where.timestamp.lte = parsedEndDate;
-    }
-
-    const logs = await tenantRead(user.tenantId, (tx) => tx.auditLog.findMany({
-      where,
-      select: {
-        id: true,
-        eventId: true,
-        timestamp: true,
-        userEmail: true,
-        userRole: true,
-        action: true,
-        objectType: true,
-        objectId: true,
-        status: true,
-        payload: true,
-      },
-      orderBy: { timestamp: 'desc' },
-      take: 200, // safety cap
-    }));
-
-    // Reviewers see field changes and recorded details, not the raw payload (DEC-077).
-    const entries = logs.map(({ payload, ...log }) => ({ ...log, ...describeAuditPayload(payload) }));
-    return NextResponse.json({ logs: entries }, { headers: { 'Cache-Control': 'no-store' } });
-  } catch (error: any) {
+    const logs = await readAuditEntries(user.tenantId, parsed.filters, 200);
+    return NextResponse.json({ logs }, { headers: { 'Cache-Control': 'no-store' } });
+  } catch {
     return unexpectedErrorResponse('audit.query');
   }
 }
