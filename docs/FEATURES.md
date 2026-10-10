@@ -68,7 +68,8 @@ Last updated: 9 Oct 2026 (route groups, DEC-070).
 | Self-service organisation sign-up | Disabled | `POST /api/auth/register` |
 | Onboarding initialisation | Disabled | `POST /api/onboarding/initialize` |
 | Password reset links (for active accounts) | Library only, no route or UI | `src/lib/iam/credential-action-token.ts` |
-| MFA, login rate limiting, SSO | Not built (Phase 2 / 4) | — |
+| Failed sign-in limit: 5 failures per email or 20 per network address in 15 minutes, then `429` before the password is checked; unknown emails are limited the same way; a successful sign-in clears the email's count; every failure and success recorded in `IamAuditTrail` (`LOGIN_FAILED` with reason, `LOGIN_SUCCEEDED`) | Live | `src/lib/iam/login-throttle.ts` (DEC-079) |
+| MFA, SSO | Not built (Phase 2 / 4) | — |
 
 Persisted permissions: `users.read/create/update/deactivate`,
 `documents.read/create/update_draft/submit_review/review/approve/release/obsolete`,
@@ -181,7 +182,7 @@ Biotech" and "BioLabs Inc" as read-only history (DEC-056).
   is marked (DEC-067).
 - Numbered, tracked paper copies are not built.
 - Organisation selection at sign-in for people with several memberships.
-- Rate limiting for login and signing; MFA; external penetration test (Phase 2).
+- MFA; external penetration test (Phase 2).
 
 ## Testing
 

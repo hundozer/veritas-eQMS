@@ -3,11 +3,19 @@ import prisma from '@/lib/db';
 import { verifyPassword } from '@/lib/iam/password';
 import { createIamSession, identityMemberships } from '@/lib/iam/session';
 import { tenantRead } from '@/lib/tenant-db';
+import { clientAddress, isLoginThrottled, recordLoginFailure, recordLoginSuccess } from '../../../../lib/iam/login-throttle';
 
 const SESSION_COOKIE_NAME = 'iam-access-token';
 const GENERIC_AUTH_FAILURE = {
   error: { code: 'Unauthorized', message: 'Invalid email or password' },
 };
+
+function tooManyAttempts() {
+  return NextResponse.json(
+    { error: { code: 'TooManyAttempts', message: 'Too many failed sign-ins; try again in 15 minutes' } },
+    { status: 429, headers: { 'Cache-Control': 'no-store', 'Retry-After': '900' } },
+  );
+}
 
 function authenticationFailed() {
   return NextResponse.json(GENERIC_AUTH_FAILURE, {
@@ -31,16 +39,26 @@ export async function POST(req: NextRequest) {
       return authenticationFailed();
     }
 
+    // Failed sign-ins are limited before the password is checked (DEC-079).
+    const normalizedEmail = email.trim().toLowerCase();
+    const ipAddress = clientAddress(req.headers);
+    if (await isLoginThrottled(normalizedEmail, ipAddress)) {
+      await recordLoginFailure({ email: normalizedEmail, ipAddress, reason: 'TOO_MANY_ATTEMPTS' });
+      return tooManyAttempts();
+    }
+
     const iamUser = await prisma.iamUser.findUnique({
-      where: { email: email.trim().toLowerCase() },
+      where: { email: normalizedEmail },
       select: { id: true, accountStatus: true, passwordHash: true },
     });
 
-    if (
-      !iamUser ||
-      iamUser.accountStatus !== 'ACTIVE' ||
-      !(await verifyPassword(password, iamUser.passwordHash))
-    ) {
+    if (!iamUser || iamUser.accountStatus !== 'ACTIVE' || !(await verifyPassword(password, iamUser.passwordHash))) {
+      await recordLoginFailure({
+        email: normalizedEmail,
+        ipAddress,
+        userId: iamUser?.id,
+        reason: !iamUser ? 'UNKNOWN_ACCOUNT' : iamUser.accountStatus !== 'ACTIVE' ? 'INACTIVE_ACCOUNT' : 'PASSWORD_MISMATCH',
+      });
       return authenticationFailed();
     }
 
@@ -100,9 +118,11 @@ export async function POST(req: NextRequest) {
       userId: iamUser.id,
       membershipId: membership.id,
       tenantId: membership.tenantId,
-      ipAddress: req.headers.get('x-forwarded-for')?.split(',')[0]?.trim(),
+      ipAddress: ipAddress ?? undefined,
       userAgent: req.headers.get('user-agent') ?? undefined,
     });
+
+    await recordLoginSuccess({ email: normalizedEmail, ipAddress, userId: iamUser.id, organizationId: membership.organizationId, membershipId: membership.id });
 
     const response = NextResponse.json({
       user: {

@@ -147,6 +147,10 @@ Not yet run in production; deferred by the owner (DEC-074).
 - CI-generated URS, risk assessment, traceability matrix and executed OQ per
   release.
 - MFA at login, login rate limiting, external penetration test.
+  Login rate limiting done (DEC-079): 5 failed sign-ins per email or 20 per
+  network address in 15 minutes, recorded in the identity audit trail
+  (`src/db-tests/login-throttle.dbtest.ts`). Open: MFA; the penetration test is
+  arranged by the owner.
 
 **Gate:** 1–3 paying pilots and an independent QA review of the validation pack.
 
