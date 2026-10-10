@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   lifecycleCounts,
+  queueSummary,
   recentlyChanged,
   signatureQueue,
   type DashboardDocument,
@@ -110,5 +111,15 @@ describe('overview register', () => {
       { id: 'c', updatedAt: '2026-10-02T00:00:00.000Z' },
     ];
     expect(recentlyChanged(rows, 2).map((row) => row.id)).toEqual(['b', 'c']);
+  });
+});
+
+describe('overview summary line', () => {
+  it('DASH-T009 counts each meaning in lifecycle order with plural nouns', () => {
+    const q = (meaning: 'REVIEW' | 'APPROVE' | 'RELEASE' | 'READ') => ({ meaning });
+    expect(queueSummary([q('RELEASE'), q('REVIEW'), q('REVIEW'), q('APPROVE')])).toBe('2 reviews, 1 approval and 1 release.');
+    expect(queueSummary([q('READ')])).toBe('1 training to sign.');
+    expect(queueSummary([q('READ'), q('READ'), q('APPROVE')])).toBe('1 approval and 2 trainings to sign.');
+    expect(queueSummary([])).toBe('');
   });
 });
