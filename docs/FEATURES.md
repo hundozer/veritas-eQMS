@@ -69,7 +69,9 @@ Last updated: 9 Oct 2026 (route groups, DEC-070).
 | Onboarding initialisation | Disabled | `POST /api/onboarding/initialize` |
 | Password reset links (for active accounts) | Library only, no route or UI | `src/lib/iam/credential-action-token.ts` |
 | Failed sign-in limit: 5 failures per email or 20 per network address in 15 minutes, then `429` before the password is checked; unknown emails are limited the same way; a successful sign-in clears the email's count; every failure and success recorded in `IamAuditTrail` (`LOGIN_FAILED` with reason, `LOGIN_SUCCEEDED`) | Live | `src/lib/iam/login-throttle.ts` (DEC-079) |
-| MFA, SSO | Not built (Phase 2 / 4) | — |
+| Two-step verification for everyone: after the password, a 6-digit code from an authenticator app (RFC 6238); first sign-in sets it up (QR code, setup key, add-to-passwords link); secrets stored AES-256-GCM encrypted with `MFA_ENCRYPTION_KEY`; the password step only issues a 5-minute pending cookie for `/api/auth/mfa`; 5 wrong codes in 15 minutes stop the code step; each code accepted once; every step in `IamAuditTrail`; without the key, sign-in fails closed (`503`) | Live | `POST /api/auth/login`, `POST /api/auth/mfa`, `src/lib/iam/mfa.ts`, `src/lib/iam/totp.ts` (DEC-080) |
+| Reset a member's two-step verification (lost phone), with a reason; not one's own, not for a person in another organisation; audited in both audit trails | Live, `users.update` | `POST /api/users/[id]/mfa-reset`, "Reset 2-step" on the Users screen |
+| SSO | Not built (Phase 4) | — |
 
 Persisted permissions: `users.read/create/update/deactivate`,
 `documents.read/create/update_draft/submit_review/review/approve/release/obsolete`,
@@ -182,7 +184,7 @@ Biotech" and "BioLabs Inc" as read-only history (DEC-056).
   is marked (DEC-067).
 - Numbered, tracked paper copies are not built.
 - Organisation selection at sign-in for people with several memberships.
-- MFA; external penetration test (Phase 2).
+- External penetration test (Phase 2, arranged by the owner).
 
 ## Testing
 

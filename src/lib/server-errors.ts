@@ -25,6 +25,7 @@ export type ServerErrorEvent =
   | 'training.sign'
   | 'user.invite'
   | 'user.list'
+  | 'user.mfaReset'
   | 'user.resendInvitation'
   | 'role.list';
 
