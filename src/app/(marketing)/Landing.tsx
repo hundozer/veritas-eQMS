@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import styles from '../page.module.css';
 import { LoginErrorNotice } from '@/ui/components/LoginErrorNotice';
 import { hasActiveSession } from '@/lib/session-client';
+import { submitCode, submitPassword, type SignInChallenge } from '@/lib/sign-in-client';
 
 // Public landing page and member sign-in. The workspace lives at /app and is
 // only rendered for a valid session (src/app/(app)/layout.tsx).
@@ -15,29 +16,43 @@ export default function Landing() {
   const [loginEmail, setLoginEmail] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  // Second sign-in step: the authenticator code (DEC-080).
+  const [challenge, setChallenge] = useState<SignInChallenge | null>(null);
+  const [code, setCode] = useState('');
 
   useEffect(() => {
     hasActiveSession().then((signedIn) => { if (signedIn) router.replace('/app'); });
   }, [router]);
 
+  const enterWorkspace = () => {
+    setLoginPassword('');
+    setCode('');
+    setChallenge(null);
+    router.replace('/app');
+    router.refresh();
+  };
+
   const handleLogin = async (email: string, password: string) => {
     setErrorMessage(null);
-    try {
-      const res = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
-      });
-      if (res.ok) {
-        setLoginPassword('');
-        router.replace('/app');
-        router.refresh();
-        return;
-      }
-      const data = await res.json().catch(() => null);
-      setErrorMessage(data?.error?.message || 'Sign-in failed');
-    } catch {
-      setErrorMessage('Sign-in failed; check your connection and try again');
+    const step = await submitPassword(email, password);
+    if (step.kind === 'code') {
+      setLoginPassword('');
+      setChallenge(step.challenge);
+    } else if (step.kind === 'done') {
+      enterWorkspace();
+    } else {
+      setErrorMessage(step.message);
+    }
+  };
+
+  const handleCode = async () => {
+    setErrorMessage(null);
+    const step = await submitCode(code);
+    if (step.kind === 'done') return enterWorkspace();
+    if (step.kind === 'error') {
+      setErrorMessage(step.message);
+      setCode('');
+      if (step.restart) setChallenge(null);
     }
   };
 
@@ -537,8 +552,47 @@ export default function Landing() {
 
               <LoginErrorNotice message={errorMessage} />
 
+              {challenge && (
+                <form onSubmit={async (e) => { e.preventDefault(); if (code) await handleCode(); }}>
+                  {challenge.mfa === 'ENROLL' ? (
+                    <div style={{ marginBottom: '18px', fontSize: '13px', color: '#334155', lineHeight: '1.6' }}>
+                      <p style={{ margin: '0 0 12px' }}>
+                        Set up two-step verification: scan this code with an authenticator app, or on this device{' '}
+                        <a href={challenge.otpauthUri}>add it to your passwords</a>, then enter the 6-digit code it shows.
+                      </p>
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        alt="QR code for your authenticator app"
+                        src={`data:image/svg+xml;utf8,${encodeURIComponent(challenge.qrSvg)}`}
+                        style={{ width: '180px', height: '180px', display: 'block', margin: '0 auto 12px' }}
+                      />
+                      <p style={{ margin: 0, fontFamily: 'monospace', wordBreak: 'break-all' }}>Setup key: {challenge.setupKey}</p>
+                    </div>
+                  ) : (
+                    <p style={{ margin: '0 0 18px', fontSize: '13px', color: '#334155' }}>Enter the 6-digit code from your authenticator app.</p>
+                  )}
+                  <div style={{ marginBottom: '24px' }}>
+                    <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', color: '#0A0E17', fontFamily: 'monospace', letterSpacing: '0.05em', textTransform: 'uppercase', marginBottom: '6px' }}>
+                      Authenticator Code
+                    </label>
+                    <input
+                      style={{ width: '100%', padding: '12px 14px', border: '1px solid rgba(10, 14, 23, 0.2)', borderRadius: '0px', background: '#FBFBFA', fontSize: '18px', letterSpacing: '0.3em', color: '#0A0E17' }}
+                      inputMode="numeric"
+                      autoComplete="one-time-code"
+                      maxLength={7}
+                      value={code}
+                      onChange={(e) => setCode(e.target.value)}
+                      required
+                    />
+                  </div>
+                  <button type="submit" className={styles.btnLuxuryPrimary} style={{ width: '100%', padding: '16px', fontSize: '13px', letterSpacing: '0.05em' }}>
+                    VERIFY CODE →
+                  </button>
+                </form>
+              )}
+
               {/* Standard Email Authentication Form */}
-              <form onSubmit={async (e) => { e.preventDefault(); if (loginEmail && loginPassword) { await handleLogin(loginEmail, loginPassword); } }}>
+              {!challenge && <form onSubmit={async (e) => { e.preventDefault(); if (loginEmail && loginPassword) { await handleLogin(loginEmail, loginPassword); } }}>
                 <div style={{ marginBottom: '18px' }}>
                   <label style={{ display: 'block', fontSize: '11px', fontWeight: '700', color: '#0A0E17', fontFamily: 'monospace', letterSpacing: '0.05em', textTransform: 'uppercase', marginBottom: '6px' }}>
                     Work Email Address
@@ -574,7 +628,7 @@ export default function Landing() {
                 >
                   AUTHENTICATE WORKSPACE SESSION →
                 </button>
-              </form>
+              </form>}
             </div>
           </div>
         </div>

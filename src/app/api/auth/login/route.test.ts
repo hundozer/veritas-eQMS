@@ -21,13 +21,21 @@ const throttleMock = vi.hoisted(() => ({
   clientAddress: () => null,
 }));
 vi.mock('../../../../lib/iam/login-throttle', () => throttleMock);
+// The shared sign-in steps import these by relative path.
+vi.mock('../../../../lib/db', () => ({ default: prismaMock }));
+vi.mock('../../../../lib/iam/session', () => sessionMock);
+const challengeMock = vi.hoisted(() => ({ prepareChallenge: vi.fn(async () => ({ mfa: 'VERIFY' })) }));
+vi.mock('../../../../lib/iam/mfa', () => challengeMock);
+process.env.MFA_ENCRYPTION_KEY = Buffer.alloc(32, 3).toString('base64');
 const tenantReads = vi.hoisted(() => [] as string[]);
-vi.mock('@/lib/tenant-db', () => ({
+const tenantDbMock = vi.hoisted(() => ({
   tenantRead: (tenantId: string, work: (tx: unknown) => unknown) => {
     tenantReads.push(tenantId);
     return work(prismaMock);
   },
 }));
+vi.mock('@/lib/tenant-db', () => tenantDbMock);
+vi.mock('../../../../lib/tenant-db', () => tenantDbMock);
 
 import { POST } from './route';
 
@@ -93,37 +101,25 @@ describe('POST /api/auth/login', () => {
     });
   });
 
-  it('LOGIN-T001: valid IAM credentials issue a secure opaque session cookie', async () => {
+  it('LOGIN-T001: a correct password opens no session; it answers the code step with a pending cookie (DEC-080)', async () => {
     const response = await POST(request({ email: iamUser.email, password: 'correct password' }));
     const setCookie = response.headers.get('set-cookie') ?? '';
 
     expect(response.status).toBe(200);
     expect(passwordMock.verifyPassword).toHaveBeenCalledWith('correct password', iamUser.passwordHash);
-    expect(sessionMock.createIamSession).toHaveBeenCalledWith(expect.objectContaining({
-      userId: iamUser.id,
-      membershipId: membership.id,
-      tenantId: organization.tenantId,
-    }));
+    expect(sessionMock.createIamSession).not.toHaveBeenCalled();
+    expect(challengeMock.prepareChallenge).toHaveBeenCalledWith(iamUser.id, iamUser.email);
     // Only the membership ids cross tenants; the membership itself is read as its tenant.
     expect(sessionMock.identityMemberships).toHaveBeenCalledWith(iamUser.id);
     expect(tenantReads).toEqual([organization.tenantId]);
-    expect(setCookie).toContain(`iam-access-token=${sessionToken}`);
+    expect(setCookie).not.toContain('iam-access-token');
+    expect(setCookie).toMatch(/^veritas-mfa-pending=[^;]+\./);
     expect(setCookie.toLowerCase()).toContain('httponly');
-    expect(setCookie.toLowerCase()).toContain('samesite=lax');
+    expect(setCookie.toLowerCase()).toContain('samesite=strict');
+    expect(setCookie).toContain('Path=/api/auth/mfa');
     expect(setCookie).not.toContain(iamUser.email);
     expect(response.headers.get('cache-control')).toBe('no-store');
-    await expect(response.json()).resolves.toEqual({
-      user: {
-        id: operationalUser.id,
-        email: operationalUser.email,
-        fullName: operationalUser.fullName,
-        role: operationalUser.role,
-        department: operationalUser.department,
-        clearance: operationalUser.clearance,
-        tenantId: operationalUser.tenantId,
-        tenantName: operationalUser.tenant.name,
-      },
-    });
+    await expect(response.json()).resolves.toEqual({ mfa: 'VERIFY' });
   });
 
   it('LOGIN-T002: a wrong password fails generically without a session', async () => {
