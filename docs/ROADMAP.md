@@ -139,10 +139,11 @@ Not yet run in production; deferred by the owner (DEC-074).
   signature done (DEC-075): the trainee signs their own assignment with their
   password (`POST /api/trainings/[id]/sign`). Training matrix done (DEC-076):
   people × documents in the Training Hub for holders of `training.read_all`.
-- Audit review screen with field diffs and PDF export.
+- [x] Audit review screen with field diffs and PDF export.
   Review screen done (DEC-077): each entry shows who, the field changes
   (before → after) and the recorded details (`src/lib/audit-review.ts`,
-  `src/db-tests/audit-review.dbtest.ts`). Open: PDF export.
+  `src/db-tests/audit-review.dbtest.ts`). PDF export done (DEC-078):
+  `GET /api/audit/export` with the same filters, audited as `AUDIT_EXPORTED`.
 - CI-generated URS, risk assessment, traceability matrix and executed OQ per
   release.
 - MFA at login, login rate limiting, external penetration test.

@@ -530,6 +530,11 @@ export default function Workspace() {
     canWithdrawRevision: canWithdrawRevisions,
   } = documentActionsFor(currentUser?.permissions);
   const canInviteUsers = Boolean(currentUser?.permissions?.includes('users.create'));
+  const canExportAudit = Boolean(currentUser?.permissions?.includes('audit.read') && currentUser?.permissions?.includes('audit.export'));
+  const auditExportHref = `/api/audit/export?${new URLSearchParams({
+    ...(auditActionFilter && { action: auditActionFilter }),
+    ...(auditTypeFilter && { objectType: auditTypeFilter }),
+  }).toString()}`;
   const currentWorkflow = selectedDoc?.versions.find((version) => version.versionNumber === selectedDoc.currentVersionNumber)?.approvalRoutes?.[0];
   const assignedReviewStep = currentWorkflow?.steps.find((step) => step.stepType === 'REVIEW');
   const assignedApprovalStep = currentWorkflow?.steps.find((step) => step.stepType === 'APPROVAL');
@@ -1153,6 +1158,11 @@ export default function Workspace() {
                   The newest 200 audit entries matching the filters, with what changed. Audit entries cannot be edited or deleted.
                 </p>
               </div>
+              {canExportAudit && (
+                <a className={`${styles.btn} ${styles.btnSecondary}`} href={auditExportHref}>
+                  Export PDF
+                </a>
+              )}
             </div>
 
             {/* Filter controls */}

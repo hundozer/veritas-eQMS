@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 
 export type ServerErrorEvent =
+  | 'audit.export'
   | 'audit.query'
   | 'audit.writeFailed'
   | 'auth.setupPassword'

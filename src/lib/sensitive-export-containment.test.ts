@@ -2,8 +2,8 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
+// The audit export is live as a PDF (DEC-078); the reports export stays disabled.
 const exportRoutes = [
-  'src/app/api/audit/export/route.ts',
   'src/app/api/reports/export/route.ts',
 ];
 
@@ -13,9 +13,7 @@ describe('sensitive export containment', () => {
     expect(source).toContain('sensitiveExportDisabled');
     expect(source).not.toMatch(/NextRequest|NextResponse|@\/lib\/db|getContext|hasPermission|findMany|text\/csv/);
 
-    const route = file.includes('/audit/export/')
-      ? await import('../app/api/audit/export/route')
-      : await import('../app/api/reports/export/route');
+    const route = await import('../app/api/reports/export/route');
     const response = await route.GET();
 
     expect(route.GET).toHaveLength(0);

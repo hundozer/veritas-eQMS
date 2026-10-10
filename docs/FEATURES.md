@@ -127,8 +127,7 @@ transaction.
 | Identity audit rows (invitations, password set, setup links) | Live | table `IamAuditTrail` |
 | Append-only: UPDATE, DELETE and TRUNCATE rejected by trigger for every role | Live | migration `20261006120000_audit_append_only` (DEC-057) |
 | Audit review screen: newest 200 entries matching the filters (action, object, user, dates), each with who, the field changes (before → after) and the other recorded details; the raw payload is not sent | Live | `GET /api/audit` (`audit.read`), `src/lib/audit-review.ts` (DEC-077), "Audit Review" in the UI |
-| Audit export | Disabled | `GET /api/audit/export` |
-| PDF export of the audit review | Not built (Phase 2) | — |
+| PDF export of the audit review: same filters, up to 1,000 entries newest first (says so when cut off), who exported and when, each entry with its changes and details, numbered pages; the export is itself audited (`AUDIT_EXPORTED`) before the file is returned | Live, `audit.read` + `audit.export` | `GET /api/audit/export`, `src/lib/audit-pdf.ts` (DEC-078), "Export PDF" on the audit screen |
 
 ## Training
 
