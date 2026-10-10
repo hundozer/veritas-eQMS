@@ -2,6 +2,7 @@
 import { useState, type ReactNode } from 'react';
 import { Sidebar } from './Sidebar';
 import { Header } from './Header';
+import { Wordmark } from './Wordmark';
 import type { NavGroup } from '../../types';
 
 interface AppShellProps {
@@ -61,7 +62,7 @@ export function AppShell({
 
       <div className={`mobile-overlay${mobileOpen ? ' open' : ''}`}>
         <div className="mobile-menu-header">
-          {logo ?? <img src="/logo.svg" alt="Logo" />}
+          {logo ?? <Wordmark />}
           <button className="mobile-menu-close" onClick={() => setMobileOpen(false)} aria-label="Close menu">
             x
           </button>

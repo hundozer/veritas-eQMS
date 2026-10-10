@@ -8,6 +8,7 @@ const prohibitedExtensions = new Set([
 ]);
 
 function listFiles(directory: string): string[] {
+  if (!existsSync(directory)) return [];
   return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
     const path = join(directory, entry.name);
     return entry.isDirectory() ? listFiles(path) : [path];
