@@ -13,7 +13,7 @@ a capability updates it in the same pull request. Status words:
 Decisions are referenced as `DEC-nnn` (`docs/recovery/decisions/DECISION-LOG.md`);
 the plan is `docs/ROADMAP.md`; review rules are `docs/REVIEW.md`.
 
-Last updated: 9 Oct 2026 (route groups, DEC-070).
+Last updated: 10 Oct 2026 (workspace overview redesign).
 
 ## Platform
 
@@ -148,7 +148,7 @@ transaction.
 
 | Capability | Status | Where |
 | --- | --- | --- |
-| Dashboard with document counts | Live | `src/app/(app)/app/page.tsx` |
+| Overview: signatures waiting on the member (assigned review or approval, release of an approved revision they did not author, their own open training), documents by lifecycle state, recently changed documents, own training totals, and the newest audit entries for holders of `audit.read`; follows persisted permissions | Live | `src/app/(app)/app/Dashboard.tsx`, `src/lib/dashboard-summary.ts` |
 | Own notifications | Live | `GET /api/notifications` (`notification.read_own`) |
 | Public landing page and sign-in form; a visitor with a session is sent on to `/app` | Live | `src/app/(marketing)/` |
 | Workspace sections offered by persisted permission (`users.read` → user access, `audit.read` → audit log) | Live | `src/lib/workspace-access.ts` |
