@@ -1,6 +1,7 @@
 'use client';
 import { VerifiedUser as VerifiedUserIcon } from '@mui/icons-material';
 import type { NavGroup } from '../../types';
+import { Wordmark } from './Wordmark';
 
 interface SidebarProps {
   navGroups: NavGroup[];
@@ -28,7 +29,7 @@ export function Sidebar({
   return (
     <aside className="sidebar" style={{ display: open ? undefined : 'none' }}>
       <div className="sidebar-logo">
-        {logo ?? <span style={{ fontSize: '18px', fontWeight: 'bold', color: 'var(--primary)', letterSpacing: '1px' }}>VERITAS</span>}
+        {logo ?? <Wordmark />}
       </div>
       <div className="sidebar-cult">
         <VerifiedUserIcon />
