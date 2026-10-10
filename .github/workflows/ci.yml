@@ -24,9 +24,15 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      - run: npx vitest run
+      - run: npx vitest run --reporter=default --reporter=json --outputFile.json=reports/unit.json
       - run: npx tsc --noEmit
       - run: npx eslint .
+      - uses: actions/upload-artifact@v4
+        if: ${{ !cancelled() }}
+        with:
+          name: test-report-unit
+          path: reports/unit.json
+          retention-days: 7
 
   database:
     name: Database and two-tenant isolation tests
@@ -64,4 +70,43 @@ jobs:
             --to-schema-datamodel prisma/schema.prisma \
             --shadow-database-url postgresql://postgres:postgres@localhost:5432/veritas_shadow \
             --exit-code
-      - run: npm run test:db
+      - run: npm run test:db -- --reporter=default --reporter=json --outputFile.json=reports/db.json
+      - uses: actions/upload-artifact@v4
+        if: ${{ !cancelled() }}
+        with:
+          name: test-report-db
+          path: reports/db.json
+          retention-days: 7
+
+  validation-pack:
+    # URS, risk assessment, traceability matrix and executed OQ for this commit
+    # (DEC-081). Fails when a requirement is not verified by passing tests.
+    name: Validation pack
+    needs: [checks, database]
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: test-report-*
+          path: reports
+          merge-multiple: true
+      - name: Generate the validation pack
+        run: |
+          node --no-warnings --experimental-strip-types src/lib/validation-pack.ts \
+            --requirements docs/validation/requirements.json \
+            --report reports/unit.json --report reports/db.json \
+            --out validation-pack --commit "${{ github.sha }}" > /dev/null || status=$?
+          cat validation-pack/README.md >> "$GITHUB_STEP_SUMMARY"
+          exit "${status:-0}"
+      - uses: actions/upload-artifact@v4
+        if: ${{ !cancelled() }}
+        with:
+          name: validation-pack-${{ github.sha }}
+          path: validation-pack/
+          retention-days: 90

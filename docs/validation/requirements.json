@@ -1,0 +1,502 @@
+{
+  "title": "Veritas user requirements",
+  "note": "Severity and likelihood are rated 1 (low) to 3 (high); the generator derives the risk class. Every requirement lists the automated tests that verify it, by test ID. Changing a requirement, its rating or its tests is reviewed like code.",
+  "requirements": [
+    {
+      "id": "URS-ACC-01",
+      "area": "Access",
+      "requirement": "Only a person with a valid session sees the workspace or any controlled data; no request header, cookie other than the session, or unknown identity grants access.",
+      "source": "DEC-058, DEC-070",
+      "hazard": "Someone without an account reads or changes controlled records.",
+      "severity": 3,
+      "likelihood": 2,
+      "control": "Opaque server-side sessions validated on every request; the workspace layout checks the session on the server.",
+      "tests": [
+        "AUTH-T001",
+        "AUTH-T002",
+        "AUTH-T003",
+        "AUTH-T004",
+        "AUTH-T005",
+        "APP-T001",
+        "SESSION-T011",
+        "SESSION-T012",
+        "SESSION-T013",
+        "SESSION-T014"
+      ]
+    },
+    {
+      "id": "URS-ACC-02",
+      "area": "Access",
+      "requirement": "Sign-in needs the person's password and a code from their authenticator app; a correct password alone opens no session.",
+      "source": "DEC-080",
+      "hazard": "A stolen or guessed password gives full access.",
+      "severity": 3,
+      "likelihood": 2,
+      "control": "Two-step verification for everyone; pending sign-in token valid five minutes; secrets stored encrypted.",
+      "tests": [
+        "LOGIN-T001",
+        "MFA-T001",
+        "MFA-T002",
+        "MFA-T004",
+        "MFA-T005",
+        "MFA-T007",
+        "MFA-T008",
+        "MFA-T012"
+      ]
+    },
+    {
+      "id": "URS-ACC-03",
+      "area": "Access",
+      "requirement": "Repeated wrong passwords or codes are refused for 15 minutes, without revealing whether an account exists.",
+      "source": "DEC-079, DEC-080",
+      "hazard": "Passwords or codes are guessed online.",
+      "severity": 3,
+      "likelihood": 2,
+      "control": "Failure counts per email, per address and per identity from the identity audit trail.",
+      "tests": [
+        "LOGIN-LIM-T001",
+        "LOGIN-LIM-T002",
+        "LOGIN-LIM-T003",
+        "LOGIN-LIM-T004",
+        "LOGIN-LIM-T005",
+        "MFA-T009"
+      ]
+    },
+    {
+      "id": "URS-ACC-04",
+      "area": "Access",
+      "requirement": "What a person may do follows the permissions of their organisation role, never a job title or department.",
+      "source": "DEC-058",
+      "hazard": "A person acts beyond their role.",
+      "severity": 3,
+      "likelihood": 2,
+      "control": "Persisted role permissions checked by every route; the interface follows the same permissions.",
+      "tests": [
+        "APP-T003",
+        "DOCUI-T001",
+        "DOCUI-T002",
+        "SESSION-T001",
+        "REL-T001",
+        "OBSOLETE-T005",
+        "TRN-T006"
+      ]
+    },
+    {
+      "id": "URS-ACC-05",
+      "area": "Access",
+      "requirement": "Passwords are stored only as Argon2id hashes and never logged.",
+      "source": "DEC-063",
+      "hazard": "A database or log copy reveals passwords.",
+      "severity": 3,
+      "likelihood": 1,
+      "control": "Argon2id with a unique salt; password material excluded from logs.",
+      "tests": [
+        "PASSWORD-T001",
+        "PASSWORD-T002",
+        "PASSWORD-T003",
+        "PASSWORD-T004",
+        "PASSWORD-T009"
+      ]
+    },
+    {
+      "id": "URS-ACC-06",
+      "area": "Access",
+      "requirement": "Sessions expire, can be revoked, and stop working when the person, membership or organisation is deactivated.",
+      "source": "DEC-058",
+      "hazard": "A former member keeps access.",
+      "severity": 3,
+      "likelihood": 2,
+      "control": "Session validation re-checks identity, membership and organisation status.",
+      "tests": [
+        "SESSION-T014",
+        "SESSION-T015",
+        "SESSION-T016",
+        "SESSION-T017",
+        "SESSION-T018",
+        "LOGOUT-T001"
+      ]
+    },
+    {
+      "id": "URS-USR-01",
+      "area": "People",
+      "requirement": "An administrator invites a person with one organisation role; the person sets their own password from a single-use 30-minute link; every step is audited.",
+      "source": "DEC-063, DEC-071",
+      "hazard": "Accounts are created without trace, or someone else knows the password.",
+      "severity": 2,
+      "likelihood": 2,
+      "control": "Atomic invitation with audit rows; hashed single-use credential tokens.",
+      "tests": [
+        "PROV-T001",
+        "PROV-T002",
+        "PROV-T003",
+        "PROV-T004",
+        "CRED-T001",
+        "CRED-T008",
+        "CRED-T009",
+        "CRED-T010",
+        "ADMIN-T001",
+        "ADMIN-T002"
+      ]
+    },
+    {
+      "id": "URS-USR-02",
+      "area": "People",
+      "requirement": "An administrator can reset another member's two-step verification with a reason, never their own, and the reset is audited.",
+      "source": "DEC-080",
+      "hazard": "A lost phone locks someone out, or a reset weakens an account without trace.",
+      "severity": 2,
+      "likelihood": 2,
+      "control": "Reset needs users.update and a reason; refused for oneself and across organisations; audited in both trails.",
+      "tests": [
+        "MFA-T010",
+        "MFA-T011",
+        "INVITE-CLIENT-T003"
+      ]
+    },
+    {
+      "id": "URS-TEN-01",
+      "area": "Tenancy",
+      "requirement": "One organisation never sees or changes another organisation's documents, training, audit entries, people or notifications.",
+      "source": "DEC-059, DEC-060, DEC-069",
+      "hazard": "Confidential records leak between customers.",
+      "severity": 3,
+      "likelihood": 2,
+      "control": "Tenant-scoped predicates, composite tenant keys and row-level security for the application database role.",
+      "tests": [
+        "ISO-T001",
+        "ISO-T002",
+        "ISO-T003",
+        "ISO-T006",
+        "ISO-T007",
+        "ISO-T008",
+        "ISO-T009",
+        "ISO-T010",
+        "RLS-T001",
+        "RLS-T002",
+        "RLS-T003",
+        "IDRLS-T001",
+        "IDRLS-T002",
+        "IDRLS-T003",
+        "TKEY-T002",
+        "TKEY-T003",
+        "TKEY-T005",
+        "TKEY-T006"
+      ]
+    },
+    {
+      "id": "URS-DOC-01",
+      "area": "Document control",
+      "requirement": "A document moves draft, in review, approved, effective, superseded or obsolete only through the allowed transitions, each audited.",
+      "source": "DEC-062, DEC-064",
+      "hazard": "A document becomes effective without review and approval.",
+      "severity": 3,
+      "likelihood": 2,
+      "control": "Lifecycle transitions checked on every route with status-guarded updates.",
+      "tests": [
+        "LIFE-T001",
+        "LIFE-T003",
+        "REL-T004",
+        "OBSOLETE-T001",
+        "OBSOLETE-T007"
+      ]
+    },
+    {
+      "id": "URS-DOC-02",
+      "area": "Document control",
+      "requirement": "Review, approval, release and retirement are each signed by an assigned person; the author cannot release their own version.",
+      "source": "DEC-062, DEC-064, DEC-066",
+      "hazard": "One person writes and releases a controlled document alone.",
+      "severity": 3,
+      "likelihood": 2,
+      "control": "Assignment checks and segregation of duties on review, approval and release.",
+      "tests": [
+        "SIG-T003",
+        "LIFE-T001",
+        "LIFE-T003",
+        "REL-T001",
+        "RET-T002"
+      ]
+    },
+    {
+      "id": "URS-DOC-03",
+      "area": "Document control",
+      "requirement": "Releasing a version makes it effective and supersedes the previously effective version in the same transaction.",
+      "source": "DEC-064",
+      "hazard": "Two versions are in force at once.",
+      "severity": 3,
+      "likelihood": 1,
+      "control": "Release and supersession in one transaction with count checks.",
+      "tests": [
+        "REL-T003",
+        "LIFE-T003"
+      ]
+    },
+    {
+      "id": "URS-DOC-04",
+      "area": "Document control",
+      "requirement": "An open revision can be withdrawn with a reason; the effective version stays in force and revision numbers are never reused.",
+      "source": "DEC-065",
+      "hazard": "Withdrawing a revision removes the version in force.",
+      "severity": 2,
+      "likelihood": 1,
+      "control": "Withdrawal touches only the revision and its open review route.",
+      "tests": [
+        "WDR-T001",
+        "WDR-T002",
+        "WDR-T003",
+        "LIFE-T005"
+      ]
+    },
+    {
+      "id": "URS-DOC-05",
+      "area": "Document control",
+      "requirement": "Every stored file is checked against its SHA-256 when it is read or signed; a mismatch is refused.",
+      "source": "DEC-054, DEC-068",
+      "hazard": "A file is altered in storage and served or signed as genuine.",
+      "severity": 3,
+      "likelihood": 1,
+      "control": "Hash recorded at upload, verified on every read and before signing.",
+      "tests": [
+        "UPL-T001",
+        "UPL-T003",
+        "UPL-DB-T001"
+      ]
+    },
+    {
+      "id": "URS-DOC-06",
+      "area": "Document control",
+      "requirement": "Readers get the effective version by default, exactly as stored; any other version is marked as an uncontrolled copy of its status.",
+      "source": "DEC-067",
+      "hazard": "Someone works from an outdated or unapproved version believing it is in force.",
+      "severity": 3,
+      "likelihood": 2,
+      "control": "Controlled-copy service; a PDF that cannot be stamped is not served.",
+      "tests": [
+        "COPY-T001",
+        "COPY-T003",
+        "COPY-T004",
+        "COPY-T005",
+        "COPY-T007",
+        "COPY-T008",
+        "COPY-T009"
+      ]
+    },
+    {
+      "id": "URS-DOC-07",
+      "area": "Document control",
+      "requirement": "Files are uploaded straight to private storage under a key reserved in the uploader's organisation; another organisation's key is refused.",
+      "source": "DEC-068",
+      "hazard": "A file lands in, or is claimed from, another organisation's storage.",
+      "severity": 3,
+      "likelihood": 1,
+      "control": "Server-reserved tenant keys; presigned write-only upload; hash re-checked on read-back.",
+      "tests": [
+        "UPL-T002",
+        "UPL-T006",
+        "UPL-T007",
+        "UPL-T008",
+        "UPL-T009",
+        "UPL-DB-T001"
+      ]
+    },
+    {
+      "id": "URS-SIG-01",
+      "area": "Electronic signatures",
+      "requirement": "Each signature needs the signer's own password and records printed name, role, meaning, time and the SHA-256 of the signed file, together with its audit row.",
+      "source": "DEC-062",
+      "hazard": "A signature cannot be attributed to a person or to the exact content signed.",
+      "severity": 3,
+      "likelihood": 2,
+      "control": "Signature service with password re-entry, written in the same transaction as the state change.",
+      "tests": [
+        "ESIG-T001",
+        "ESIG-T002",
+        "ESIG-T004",
+        "SIG-T001",
+        "SIG-T002",
+        "REL-T002",
+        "RET-T001"
+      ]
+    },
+    {
+      "id": "URS-SIG-02",
+      "area": "Electronic signatures",
+      "requirement": "Signatures cannot be changed or deleted, by the application or the database owner.",
+      "source": "DEC-062",
+      "hazard": "A signature is altered after the fact.",
+      "severity": 3,
+      "likelihood": 1,
+      "control": "Append-only trigger on the signature table.",
+      "tests": [
+        "ESIG-DB-T001"
+      ]
+    },
+    {
+      "id": "URS-SIG-03",
+      "area": "Electronic signatures",
+      "requirement": "Failed signing attempts are audited, and after five wrong passwords in 15 minutes signing is paused.",
+      "source": "DEC-062, DEC-072",
+      "hazard": "A signer's password is guessed through a stolen session.",
+      "severity": 3,
+      "likelihood": 1,
+      "control": "Failed attempts recorded and counted per signer.",
+      "tests": [
+        "ESIG-T003",
+        "ESIG-T005",
+        "ESIG-T006",
+        "SIGLIM-T001",
+        "SIGLIM-T002"
+      ]
+    },
+    {
+      "id": "URS-TRN-01",
+      "area": "Training",
+      "requirement": "When a version becomes effective, every active member of the document's training departments is assigned that version, and open training on earlier versions is closed.",
+      "source": "DEC-073",
+      "hazard": "People work to a new version they were never trained on.",
+      "severity": 2,
+      "likelihood": 2,
+      "control": "Assignment inside the release transaction, audited.",
+      "tests": [
+        "TRN-T001",
+        "TRN-T002",
+        "TRN-T003",
+        "TRN-T004"
+      ]
+    },
+    {
+      "id": "URS-TRN-02",
+      "area": "Training",
+      "requirement": "A trainee completes training by signing their own assignment as read and understood, only while that version is effective.",
+      "source": "DEC-075",
+      "hazard": "Training is recorded for someone else, or against a version no longer in force.",
+      "severity": 2,
+      "likelihood": 2,
+      "control": "Assignee and permission checks; signature on the version's hash; status-guarded completion.",
+      "tests": [
+        "TRN-T005",
+        "TRN-T006",
+        "TRN-T007",
+        "SIGNREQ-T005"
+      ]
+    },
+    {
+      "id": "URS-TRN-03",
+      "area": "Training",
+      "requirement": "People allowed to see everyone's training see a matrix of people and documents showing open and completed training on the newest version.",
+      "source": "DEC-076",
+      "hazard": "Gaps in training go unnoticed.",
+      "severity": 2,
+      "likelihood": 1,
+      "control": "Matrix built from the tenant-scoped training list.",
+      "tests": [
+        "MATRIX-T001",
+        "MATRIX-T002",
+        "MATRIX-T003",
+        "TRAINING-T003",
+        "ISO-T007"
+      ]
+    },
+    {
+      "id": "URS-AUD-01",
+      "area": "Audit trail",
+      "requirement": "Every regulated change writes an audit entry in the same transaction; nobody, including the database owner, can change or delete audit entries.",
+      "source": "DEC-057",
+      "hazard": "Changes happen without trace, or the trace is rewritten.",
+      "severity": 3,
+      "likelihood": 1,
+      "control": "Mandatory audit writes; append-only triggers; the application role has no update or delete right.",
+      "tests": [
+        "DBAPP-T001",
+        "DBAPP-T002",
+        "DBAUDIT-T001",
+        "DBAUDIT-T002",
+        "DBAUDIT-T003",
+        "LIFE-T001"
+      ]
+    },
+    {
+      "id": "URS-AUD-02",
+      "area": "Audit trail",
+      "requirement": "Reviewers see each audit entry with who acted and what changed (before and after), limited to their organisation.",
+      "source": "DEC-077",
+      "hazard": "Inspectors and reviewers cannot reconstruct what happened.",
+      "severity": 2,
+      "likelihood": 2,
+      "control": "Audit review screen deriving field changes from stored payloads.",
+      "tests": [
+        "AUDREV-T001",
+        "AUDREV-T002",
+        "AUDREV-T003",
+        "AUDREV-T004",
+        "AUDIT-INDEX-T001",
+        "ISO-T006"
+      ]
+    },
+    {
+      "id": "URS-AUD-03",
+      "area": "Audit trail",
+      "requirement": "The audit review can be exported as a PDF stating who exported it, when and with which filters; the export itself is audited.",
+      "source": "DEC-078",
+      "hazard": "Exported audit evidence cannot be attributed or is incomplete without saying so.",
+      "severity": 2,
+      "likelihood": 1,
+      "control": "Audited PDF export with header, numbered pages and an explicit cut-off note.",
+      "tests": [
+        "AUDPDF-T001",
+        "AUDPDF-T002",
+        "AUDPDF-T003",
+        "AUDPDF-T004"
+      ]
+    },
+    {
+      "id": "URS-OPS-01",
+      "area": "Operation",
+      "requirement": "Unexpected errors never reveal internal details to the browser or logs; responses with controlled data are not cached.",
+      "source": "DEC-020, DEC-021",
+      "hazard": "Error messages or caches expose internal or controlled data.",
+      "severity": 2,
+      "likelihood": 2,
+      "control": "Fixed error responses with a correlation ID; no-store on regulated reads.",
+      "tests": [
+        "ERROR-T001",
+        "ERROR-T002",
+        "ERROR-T003",
+        "ERROR-T004",
+        "DOCUMENT-READ-T002"
+      ]
+    },
+    {
+      "id": "URS-OPS-02",
+      "area": "Operation",
+      "requirement": "Pages and API responses carry baseline security headers, and the framework is not advertised.",
+      "source": "Roadmap Phase 0 (security headers)",
+      "hazard": "Common browser attacks (framing, content sniffing) succeed.",
+      "severity": 2,
+      "likelihood": 1,
+      "control": "Security headers in the application configuration.",
+      "tests": [
+        "SECHDR-T001",
+        "SECHDR-T003",
+        "SECHDR-T004",
+        "SECHDR-T005"
+      ]
+    },
+    {
+      "id": "URS-OPS-03",
+      "area": "Operation",
+      "requirement": "The demonstration seed never runs against production data.",
+      "source": "Roadmap Phase 0 (seed refuses in production), DEC-056",
+      "hazard": "Fabricated records enter production.",
+      "severity": 3,
+      "likelihood": 1,
+      "control": "Seed refuses by default and always in production.",
+      "tests": [
+        "SEED-T001",
+        "SEED-T002",
+        "SEED-T003",
+        "SEED-T004"
+      ]
+    }
+  ]
+}

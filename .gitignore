@@ -51,3 +51,7 @@ next-env.d.ts
 
 # Graphify output: a map of the code, rebuilt on demand (/graphify); not versioned.
 graphify-out/
+
+# Test reports and the generated validation pack (CI artifacts, DEC-081)
+/reports/
+/validation-pack/
