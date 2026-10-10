@@ -1,0 +1,400 @@
+/* Workspace overview. Colours come from the theme variables in
+   src/ui/styles/liquid-glass.css, so light and dark modes both work. */
+
+.overview {
+  display: flex;
+  flex-direction: column;
+  gap: 36px;
+  color: var(--t1);
+  padding-bottom: 48px;
+}
+
+.mono {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.eyebrow {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--t2);
+}
+
+.intro {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px;
+  align-items: flex-end;
+  justify-content: space-between;
+}
+
+.headline {
+  font-size: clamp(28px, 3.2vw, 42px);
+  line-height: 1.06;
+  letter-spacing: -0.03em;
+  font-weight: 700;
+  max-width: 20ch;
+  margin-top: 8px;
+}
+
+.sectionHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.sectionTitle {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--t1);
+}
+
+.panel {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.linkButton {
+  background: none;
+  border: 0;
+  padding: 0;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--t1);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 0 18px;
+  border-radius: 6px;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  border: 1px solid var(--t1);
+  background: transparent;
+  color: var(--t1);
+}
+
+.button:hover {
+  background: var(--blight);
+}
+
+.buttonSolid {
+  background: var(--t1);
+  color: var(--bg);
+}
+
+.buttonSolid:hover {
+  background: var(--dark);
+}
+
+.button:focus-visible,
+.linkButton:focus-visible,
+.stateCell:focus-visible {
+  outline: 2px solid var(--t1);
+  outline-offset: 2px;
+}
+
+/* Signature queue */
+
+.queueRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 24px;
+  padding: 16px 20px;
+}
+
+.queueRow + .queueRow {
+  border-top: 1px solid var(--border);
+}
+
+.meaning {
+  flex: 0 0 auto;
+  min-width: 150px;
+  text-align: center;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  padding: 5px 9px;
+  border-radius: 4px;
+}
+
+.meaningREVIEW {
+  box-shadow: inset 0 0 0 1.5px var(--t1);
+  color: var(--t1);
+}
+
+.meaningAPPROVE {
+  background: #2F4F7A;
+  color: #FFFFFF;
+}
+
+.meaningRELEASE {
+  background: var(--lime);
+  color: #1E241E;
+}
+
+.meaningREAD {
+  background: var(--gold);
+  color: #3D3300;
+}
+
+.queueTitle {
+  flex: 1 1 300px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.docNumber {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.docTitle {
+  font-size: 16px;
+  font-weight: 500;
+}
+
+.queueAge {
+  flex: 0 1 180px;
+  font-size: 13px;
+  color: var(--t2);
+}
+
+.overdue {
+  color: var(--danger);
+  font-weight: 600;
+}
+
+.empty {
+  padding: 28px 20px;
+  font-size: 15px;
+  color: var(--t2);
+}
+
+/* Lifecycle strip */
+
+.states {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+}
+
+.stateCell {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 18px 20px;
+  text-align: left;
+  font: inherit;
+  color: var(--t1);
+  background: transparent;
+  border: 0;
+  border-right: 1px solid var(--border);
+  cursor: pointer;
+}
+
+.stateCell:hover {
+  background: var(--blight);
+}
+
+.stateEffective,
+.stateEffective:hover {
+  background: var(--lime);
+  color: #1E241E;
+}
+
+.stateLabel {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.stateCount {
+  font-size: 36px;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Register and audit trail */
+
+.columns {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 28px;
+  align-items: flex-start;
+}
+
+.wide {
+  flex: 999 1 520px;
+  min-width: 0;
+}
+
+.narrow {
+  flex: 1 1 300px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.tableScroll {
+  overflow-x: auto;
+}
+
+.register {
+  width: 100%;
+  min-width: 620px;
+  border-collapse: collapse;
+}
+
+.register th {
+  text-align: left;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--t2);
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+
+.register td {
+  padding: 13px 16px;
+  border-bottom: 1px solid var(--border);
+  font-size: 14px;
+  vertical-align: top;
+}
+
+.register td:first-child {
+  white-space: nowrap;
+}
+
+.register tr:last-child td {
+  border-bottom: 0;
+}
+
+.chip {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  padding: 3px 8px;
+  border-radius: 4px;
+  white-space: nowrap;
+}
+
+.chipDRAFT {
+  box-shadow: inset 0 0 0 1px var(--t3);
+  color: var(--t2);
+}
+
+.chipIN_REVIEW {
+  background: var(--gold);
+  color: #3D3300;
+}
+
+.chipAPPROVED {
+  background: #2F4F7A;
+  color: #FFFFFF;
+}
+
+.chipEFFECTIVE {
+  background: var(--lime);
+  color: #1E241E;
+}
+
+.chipOBSOLETE {
+  background: var(--blight);
+  color: var(--t2);
+  text-decoration: line-through;
+}
+
+.trail {
+  list-style: none;
+  margin: 0;
+  padding: 2px 0 2px 18px;
+  border-left: 2px solid var(--t1);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.trail li {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.trail li::before {
+  content: '';
+  position: absolute;
+  left: -24px;
+  top: 4px;
+  width: 6px;
+  height: 6px;
+  border: 2px solid var(--t1);
+  border-radius: 50%;
+  background: var(--bg);
+}
+
+.trailAction {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+}
+
+.trailText {
+  font-size: 13px;
+  color: var(--t2);
+  overflow-wrap: anywhere;
+}
+
+/* Inverts with the theme: dark on light, light on dark. */
+.trainingCard {
+  background: var(--t1);
+  color: var(--bg);
+  border-radius: 8px;
+  padding: 18px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.trainingCard .linkButton {
+  color: var(--bg);
+  align-self: flex-start;
+}
+
+.trainingCount {
+  font-size: 32px;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 1;
+}

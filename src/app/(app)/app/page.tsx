@@ -11,6 +11,7 @@ import { buildTrainingMatrix } from '@/lib/training-matrix';
 import { AUDIT_ACTIONS, type AuditChange, type AuditDetail } from '@/lib/audit-review';
 import { REASON_REQUIRED, SIGNING_LABELS, signingRequest, type SigningMode } from '@/lib/signing-request';
 import InviteMemberPanel from '@/ui/components/InviteMemberPanel';
+import Dashboard from './Dashboard';
 import { resendInvitation, resetTwoStepVerification } from '@/lib/invitations-client';
 import { prepareDocumentFile, sha256Hex } from '@/lib/document-file-upload';
 import {
@@ -555,12 +556,6 @@ export default function Workspace() {
   const isAssignedReviewer = canReviewDocuments && Boolean(assignedReviewStep && assignedReviewStep.approver.id === currentUser?.id && assignedReviewStep.status === 'PENDING');
   const isAssignedApprover = canApproveDocuments && Boolean(assignedApprovalStep && assignedApprovalStep.approver.id === currentUser?.id && assignedApprovalStep.status === 'PENDING');
 
-  // Statistics calculation for Dashboard
-  const statTotalDocs = documents.length;
-  const statEffectiveDocs = documents.filter((d) => d.status === 'EFFECTIVE').length;
-  const statPendingTrainings = trainings.filter((t) => t.status === 'ASSIGNED').length;
-  const statPendingApprovals = documents.filter((d) => d.status === 'DRAFT' || d.status === 'IN_REVIEW').length;
-
   const { mode, toggleTheme } = useThemeMode();
 
   const sections = workspaceSections(currentUser?.permissions);
@@ -568,7 +563,7 @@ export default function Workspace() {
     {
       title: 'Veritas eQMS',
       items: [
-        { id: 'dashboard', label: 'Dashboard', route: 'dashboard', icon: <DashboardIcon /> },
+        { id: 'dashboard', label: 'Overview', route: 'dashboard', icon: <DashboardIcon /> },
         { id: 'documents', label: 'Document Control', route: 'documents', icon: <DescriptionIcon /> },
         { id: 'training', label: 'Training Hub', route: 'training', icon: <SchoolIcon /> },
         ...(sections.includes('users-management') ? [
@@ -607,7 +602,7 @@ export default function Workspace() {
 
   const getHeaderTitle = () => {
     switch (activeTab) {
-      case 'dashboard': return 'Compliance Dashboard';
+      case 'dashboard': return 'Overview';
       case 'documents': return 'Document Repository';
       case 'training': return 'Training matrix & assignments';
       case 'users-management': return 'User Access Policy & ABAC/RBAC Roster';
@@ -640,130 +635,23 @@ export default function Workspace() {
           </div>
         )}
 
-        {/* TAB 1: DASHBOARD */}
-        {activeTab === 'dashboard' && (
-          <div>
-            {/* Recovery status & attention center */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '20px', marginBottom: '24px' }}>
-              {/* Compliance scoring containment */}
-              <div className={`${styles.card} ${styles.cardGlow}`} style={{ background: 'linear-gradient(135deg, rgba(16,185,129,0.08) 0%, rgba(15,23,42,0.6) 100%)', border: '1px solid rgba(16,185,129,0.25)' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-                  <span style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '1px', color: '#10B981', fontWeight: '700' }}>🛡️ Compliance status</span>
-                  <span style={{ fontSize: '11px', background: 'rgba(16,185,129,0.15)', color: '#10B981', padding: '2px 8px', borderRadius: '4px', fontWeight: '700' }}>
-                    Unavailable
-                  </span>
-                </div>
-
-                <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px' }}>
-                  <span style={{ fontSize: '18px', color: 'var(--text-muted)', lineHeight: '1.5' }}>Automated compliance scoring is disabled during recovery.</span>
-                </div>
-
-                <div style={{ fontSize: '13px', fontWeight: '600', color: '#E2E8F0', marginTop: '6px' }}>
-                  No compliance or audit-readiness conclusion is generated.
-                </div>
-
-                <div style={{ marginTop: '16px', borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: '12px', fontSize: '12px', color: 'var(--text-muted)' }}>
-                  Status metrics require an approved model, traceable source data, and validation evidence.
-                </div>
-              </div>
-
-              {/* What Requires My Attention Today? */}
-              <div className={styles.card}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
-                  <div className={styles.cardTitle} style={{ margin: 0 }}>⚡ What Requires My Attention Today?</div>
-                  <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Sensitive exports unavailable during recovery</span>
-                </div>
-
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px' }}>
-                  <div style={{ background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.2)', padding: '12px', borderRadius: '8px' }}>
-                    <div style={{ fontSize: '11px', color: '#F59E0B', fontWeight: '700', textTransform: 'uppercase' }}>Documents in Review</div>
-                    <div style={{ fontSize: '24px', fontWeight: '800', color: '#FFF', marginTop: '4px' }}>{statPendingApprovals}</div>
-                    <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>Awaiting Sign-off</div>
-                  </div>
-
-                  <div style={{ background: 'rgba(59,130,246,0.08)', border: '1px solid rgba(59,130,246,0.2)', padding: '12px', borderRadius: '8px' }}>
-                    <div style={{ fontSize: '11px', color: '#3B82F6', fontWeight: '700', textTransform: 'uppercase' }}>My Overdue Training</div>
-                    <div style={{ fontSize: '24px', fontWeight: '800', color: '#FFF', marginTop: '4px' }}>{statPendingTrainings}</div>
-                    <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>Pending Quiz Sign-off</div>
-                  </div>
-
-                  <div style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', padding: '12px', borderRadius: '8px' }}>
-                    <div style={{ fontSize: '11px', color: '#EF4444', fontWeight: '700', textTransform: 'uppercase' }}>Quality Events</div>
-                    <div style={{ fontSize: '24px', fontWeight: '800', color: '#FFF', marginTop: '4px' }}>—</div>
-                    <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>Unavailable during recovery</div>
-                  </div>
-
-                </div>
-              </div>
-            </div>
-
-            {/* Core Stats Bar */}
-            <div className={styles.grid3}>
-              <div className={`${styles.card} ${styles.cardGlow}`}>
-                <div className={styles.cardTitle}>Total Controlled Documents</div>
-                <div className={styles.statVal}>{statTotalDocs}</div>
-                <div className={styles.statLabel}>{statEffectiveDocs} Effective, {statTotalDocs - statEffectiveDocs} Draft/Obsolete</div>
-              </div>
-              <div className={`${styles.card} ${styles.cardGlow}`} style={{ '--primary': 'var(--secondary)' } as any}>
-                <div className={styles.cardTitle}>My Pending Assignments</div>
-                <div className={styles.statVal} style={{ color: statPendingTrainings > 0 ? 'var(--warning)' : '#10B981' }}>{statPendingTrainings}</div>
-                <div className={styles.statLabel}>Trainings required for role profiles</div>
-              </div>
-              <div className={`${styles.card} ${styles.cardGlow}`} style={{ '--primary': 'var(--warning)' } as any}>
-                <div className={styles.cardTitle}>Documents in Review</div>
-                <div className={styles.statVal}>{statPendingApprovals}</div>
-                <div className={styles.statLabel}>Requires sign-off approval to release</div>
-              </div>
-            </div>
-
-            <div className={styles.grid2} style={{ marginTop: '24px' }}>
-              {/* Document Overview */}
-              <div className={styles.card}>
-                <div className={styles.cardTitle}>Released eQMS Documents</div>
-                <div className={styles.tableWrapper}>
-                  <table className={styles.table}>
-                    <thead>
-                      <tr>
-                        <th>Title</th>
-                        <th>Owner</th>
-                        <th>Classification</th>
-                        <th>Release Status</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {documents.slice(0, 5).map((doc) => (
-                        <tr key={doc.id} className={styles.tableRow}>
-                          <td style={{ fontWeight: '600' }}>{doc.title}</td>
-                          <td>{doc.owner.fullName}</td>
-                          <td>{doc.classification}</td>
-                          <td>
-                            <span className={`${styles.badge} ${
-                              doc.status === 'EFFECTIVE' ? styles.badgeEffective :
-                              doc.status === 'DRAFT' ? styles.badgeDraft : styles.badgeReview
-                            }`}>
-                              {doc.status}
-                            </span>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-
-              {/* Authorization boundary notice */}
-              <div className={styles.card}>
-                <div className={styles.cardTitle}>Current Session</div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                  <p>You are signed in as <strong>{currentUser?.fullName}</strong>.</p>
-                  <div className="glass" style={{ padding: '12px', background: 'rgba(255,255,255,0.02)', fontSize: '13px' }}>
-                    Effective access is determined by the active IAM membership and persisted permission assignments on every server request. The operational role shown in profile data is descriptive and does not grant capabilities.
-                  </div>
-                  <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Sign out or complete a new authenticated sign-in to change identity.</span>
-                </div>
-              </div>
-            </div>
-          </div>
+        {/* TAB 1: OVERVIEW */}
+        {activeTab === 'dashboard' && currentUser && (
+          <Dashboard
+            user={currentUser}
+            documents={documents}
+            trainings={trainings}
+            auditEntries={sections.includes('audit') && !auditActionFilter && !auditTypeFilter ? auditLogs : null}
+            canAuthor={canAuthorDocuments}
+            onNewDraft={() => setShowCreateModal(true)}
+            onOpenDocument={(id) => {
+              setSelectedDocId(id);
+              setActiveTab('documents');
+            }}
+            onOpenDocuments={() => setActiveTab('documents')}
+            onOpenTraining={() => setActiveTab('training')}
+            onOpenAudit={() => setActiveTab('audit')}
+          />
         )}
 
         {/* TAB 2: DOCUMENT CONTROL */}
