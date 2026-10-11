@@ -7,7 +7,9 @@ export type DocumentActions = {
   canApprove: boolean;
   canObsolete: boolean;
   canRelease: boolean;
-  canWithdrawRevision: boolean;
+  // Replace a draft's file, start a revision, withdraw an open revision.
+  canEditDraft: boolean;
+  canSubmitForReview: boolean;
 };
 
 export function documentActionsFor(permissions: readonly string[] | undefined): DocumentActions {
@@ -18,6 +20,7 @@ export function documentActionsFor(permissions: readonly string[] | undefined): 
     canApprove: granted.has('documents.approve'),
     canObsolete: granted.has('documents.obsolete'),
     canRelease: granted.has('documents.release'),
-    canWithdrawRevision: granted.has('documents.update_draft'),
+    canEditDraft: granted.has('documents.update_draft'),
+    canSubmitForReview: granted.has('documents.submit_review'),
   };
 }

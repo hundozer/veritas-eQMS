@@ -14,9 +14,12 @@ const doc = (status: string, steps: Array<[string, string, string]> = [], versio
 });
 
 describe('Documents tab actions', () => {
-  it('DOCPANEL-T001 offers authors file replacement and submission on a draft only', () => {
-    expect(documentPanelActions(doc('DRAFT'), ME, ['documents.create'])).toEqual(['REPLACE_FILE', 'SUBMIT_REVIEW']);
-    expect(documentPanelActions(doc('IN_REVIEW'), ME, ['documents.create'])).toEqual([]);
+  it('DOCPANEL-T001 offers file replacement and submission on a draft only, each to its own permission', () => {
+    const p = ['documents.update_draft', 'documents.submit_review'];
+    expect(documentPanelActions(doc('DRAFT'), ME, p)).toEqual(['REPLACE_FILE', 'SUBMIT_REVIEW']);
+    expect(documentPanelActions(doc('DRAFT'), ME, ['documents.update_draft'])).toEqual(['REPLACE_FILE']);
+    expect(documentPanelActions(doc('DRAFT'), ME, ['documents.submit_review'])).toEqual(['SUBMIT_REVIEW']);
+    expect(documentPanelActions(doc('IN_REVIEW'), ME, p)).toEqual([]);
     expect(documentPanelActions(doc('DRAFT'), ME, ['documents.read'])).toEqual([]);
   });
 
@@ -40,15 +43,21 @@ describe('Documents tab actions', () => {
     expect(documentPanelActions(doc('APPROVED'), ME, ['documents.approve'])).toEqual([]);
   });
 
-  it('DOCPANEL-T005 offers a new revision of an effective document to authors', () => {
-    expect(documentPanelActions(doc('EFFECTIVE'), ME, ['documents.create'])).toEqual(['START_REVISION']);
+  it('DOCPANEL-T005 offers a new revision of an effective document to holders of documents.update_draft', () => {
+    expect(documentPanelActions(doc('EFFECTIVE'), ME, ['documents.update_draft'])).toEqual(['START_REVISION']);
+  });
+
+  it('DOCPANEL-T010 offers documents.create holders nothing the server would refuse them', () => {
+    for (const s of ['DRAFT', 'IN_REVIEW', 'APPROVED', 'EFFECTIVE']) {
+      expect(documentPanelActions(doc(s, [], ['EFFECTIVE']), ME, ['documents.read', 'documents.create'])).toEqual([]);
+    }
   });
 
   it('DOCPANEL-T006 offers withdrawal only for an open revision while an effective version exists', () => {
     const p = ['documents.update_draft'];
     expect(documentPanelActions(doc('IN_REVIEW', [], ['EFFECTIVE']), ME, p)).toEqual(['WITHDRAW_REVISION']);
     expect(documentPanelActions(doc('IN_REVIEW'), ME, p)).toEqual([]);
-    expect(documentPanelActions(doc('EFFECTIVE'), ME, p)).toEqual([]);
+    expect(documentPanelActions(doc('EFFECTIVE'), ME, p)).not.toContain('WITHDRAW_REVISION');
   });
 
   it('DOCPANEL-T007 offers retirement of draft, approved and effective documents to holders of documents.obsolete', () => {

@@ -472,9 +472,5 @@ Shown or answered as "not available"; do not promise them to users:
   answer, but nobody is ever asked it, and quizzes are out of scope.
 - **The new-draft form and the signing dialog** still use the older styling;
   the rest of the workspace uses the paper style.
-- **Two buttons follow the wrong permission.** **Replace draft file** and
-  **Start revision N** are offered to holders of `documents.create`, but the
-  server requires `documents.update_draft`. A member with only the first sees
-  the button and is refused.
 - **Audit filters on screen** are action and record type only; the server
   also filters by user and dates, which the screen does not offer yet.
