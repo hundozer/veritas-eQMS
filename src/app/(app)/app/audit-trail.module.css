@@ -1,0 +1,271 @@
+/* Audit trail tab in the paper language: a ledger grouped by day, each entry
+   with its time, action, actor, record and changes. Theme variables only;
+   system fonts only (BUILD-T001). */
+
+.page {
+  --serif: 'Iowan Old Style', 'Charter', 'Bitstream Charter', 'Sitka Text', Cambria, Georgia, serif;
+  --ink: var(--t1);
+  --rule: var(--border);
+  max-width: 1040px;
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+  padding: 8px 0 72px;
+  color: var(--ink);
+}
+
+.mono {
+  font-family: var(--font-mono);
+}
+
+.muted {
+  color: var(--t2);
+}
+
+.intro {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 16px 32px;
+  border-bottom: 2px solid var(--ink);
+  padding-bottom: 14px;
+}
+
+.headline {
+  font-family: var(--serif);
+  font-weight: 400;
+  font-size: clamp(28px, 3.4vw, 40px);
+  line-height: 1.08;
+  letter-spacing: -0.02em;
+}
+
+.lede {
+  margin-top: 6px;
+  max-width: 64ch;
+  font-size: 15px;
+  line-height: 1.5;
+  color: var(--t2);
+}
+
+.outline {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 18px;
+  border: 1.5px solid var(--ink);
+  color: var(--ink);
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: none;
+  transition: background-color 140ms ease;
+}
+
+.outline:hover {
+  background: var(--blight);
+}
+
+.outline:focus-visible,
+.select:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
+}
+
+/* Filters as a paper form row */
+
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 14px 28px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: min(100%, 240px);
+}
+
+.label {
+  font-size: 12px;
+  font-variant: small-caps;
+  text-transform: lowercase;
+  letter-spacing: 0.06em;
+  color: var(--t2);
+}
+
+.select {
+  min-height: 40px;
+  padding: 6px 2px;
+  border: 0;
+  border-bottom: 1.5px solid var(--ink);
+  border-radius: 0;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-size: 15px;
+}
+
+.count {
+  margin-left: auto;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--t2);
+}
+
+.empty {
+  padding: 18px 0;
+  border-top: 1px solid var(--rule);
+  border-bottom: 1px solid var(--rule);
+  color: var(--t2);
+}
+
+/* Ledger */
+
+.day {
+  display: flex;
+  flex-direction: column;
+}
+
+.dayTitle {
+  font-family: var(--serif);
+  font-weight: 400;
+  font-size: 20px;
+  padding-bottom: 6px;
+  border-bottom: 1.5px solid var(--ink);
+}
+
+.entries {
+  list-style: none;
+}
+
+.entry {
+  display: grid;
+  grid-template-columns: 84px minmax(0, 1fr);
+  gap: 4px 20px;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--rule);
+}
+
+.exceptional {
+  border-left: 3px solid var(--danger);
+  padding-left: 12px;
+}
+
+.time {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--t2);
+  padding-top: 1px;
+}
+
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 12px;
+}
+
+.action {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.outcome {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 1px 6px;
+  border: 1.5px solid var(--danger);
+  color: var(--danger);
+}
+
+.who {
+  font-size: 14px;
+  overflow-wrap: anywhere;
+}
+
+.record {
+  font-size: 13px;
+  color: var(--t2);
+  overflow-wrap: anywhere;
+}
+
+.changes {
+  margin-top: 6px;
+  border-collapse: collapse;
+  font-size: 13px;
+  max-width: 100%;
+}
+
+.changes th,
+.changes td {
+  text-align: left;
+  padding: 5px 16px 5px 0;
+  border-bottom: 1px solid var(--rule);
+  vertical-align: top;
+  overflow-wrap: anywhere;
+}
+
+.changes thead th {
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--t2);
+  border-bottom: 1px solid var(--ink);
+}
+
+.changes tbody th {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.details {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 18px;
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--t2);
+}
+
+.details div {
+  display: flex;
+  gap: 6px;
+}
+
+.details dt {
+  font-family: var(--font-mono);
+}
+
+.details dd {
+  overflow-wrap: anywhere;
+}
+
+.eventId {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--t3);
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 640px) {
+  .entry { grid-template-columns: 1fr; }
+  .count { margin-left: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .outline { transition: none; }
+}
