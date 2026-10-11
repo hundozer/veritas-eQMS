@@ -7,12 +7,13 @@ import { AppShell, useThemeMode } from '@/ui';
 import type { NavGroup } from '@/ui';
 import { documentActionsFor } from '@/lib/document-actions';
 import { workspaceSections } from '@/lib/workspace-access';
-import { AUDIT_ACTIONS, type AuditChange, type AuditDetail } from '@/lib/audit-review';
+import type { AuditChange, AuditDetail } from '@/lib/audit-review';
 import { REASON_REQUIRED, SIGNING_LABELS, signingRequest, type SigningMode } from '@/lib/signing-request';
 import Dashboard from './Dashboard';
 import Documents from './Documents';
 import Training from './Training';
 import People from './People';
+import AuditTrail from './AuditTrail';
 import type { PanelAction } from '@/lib/document-panel';
 import { resendInvitation, resetTwoStepVerification } from '@/lib/invitations-client';
 import { prepareDocumentFile, sha256Hex } from '@/lib/document-file-upload';
@@ -694,96 +695,16 @@ export default function Workspace() {
           />
         )}
 
-        {/* TAB 4: COMPLIANCE LOGS */}
+        {/* TAB 4: AUDIT TRAIL */}
         {activeTab === 'audit' && (
-          <div className={styles.card}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-              <div>
-                <h2>Audit Review</h2>
-                <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '4px' }}>
-                  The newest 200 audit entries matching the filters, with what changed. Audit entries cannot be edited or deleted.
-                </p>
-              </div>
-              {canExportAudit && (
-                <a className={`${styles.btn} ${styles.btnSecondary}`} href={auditExportHref}>
-                  Export PDF
-                </a>
-              )}
-            </div>
-
-            {/* Filter controls */}
-            <div className={styles.filters}>
-              <div className={styles.filterItem}>
-                <label className={styles.formLabel}>Action Event</label>
-                <select 
-                  className={styles.select}
-                  value={auditActionFilter}
-                  onChange={(e) => setAuditActionFilter(e.target.value)}
-                >
-                  <option value="">All Actions</option>
-                  {AUDIT_ACTIONS.map((action) => <option key={action} value={action}>{action}</option>)}
-                </select>
-              </div>
-              
-              <div className={styles.filterItem}>
-                <label className={styles.formLabel}>Resource Type</label>
-                <select 
-                  className={styles.select}
-                  value={auditTypeFilter}
-                  onChange={(e) => setAuditTypeFilter(e.target.value)}
-                >
-                  <option value="">All Types</option>
-                  <option value="Document">Document</option>
-                  <option value="DocumentVersion">DocumentVersion</option>
-                  <option value="TrainingAssignment">TrainingAssignment</option>
-                  <option value="User">User</option>
-                </select>
-              </div>
-            </div>
-
-            {/* Audit Logs Trail */}
-            <div className={styles.auditQueryArea}>
-              {auditLogs.length > 0 ? (
-                auditLogs.map((log) => (
-                  <div 
-                    key={log.id} 
-                    className={`${styles.auditItem} ${log.status !== 'Success' ? styles.auditItemDenied : ''}`}
-                  >
-                    <div className={styles.auditHeader}>
-                      <div>
-                        <span className={styles.auditAction}>{log.action}</span>
-                        <span style={{ marginLeft: '8px' }}>by {log.userEmail || 'unknown'}</span>
-                        {log.userRole && <span className={styles.currentBadge} style={{ marginLeft: '8px', fontSize: '10px' }}>{log.userRole}</span>}
-                      </div>
-                      <span className={styles.auditTime}>{new Date(log.timestamp).toLocaleString()}</span>
-                    </div>
-                    <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '4px' }}>
-                      {log.objectType}{log.objectId ? ` ${log.objectId}` : ''} · <span style={{ color: log.status === 'Success' ? '#10B981' : '#F87171', fontWeight: '600' }}>{log.status}</span> · event {log.eventId}
-                    </div>
-                    {log.changes.length > 0 && (
-                      <table className={styles.table} style={{ marginTop: '8px', fontSize: '12px' }}>
-                        <thead><tr><th>Field</th><th>Before</th><th>After</th></tr></thead>
-                        <tbody>
-                          {log.changes.map((change) => (
-                            <tr key={change.field}><td>{change.field}</td><td>{change.before || '—'}</td><td>{change.after || '—'}</td></tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    )}
-                    {log.details.length > 0 && (
-                      <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '6px' }}>
-                        {log.details.map((detail) => `${detail.field}: ${detail.value || '—'}`).join(' · ')}
-                      </div>
-                    )}
-                  </div>
-                ))
-              ) : (
-                <div className="glass" style={{ padding: '32px', textAlign: 'center', color: 'var(--text-muted)' }}>
-                  No audit logs match current query filters.
-                </div>
-              )}
-            </div>
-          </div>
+          <AuditTrail
+            entries={auditLogs}
+            actionFilter={auditActionFilter}
+            typeFilter={auditTypeFilter}
+            onActionFilter={setAuditActionFilter}
+            onTypeFilter={setAuditTypeFilter}
+            exportHref={canExportAudit ? auditExportHref : null}
+          />
         )}
 
       </div>
