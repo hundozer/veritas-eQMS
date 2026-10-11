@@ -210,4 +210,20 @@ describe('signing training as read and understood', () => {
     const current = (await sop.assignments()).find((row) => row.userId === person.userId && row.status === 'ASSIGNED')!;
     expect((await sign(a, person.sessionToken, current.id, MEMBER_PASSWORD)).status).toBe(200);
   });
+
+  it('TRN-T004 a new draft stores no quiz or answer key, whatever the request carries', async () => {
+    const { POST: create } = await import('@/app/api/documents/route');
+    const created = await create(requestAs(a, '/api/documents', {
+      method: 'POST',
+      body: {
+        title: 'Quiz attempt', classification: 'CONTROLLED', documentType: 'SOP', requiredRoles: 'QA', ...content('quiz'),
+        requiresQuiz: true, quizQuestions: [{ id: 'q1', text: 'Which?', options: ['a', 'b'], correctAnswerIndex: 1 }],
+      },
+    }));
+    expect(created.status).toBe(201);
+    const documentId = (await created.json()).document.id as string;
+
+    expect(await owner.trainingRequirement.findUniqueOrThrow({ where: { documentId } }))
+      .toMatchObject({ requiredForRoles: 'QA', requiresQuiz: false, quizQuestions: null });
+  });
 });

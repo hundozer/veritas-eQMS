@@ -130,7 +130,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     }
 
     const body = await req.json();
-    const { title, description, classification, contentBase64, uploadKey, requiredRoles, requiresQuiz, quizQuestions } = body;
+    const { title, description, classification, contentBase64, uploadKey, requiredRoles } = body;
 
     const currentVersion = document.versions.find((version) => version.versionNumber === document.currentVersionNumber);
     if (!currentVersion || document.status !== 'DRAFT' || currentVersion.status !== 'DRAFT') {
@@ -187,15 +187,11 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
           where: { documentId: id },
           update: {
             requiredForRoles: requiredRoles,
-            requiresQuiz: requiresQuiz === true,
-            quizQuestions: quizQuestions ? JSON.stringify(quizQuestions) : null,
           },
           create: {
             documentId: id,
             tenantId: user.tenantId,
             requiredForRoles: requiredRoles,
-            requiresQuiz: requiresQuiz === true,
-            quizQuestions: quizQuestions ? JSON.stringify(quizQuestions) : null,
           },
         });
       }

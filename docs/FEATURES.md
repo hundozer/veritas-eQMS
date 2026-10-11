@@ -139,7 +139,7 @@ transaction.
 | --- | --- | --- |
 | Training requirements attached to documents; assignments per person | Live (read) | tables `TrainingRequirement`, `TrainingAssignment` |
 | Training Hub: own assignments, or the tenant matrix with `training.read_all`, each with the version to train on | Live (read) | `GET /api/trainings` |
-| Quizzes (stored answer keys) | Out of scope; no completion route | — |
+| Quizzes (stored answer keys) | Out of scope: the new-draft form offers none and the draft routes no longer store questions; older rows are dormant data | — |
 | Training departments set on a new document (comma-separated; blank for none) | Live | `POST /api/documents` |
 | Training assigned on release: active members of the training departments get the new effective version; open assignments on earlier versions become `SUPERSEDED`; `TRAINING_ASSIGNED` audit row | Live | `POST /api/documents/[id]/release`, `src/lib/training-assignment.ts` (DEC-073) |
 | "Read and understood" signature: the trainee opens the effective version and signs their own open assignment with their password; assignment `COMPLETED`, signature on the version's SHA-256, `TRAINING_COMPLETED` audit row, one transaction. Assignments on superseded versions cannot be signed | Live | `POST /api/trainings/[id]/sign` (`training.complete_own`, DEC-075) |

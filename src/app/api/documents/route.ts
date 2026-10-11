@@ -117,7 +117,7 @@ export async function POST(req: NextRequest) {
     // Any authenticated tenant user can author document drafts
 
     const body = await req.json();
-    const { title, description, classification, documentType: requestedType, requiredRoles, requiresQuiz, quizQuestions } = body;
+    const { title, description, classification, documentType: requestedType, requiredRoles } = body;
 
     if (!title || !classification) {
       return NextResponse.json({ error: { code: 'ValidationFailed', message: 'Title and classification are required' } }, { status: 400 });
@@ -187,8 +187,6 @@ export async function POST(req: NextRequest) {
             documentId: document.id,
             tenantId: user.tenantId,
             requiredForRoles: trainingDepartments.join(', '),
-            requiresQuiz: requiresQuiz === true,
-            quizQuestions: quizQuestions ? JSON.stringify(quizQuestions) : null,
           },
         });
       }

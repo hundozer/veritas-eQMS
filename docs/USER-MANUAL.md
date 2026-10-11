@@ -467,9 +467,6 @@ Shown or answered as "not available"; do not promise them to users:
 - **Invitation email is not live in production.** Until the sending domain
   is verified, invited people do not receive their link (UF-01, UF-02,
   UF-23, UF-24 work where email is configured).
-- **The quiz option on the new-draft form does nothing useful.** "Enable
-  Quiz Verification for Training Complete" stores a question with its
-  answer, but nobody is ever asked it, and quizzes are out of scope.
 - **The new-draft form and the signing dialog** still use the older styling;
   the rest of the workspace uses the paper style.
 - **Audit filters on screen** are action and record type only; the server
