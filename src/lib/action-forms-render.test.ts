@@ -30,7 +30,7 @@ describe('in-page action forms', () => {
   });
 
   it('ACTION-FORM-T007 return and reset forms ask only for a reason', () => {
-    for (const kind of ['RETURN', 'WITHDRAW_REVISION', 'RESET_TWO_STEP'] as const) {
+    for (const kind of ['RETURN', 'WITHDRAW_REVISION', 'RESET_TWO_STEP', 'DEACTIVATE'] as const) {
       const html = renderToStaticMarkup(createElement(ReasonForm, { kind, onSubmit: noop, onCancel: () => {} }));
       expect(html).toContain('<textarea');
       expect(html).not.toContain('type="file"');

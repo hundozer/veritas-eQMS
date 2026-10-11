@@ -3,7 +3,7 @@
 // The routes check every value again; these only stop an obviously
 // incomplete form from being sent.
 
-export type ReasonFormKind = 'RETURN' | 'WITHDRAW_REVISION' | 'START_REVISION' | 'RESET_TWO_STEP';
+export type ReasonFormKind = 'RETURN' | 'WITHDRAW_REVISION' | 'START_REVISION' | 'RESET_TWO_STEP' | 'DEACTIVATE';
 
 export interface ReasonFormSpec {
   title: string;
@@ -40,6 +40,13 @@ export const REASON_FORMS: Record<ReasonFormKind, ReasonFormSpec> = {
     label: 'Reason for the reset',
     note: 'They set up two-step verification again at their next sign-in. The reason is kept in the audit trail.',
     submit: 'Reset two-step verification',
+    needsFile: false,
+  },
+  DEACTIVATE: {
+    title: 'Deactivate member',
+    label: 'Reason for deactivating',
+    note: 'They are signed out everywhere and can no longer sign in to this organisation. Their records, signatures and training history stay unchanged. The reason is kept in the audit trail.',
+    submit: 'Deactivate member',
     needsFile: false,
   },
 };

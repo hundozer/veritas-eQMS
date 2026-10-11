@@ -64,9 +64,10 @@ Last updated: 10 Oct 2026 (workspace overview redesign).
 | Invite a person into your organisation with one role (holder of `users.create`); identity, user, membership and both audit rows in one transaction | Built, not live (needs email) | `POST /api/users`, `src/lib/iam/provisioning.ts` (DEC-063) |
 | Set your own password from a single-use 30-minute link; request a fresh link | Built, not live (needs email) | `/auth/setup-password`, `POST /api/auth/setup-password`, `POST /api/auth/setup-password/request` |
 | Resend an invitation | Built, not live | `POST /api/users/[id]/invitation` |
-| Member list with organisation role and "invitation pending" | Live | `GET /api/users` (`users.read`) |
+| Member list with organisation role, "invitation pending" and "deactivated" | Live | `GET /api/users` (`users.read`) |
 | Assignable roles for invitations (no platform roles) | Live | `GET /api/roles` (`users.create`) |
-| Edit or deactivate a member, change roles | Disabled | `PUT/DELETE /api/users/[id]` |
+| Deactivate a member who has left, with a reason: membership suspended, operational user inactive, every session in the organisation revoked, both audit trails written, in one transaction; not oneself, not another organisation's member; nothing they authored or signed changes; the response lists their pending approval steps, open training and owned documents | Live, `users.deactivate` | `POST /api/users/[id]/deactivate`, `src/lib/iam/deactivation.ts`; "Deactivate" on the People tab (VER-00.4) |
+| Edit a member, change roles, reactivate a member | Disabled | `PUT/DELETE /api/users/[id]` |
 | Self-service organisation sign-up | Disabled | `POST /api/auth/register` |
 | Onboarding initialisation | Disabled | `POST /api/onboarding/initialize` |
 | Password reset links (for active accounts) | Library only, no route or UI | `src/lib/iam/credential-action-token.ts` |

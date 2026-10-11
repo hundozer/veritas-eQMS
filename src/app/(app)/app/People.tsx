@@ -2,7 +2,7 @@ import { Fragment, useState } from 'react';
 import styles from './people.module.css';
 import { ReasonForm } from './ActionForm';
 import InviteMemberPanel from '@/ui/components/InviteMemberPanel';
-import { memberActions, peopleRegister } from '@/lib/people-register';
+import { isDeactivated, memberActions, peopleRegister } from '@/lib/people-register';
 
 interface Member {
   id: string;
@@ -11,6 +11,7 @@ interface Member {
   department?: string | null;
   roleName?: string | null;
   invitationPending?: boolean;
+  accountStatus?: string | null;
 }
 
 interface PeopleProps {
@@ -22,15 +23,19 @@ interface PeopleProps {
   onResendInvitation: (memberId: string) => void;
   // Resolves null when the reset went through, else the reason it was refused.
   onResetTwoStep: (memberId: string, name: string, reason: string) => Promise<string | null>;
+  // Resolves null when the member was deactivated, else the reason it was refused.
+  onDeactivate: (memberId: string, name: string, reason: string) => Promise<string | null>;
 }
 
 // The People tab: the organisation's members as a register, the invitation
 // form for those who may invite, and what access in Veritas rests on.
-export default function People({ user, organisation, members, canInvite, onInvited, onResendInvitation, onResetTwoStep }: PeopleProps) {
+export default function People({ user, organisation, members, canInvite, onInvited, onResendInvitation, onResetTwoStep, onDeactivate }: PeopleProps) {
   const register = peopleRegister(members, user?.id);
-  const pending = members.filter((m) => m.invitationPending).length;
-  // The member whose two-step verification reset form is open.
-  const [resetting, setResetting] = useState<string | null>(null);
+  const pending = members.filter((m) => m.invitationPending && !isDeactivated(m)).length;
+  // The member and form (two-step reset or deactivation) currently open.
+  const [open, setOpen] = useState<{ memberId: string; kind: 'RESET_TWO_STEP' | 'DEACTIVATE' } | null>(null);
+  const toggle = (memberId: string, kind: 'RESET_TWO_STEP' | 'DEACTIVATE') =>
+    setOpen(open?.memberId === memberId && open.kind === kind ? null : { memberId, kind });
 
   return (
     <div className={styles.page}>
@@ -39,7 +44,7 @@ export default function People({ user, organisation, members, canInvite, onInvit
         <p className={styles.lede}>
           {members.length} member{members.length === 1 ? '' : 's'}{organisation ? ` of ${organisation}` : ''}
           {pending > 0 ? `, ${pending} invitation${pending === 1 ? '' : 's'} pending` : ''}.
-          {' '}Changing a member&apos;s role and deactivating a member are not available yet.
+          {' '}Changing a member&apos;s role is not available yet.
         </p>
       </header>
 
@@ -69,9 +74,11 @@ export default function People({ user, organisation, members, canInvite, onInvit
                       <td>{member.roleName || <span className={styles.muted}>No role</span>}</td>
                       <td>{member.department || <span className={styles.muted}>—</span>}</td>
                       <td>
-                        {member.invitationPending
-                          ? <span className={styles.pending}>Invitation pending</span>
-                          : <span>Active</span>}
+                        {isDeactivated(member)
+                          ? <span className={styles.muted}>Deactivated</span>
+                          : member.invitationPending
+                            ? <span className={styles.pending}>Invitation pending</span>
+                            : <span>Active</span>}
                       </td>
                       <td className={styles.actions}>
                         {actions.includes('RESEND_INVITATION') && (
@@ -81,22 +88,33 @@ export default function People({ user, organisation, members, canInvite, onInvit
                           <button
                             type="button"
                             className={styles.textButton}
-                            aria-expanded={resetting === member.id}
-                            onClick={() => setResetting(resetting === member.id ? null : member.id)}
+                            aria-expanded={open?.memberId === member.id && open.kind === 'RESET_TWO_STEP'}
+                            onClick={() => toggle(member.id, 'RESET_TWO_STEP')}
                           >
                             Reset two-step verification
                           </button>
                         )}
+                        {actions.includes('DEACTIVATE') && (
+                          <button
+                            type="button"
+                            className={styles.textButton}
+                            aria-expanded={open?.memberId === member.id && open.kind === 'DEACTIVATE'}
+                            onClick={() => toggle(member.id, 'DEACTIVATE')}
+                          >
+                            Deactivate
+                          </button>
+                        )}
                       </td>
                     </tr>
-                    {resetting === member.id && actions.includes('RESET_TWO_STEP') && (
+                    {open?.memberId === member.id && actions.includes(open.kind) && (
                       <tr className={styles.formRow}>
                         <td colSpan={6}>
                           <ReasonForm
-                            kind="RESET_TWO_STEP"
+                            key={open.kind}
+                            kind={open.kind}
                             subject={member.fullName}
-                            onSubmit={({ reason }) => onResetTwoStep(member.id, member.fullName, reason)}
-                            onCancel={() => setResetting(null)}
+                            onSubmit={({ reason }) => (open.kind === 'DEACTIVATE' ? onDeactivate : onResetTwoStep)(member.id, member.fullName, reason)}
+                            onCancel={() => setOpen(null)}
                           />
                         </td>
                       </tr>

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { memberActions, peopleRegister } from './people-register';
+import { isDeactivated, memberActions, peopleRegister } from './people-register';
 
 const ME = 'me';
 const active = { id: 'a', fullName: 'Ana', invitationPending: false };
@@ -20,6 +20,23 @@ describe('People tab', () => {
 
   it('PEOPLE-T003 never offers a reset on a pending invitation', () => {
     expect(memberActions(pending, ME, ['users.update'])).toEqual([]);
+  });
+
+  it('PEOPLE-T005 offers deactivating another member, active or invited, only with users.deactivate', () => {
+    expect(memberActions(active, ME, ['users.deactivate'])).toEqual(['DEACTIVATE']);
+    expect(memberActions(active, ME, ['users.update', 'users.deactivate'])).toEqual(['RESET_TWO_STEP', 'DEACTIVATE']);
+    expect(memberActions(pending, ME, ['users.create', 'users.deactivate'])).toEqual(['RESEND_INVITATION', 'DEACTIVATE']);
+    expect(memberActions(active, ME, ['users.update'])).not.toContain('DEACTIVATE');
+    expect(memberActions({ ...active, id: ME }, ME, ['users.deactivate'])).toEqual([]);
+    expect(memberActions(active, undefined, ['users.deactivate'])).toEqual([]);
+  });
+
+  it('PEOPLE-T006 offers nothing on a deactivated member', () => {
+    const gone = { ...active, accountStatus: 'INACTIVE' };
+    expect(isDeactivated(gone)).toBe(true);
+    expect(isDeactivated(active)).toBe(false);
+    expect(memberActions(gone, ME, ['users.create', 'users.update', 'users.deactivate'])).toEqual([]);
+    expect(memberActions({ ...pending, accountStatus: 'INACTIVE' }, ME, ['users.create', 'users.deactivate'])).toEqual([]);
   });
 
   it('PEOPLE-T004 lists the signed-in member first, then everyone by name', () => {

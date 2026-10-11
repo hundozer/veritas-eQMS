@@ -154,6 +154,25 @@
       ]
     },
     {
+      "id": "URS-USR-03",
+      "area": "People",
+      "requirement": "An administrator can deactivate another member who has left, with a reason: the member is signed out at once and cannot sign in again, their records stay unchanged, and the deactivation is audited.",
+      "source": "VER-00.4 (#74)",
+      "hazard": "A person who has left keeps access to controlled records, or removing them alters or loses their quality records.",
+      "severity": 3,
+      "likelihood": 2,
+      "control": "Deactivation needs users.deactivate and a reason; refused for oneself, across organisations and twice; membership suspended, user inactive and every session revoked in one transaction with both audit rows; records untouched.",
+      "tests": [
+        "DEACT-T001",
+        "DEACT-T002",
+        "DEACT-T003",
+        "DEACT-T004",
+        "PEOPLE-T005",
+        "PEOPLE-T006",
+        "INVITE-UI-T005"
+      ]
+    },
+    {
       "id": "URS-TEN-01",
       "area": "Tenancy",
       "requirement": "One organisation never sees or changes another organisation's documents, training, audit entries, people or notifications.",

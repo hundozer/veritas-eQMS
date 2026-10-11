@@ -15,7 +15,7 @@ import Training from './Training';
 import People from './People';
 import AuditTrail from './AuditTrail';
 import type { PanelAction } from '@/lib/document-panel';
-import { resendInvitation, resetTwoStepVerification } from '@/lib/invitations-client';
+import { deactivateMember, openWorkSummary, resendInvitation, resetTwoStepVerification } from '@/lib/invitations-client';
 import { prepareDocumentFile, sha256Hex } from '@/lib/document-file-upload';
 import { DOCUMENT_FILE_ACCEPT, DOCUMENT_FILE_TYPES_TEXT } from '@/lib/document-file-types';
 import {
@@ -221,6 +221,17 @@ export default function Workspace() {
     const result = await resetTwoStepVerification(userId, reason);
     if (!result.ok) return result.message;
     flashSuccess(`Two-step verification was reset for ${name}.`);
+    return null;
+  };
+
+  // A member who has left (VER-00.4): signed out everywhere, records kept. The
+  // message names the open work still in their name.
+  const handleDeactivate = async (userId: string, name: string, reason: string): Promise<string | null> => {
+    const result = await deactivateMember(userId, reason);
+    if (!result.ok) return result.message;
+    setErrorMessage(null);
+    setSuccessMessage(`${name} was deactivated. ${openWorkSummary(result.openWork)}`);
+    reloadUsers();
     return null;
   };
 
@@ -637,6 +648,7 @@ export default function Workspace() {
             onInvited={reloadUsers}
             onResendInvitation={handleResendInvitation}
             onResetTwoStep={handleResetMfa}
+            onDeactivate={handleDeactivate}
           />
         )}
 
