@@ -64,7 +64,7 @@ export function AppShell({
         <div className="mobile-menu-header">
           {logo ?? <Wordmark />}
           <button className="mobile-menu-close" onClick={() => setMobileOpen(false)} aria-label="Close menu">
-            x
+            ×
           </button>
         </div>
         <div className="mobile-menu-content">
@@ -72,9 +72,11 @@ export function AppShell({
             <div key={group.title} className="mobile-nav-group">
               <div className="mobile-nav-title">{group.title}</div>
               {group.items.map((item, idx) => (
-                <div
+                <button
                   key={item.id}
+                  type="button"
                   className={`mobile-nav-link${activeRoute === item.route ? ' active' : ''}`}
+                  aria-current={activeRoute === item.route ? 'page' : undefined}
                   style={{ transitionDelay: `${idx * 40}ms` }}
                   onClick={() => {
                     if (item.route && onNavigate) {
@@ -84,12 +86,12 @@ export function AppShell({
                   }}
                 >
                   {item.label}
-                </div>
+                </button>
               ))}
             </div>
           ))}
         </div>
-        <div className="mobile-menu-footer">{footerText ?? 'v2.4.0 -- Showcase'}</div>
+        <div className="mobile-menu-footer">{footerText ?? 'Veritas'}</div>
       </div>
 
       {overlay}

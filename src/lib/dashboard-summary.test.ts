@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   lifecycleCounts,
   queueSummary,
+  routingSlip,
   recentlyChanged,
   signatureQueue,
   type DashboardDocument,
@@ -121,5 +122,44 @@ describe('overview summary line', () => {
     expect(queueSummary([q('READ')])).toBe('1 training to sign.');
     expect(queueSummary([q('READ'), q('READ'), q('APPROVE')])).toBe('1 approval and 2 trainings to sign.');
     expect(queueSummary([])).toBe('');
+  });
+});
+
+describe('routing slip', () => {
+  const named = (over: Parameters<typeof doc>[0]) => {
+    const d = doc(over);
+    const v = d.versions[1];
+    v.createdBy = 'Lena Brandt';
+    v.createdAt = '2026-10-01T08:00:00.000Z';
+    v.approvalRoutes?.[0].steps.forEach((s) => { s.approver.fullName = s.approver.id === ME ? 'Katrin Vogel' : 'Marek Novak'; });
+    return d;
+  };
+
+  it('DASH-T010 marks the member\'s own step and shows who signed or must sign the others', () => {
+    const d = named({ id: 'a', status: 'IN_REVIEW', steps: [['REVIEW', 'COMPLETED', OTHER], ['APPROVAL', 'PENDING', ME]] });
+    const [item] = signatureQueue(ME, ALL, [d], []);
+    expect(routingSlip(item, [d], [])).toEqual([
+      { role: 'Author', name: 'Lena Brandt', state: 'signed', date: '2026-10-01T08:00:00.000Z' },
+      { role: 'Review', name: 'Marek Novak', state: 'signed' },
+      { role: 'Approve', name: null, state: 'yours' },
+      { role: 'Release', name: null, state: 'open' },
+    ]);
+  });
+
+  it('DASH-T011 shows a later step assigned to someone else as waiting, not signed', () => {
+    const d = named({ id: 'r', status: 'IN_REVIEW', steps: [['REVIEW', 'PENDING', ME], ['APPROVAL', 'PENDING', OTHER]] });
+    const [item] = signatureQueue(ME, ALL, [d], []);
+    expect(routingSlip(item, [d], []).map((b) => [b.role, b.state, b.name])).toEqual([
+      ['Author', 'signed', 'Lena Brandt'], ['Review', 'yours', null], ['Approve', 'waiting', 'Marek Novak'], ['Release', 'open', null],
+    ]);
+  });
+
+  it('DASH-T012 gives training a two-box slip: assigned, then the member\'s read-and-understood signature', () => {
+    const t = training({ id: 'mine' });
+    const [item] = signatureQueue(ME, ALL, [], [t]);
+    expect(routingSlip(item, [], [t])).toEqual([
+      { role: 'Assigned', name: null, state: 'signed', date: t.assignedAt },
+      { role: 'Read and understood', name: null, state: 'yours' },
+    ]);
   });
 });

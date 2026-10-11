@@ -1,27 +1,71 @@
-/* Workspace overview, laid out like a document register: numbered sections
-   divided by rules instead of boxed cards, one accent (lime = in force).
-   Colours come from the theme variables in src/ui/styles/liquid-glass.css,
-   so light and dark modes both work. Fonts are system stacks only: no
-   remote font is loaded (BUILD-T001). */
+/* Workspace overview, built from paper artefacts a GMP team already uses: a
+   controlled-form header, routing slips with signature boxes, state stamps,
+   a register ledger and a training record. One accent: lime marks what is in
+   force and the box where the member signs. Colours come from the theme
+   variables in src/ui/styles/liquid-glass.css, so light and dark both work.
+   Fonts are system stacks only: no remote font is loaded (BUILD-T001). */
 
 .overview {
   --serif: 'Iowan Old Style', 'Charter', 'Bitstream Charter', 'Sitka Text', Cambria, Georgia, serif;
-  --rule-strong: var(--t1);
+  --ink: var(--t1);
   --rule: var(--border);
-  max-width: 1180px;
+  max-width: 1120px;
   display: flex;
   flex-direction: column;
-  gap: 56px;
-  padding: 8px 0 64px;
-  color: var(--t1);
+  gap: 36px;
+  padding: 8px 0 72px;
+  color: var(--ink);
 }
 
-/* Intro */
+.mono {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.muted {
+  color: var(--t2);
+}
+
+/* Controlled-form header block */
+
+.formHeader {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.formHeader td {
+  border: 1px solid var(--ink);
+  padding: 8px 12px;
+  vertical-align: top;
+  width: 33%;
+}
+
+.formLabel {
+  display: block;
+  font-size: 12px;
+  font-variant: small-caps;
+  text-transform: lowercase;
+  letter-spacing: 0.06em;
+  color: var(--t2);
+}
+
+.formValue {
+  display: block;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+@media (max-width: 720px) {
+  .formHeader td { display: block; width: auto; border-bottom-width: 0; }
+  .formHeader td:last-child { border-bottom-width: 1px; }
+}
+
+/* Headline */
 
 .intro {
   display: flex;
   flex-wrap: wrap;
-  gap: 24px 48px;
+  gap: 20px 40px;
   align-items: flex-end;
   justify-content: space-between;
 }
@@ -29,252 +73,265 @@
 .introText {
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  max-width: 760px;
-}
-
-.eyebrow {
-  font-family: var(--font-mono);
-  font-size: 12px;
-  color: var(--t2);
+  gap: 10px;
+  max-width: 720px;
 }
 
 .headline {
   font-family: var(--serif);
   font-weight: 400;
-  font-size: clamp(32px, 4.2vw, 54px);
-  line-height: 1.04;
+  font-size: clamp(30px, 4vw, 48px);
+  line-height: 1.06;
   letter-spacing: -0.02em;
   text-wrap: balance;
 }
 
 .lede {
-  font-size: 17px;
+  font-size: 16px;
   line-height: 1.5;
   color: var(--t2);
 }
 
-.primary {
+.outline {
   min-height: 44px;
-  padding: 0 20px;
-  border: 0;
-  border-radius: 3px;
-  background: var(--t1);
-  color: var(--bg);
+  padding: 0 18px;
+  border: 1.5px solid var(--ink);
+  border-radius: 0;
+  background: transparent;
+  color: var(--ink);
   font: inherit;
   font-size: 14px;
   font-weight: 600;
   cursor: pointer;
-  transition: background-color 160ms ease, transform 120ms ease;
+  transition: background-color 160ms ease;
 }
 
-.primary:hover {
-  background: var(--dark);
+.outline:hover {
+  background: var(--blight);
 }
 
-.primary:active {
+.outline:active {
   transform: translateY(1px);
 }
 
-/* Sections: a strong rule and a number, like the sections of an SOP */
+/* Routing slips */
 
-.section {
-  border-top: 2px solid var(--rule-strong);
-  padding-top: 14px;
+.slips {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 440px), 1fr));
+  gap: 24px;
 }
 
-.sectionHead {
+.slip {
+  position: relative;
   display: flex;
-  align-items: baseline;
+  flex-direction: column;
+  background: var(--card-bg);
+  border: 1px solid var(--ink);
+  box-shadow: 3px 3px 0 var(--rule);
+}
+
+.slipHead {
+  display: flex;
   justify-content: space-between;
-  gap: 16px;
-  margin-bottom: 18px;
-}
-
-.sectionTitle {
-  display: flex;
   align-items: baseline;
   gap: 12px;
-  font-size: 17px;
-  font-weight: 600;
-  letter-spacing: -0.01em;
+  padding: 9px 14px;
+  border-bottom: 1px solid var(--ink);
 }
 
-.sectionNumber {
+.slipKind {
+  font-size: 13px;
+  font-variant: small-caps;
+  text-transform: lowercase;
+  letter-spacing: 0.06em;
+  color: var(--t2);
+}
+
+.slipNumber {
   font-family: var(--font-mono);
   font-size: 13px;
-  font-weight: 500;
-  color: var(--t2);
-  min-width: 16px;
+  font-weight: 600;
 }
 
-.note {
+.slipRev {
+  font-weight: 400;
+  color: var(--t2);
+}
+
+.slipBody {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 16px 14px 18px;
+}
+
+.slipTitle {
+  font-family: var(--serif);
+  font-weight: 400;
+  font-size: 22px;
+  line-height: 1.22;
+  padding-right: 120px;
+}
+
+.age {
   font-size: 13px;
   color: var(--t2);
 }
 
-.textLink {
-  background: none;
+.overdue {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--danger);
+}
+
+.sigRow {
+  display: grid;
+  border-top: 1px solid var(--ink);
+  margin-top: auto;
+}
+
+.sigBox {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  padding: 10px 12px;
+  border-left: 1px solid var(--ink);
+}
+
+.sigBox:first-child {
+  border-left: 0;
+}
+
+.sigYours {
+  background: var(--lime3);
+}
+
+.sigRole {
+  font-size: 12px;
+  font-variant: small-caps;
+  text-transform: lowercase;
+  letter-spacing: 0.05em;
+  color: var(--t2);
+}
+
+.sigLine {
+  min-height: 22px;
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 15px;
+  border-bottom: 1px solid var(--ink);
+  padding-bottom: 2px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sigState {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--t2);
+}
+
+.slipAction {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 14px;
   border: 0;
-  padding: 4px 0;
+  border-top: 1px solid var(--ink);
+  background: transparent;
+  color: var(--ink);
   font: inherit;
   font-size: 14px;
-  font-weight: 500;
-  color: var(--t1);
-  text-decoration: underline;
-  text-decoration-thickness: 1px;
-  text-underline-offset: 4px;
-  cursor: pointer;
-}
-
-.textLink:hover {
-  text-decoration-thickness: 2px;
-}
-
-.primary:focus-visible,
-.textLink:focus-visible,
-.queueRow:focus-visible,
-.numberLink:focus-visible {
-  outline: 2px solid var(--t1);
-  outline-offset: 2px;
-}
-
-.empty {
-  max-width: 62ch;
-  font-size: 15px;
-  line-height: 1.55;
-  color: var(--t2);
-  padding: 4px 0 8px;
-}
-
-/* 1 Awaiting your signature: one ruled row per record, the whole row acts */
-
-.queue {
-  list-style: none;
-}
-
-.queueRow {
-  width: 100%;
-  display: grid;
-  grid-template-columns: 36px 170px minmax(0, 1fr) 130px 72px;
-  grid-template-areas: 'index meaning record age go';
-  align-items: baseline;
-  gap: 4px 20px;
-  padding: 18px 8px 18px 0;
-  border: 0;
-  border-bottom: 1px solid var(--rule);
-  background: transparent;
-  color: inherit;
-  font: inherit;
+  font-weight: 600;
   text-align: left;
   cursor: pointer;
   transition: background-color 160ms ease;
 }
 
-.queueRow:hover {
+.slipAction:hover {
   background: var(--blight);
 }
 
-.queueRow:active {
+.slipAction:active {
   background: var(--bg2);
 }
 
-.index {
-  grid-area: index;
+@media (max-width: 560px) {
+  .slipTitle { padding-right: 0; padding-top: 34px; }
+  .sigRow { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+  .sigBox:nth-child(3) { border-left: 0; }
+  .sigBox:nth-child(n + 3) { border-top: 1px solid var(--ink); }
+}
+
+/* Stamps: an outlined mark, rotated on a slip, flat in the ledger */
+
+.stamp {
+  display: inline-block;
   font-family: var(--font-mono);
-  font-size: 13px;
-  color: var(--t3);
-  padding-left: 4px;
-}
-
-.meaning {
-  grid-area: meaning;
-  font-size: 14px;
-  font-weight: 600;
-}
-
-.record {
-  grid-area: record;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  min-width: 0;
-}
-
-.docNumber {
-  font-family: var(--font-mono);
-  font-size: 13px;
-  font-weight: 600;
-  letter-spacing: 0.01em;
-}
-
-.version {
-  font-family: var(--font-mono);
-  font-size: 12px;
-  font-weight: 400;
-  color: var(--t2);
-}
-
-.docTitle {
-  font-family: var(--serif);
-  font-size: 19px;
-  line-height: 1.3;
-}
-
-.age {
-  grid-area: age;
-  font-family: var(--font-mono);
-  font-size: 12px;
-  color: var(--t2);
-  font-variant-numeric: tabular-nums;
-}
-
-.overdue {
-  color: var(--danger);
-  font-weight: 600;
-}
-
-.go {
-  grid-area: go;
-  justify-self: end;
-  font-size: 14px;
-  font-weight: 600;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  padding: 2px 6px;
+  border: 1.5px solid var(--ink);
+  border-radius: 2px;
+  color: var(--ink);
   white-space: nowrap;
 }
 
-.arrow {
-  display: inline-block;
-  margin-left: 6px;
-  transition: transform 160ms ease;
+.slipBody .stamp {
+  position: absolute;
+  top: 18px;
+  right: 14px;
+  font-size: 12px;
+  padding: 3px 8px;
+  border-width: 2px;
+  transform: rotate(-6deg);
 }
 
-.queueRow:hover .arrow {
-  transform: translateX(3px);
+.stampEFFECTIVE {
+  background: var(--lime);
+  border-color: #1E241E;
+  color: #1E241E;
 }
 
-@media (max-width: 720px) {
-  .queueRow {
-    grid-template-columns: 28px minmax(0, 1fr) auto;
-    grid-template-areas:
-      'index meaning go'
-      '. record record'
-      '. age age';
-  }
+.stampDRAFT,
+.stampWITHDRAWN {
+  border-style: dashed;
+}
+
+.stampOBSOLETE {
+  color: var(--t2);
+  border-color: var(--t2);
+  text-decoration: line-through;
 }
 
 /* Loading */
 
-.skeleton {
+.slipSkeleton,
+.rowSkeleton span {
+  background: linear-gradient(90deg, transparent 0%, var(--blight) 50%, transparent 100%);
+  background-size: 200% 100%;
+  animation: sweep 1.4s ease-in-out infinite;
+}
+
+.slipSkeleton {
+  height: 220px;
+  border: 1px solid var(--rule);
+}
+
+.rowSkeleton {
   display: flex;
   flex-direction: column;
 }
 
-.skeleton span {
-  height: 64px;
+.rowSkeleton span {
+  height: 44px;
   border-bottom: 1px solid var(--rule);
-  background: linear-gradient(90deg, transparent 0%, var(--blight) 50%, transparent 100%);
-  background-size: 200% 100%;
-  animation: sweep 1.4s ease-in-out infinite;
 }
 
 @keyframes sweep {
@@ -283,96 +340,78 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .skeleton span { animation: none; }
-  .queueRow, .arrow, .primary { transition: none; }
+  .slipSkeleton, .rowSkeleton span { animation: none; }
+  .outline, .slipAction { transition: none; }
 }
 
-/* 2 Register: composition bar and recent changes */
+.empty {
+  max-width: 62ch;
+  font-size: 15px;
+  line-height: 1.55;
+  color: var(--t2);
+  padding: 14px 0;
+  border-top: 1px solid var(--rule);
+  border-bottom: 1px solid var(--rule);
+}
+
+/* Register ledger and training record */
 
 .columns {
   display: flex;
   flex-wrap: wrap;
-  gap: 56px 64px;
+  gap: 40px 48px;
   align-items: flex-start;
 }
 
-.wide {
+.register {
   flex: 999 1 520px;
   min-width: 0;
-}
-
-.narrow {
-  flex: 1 1 280px;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 48px;
-}
-
-.composition {
   display: flex;
   flex-direction: column;
   gap: 12px;
-  margin-bottom: 28px;
+  align-items: flex-start;
 }
 
-.bar {
-  display: flex;
-  gap: 3px;
-  height: 12px;
-}
-
-.bar span {
-  flex-basis: 0;
-  min-width: 6px;
-}
-
-.legend {
-  list-style: none;
+.registerHead {
+  width: 100%;
   display: flex;
   flex-wrap: wrap;
-  gap: 8px 22px;
-  font-size: 13px;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px 24px;
+  border-bottom: 2px solid var(--ink);
+  padding-bottom: 8px;
 }
 
-.legend li {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
+.sectionTitle {
+  font-family: var(--serif);
+  font-weight: 400;
+  font-size: 26px;
 }
 
-.legendCount {
+.counts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
   font-family: var(--font-mono);
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
+  font-size: 12px;
+  color: var(--t2);
 }
 
-.legendZero {
-  color: var(--t3);
+.countEffective {
+  background: var(--lime);
+  color: #1E241E;
+  padding: 0 4px;
 }
-
-.swatch {
-  display: inline-block;
-  width: 9px;
-  height: 9px;
-  flex-shrink: 0;
-}
-
-/* State fills: a lightness ladder in the olive family, lime only for "in force". */
-.fillDRAFT { background: var(--bg); box-shadow: inset 0 0 0 1px var(--t3); }
-.fillIN_REVIEW { background: var(--olive); }
-.fillAPPROVED { background: var(--dark); }
-.fillEFFECTIVE { background: var(--lime); }
-.fillOBSOLETE { background: repeating-linear-gradient(135deg, var(--t3) 0 2px, transparent 2px 4px); }
-.fillWITHDRAWN { background: var(--bg); box-shadow: inset 0 0 0 1px var(--t3); }
 
 .tableScroll {
+  width: 100%;
   overflow-x: auto;
 }
 
-.register {
+.ledger {
   width: 100%;
-  min-width: 600px;
+  min-width: 620px;
   border-collapse: collapse;
 }
 
@@ -380,35 +419,39 @@
   text-align: left;
   font-size: 13px;
   color: var(--t2);
-  padding-bottom: 8px;
+  padding: 4px 0 6px;
 }
 
-.register th {
+.ledger th {
   text-align: left;
   font-size: 12px;
-  font-weight: 500;
+  font-weight: 400;
   color: var(--t2);
-  padding: 8px 16px 8px 0;
-  border-bottom: 1px solid var(--rule-strong);
+  padding: 8px 12px 8px 0;
+  border-bottom: 1.5px solid var(--ink);
   white-space: nowrap;
 }
 
-.register td {
-  padding: 12px 16px 12px 0;
+.ledger td {
+  padding: 11px 12px 11px 0;
   border-bottom: 1px solid var(--rule);
   font-size: 14px;
   vertical-align: baseline;
 }
 
-.register td:first-child {
+.ledger td:first-child {
   white-space: nowrap;
 }
 
-/* On a phone, keep number, title and state; owner and date are one tap away. */
+.ledgerTitle {
+  font-family: var(--serif);
+  font-size: 16px;
+}
+
 @media (max-width: 720px) {
-  .register { min-width: 0; }
-  .register th:nth-child(n + 4),
-  .register td:nth-child(n + 4) { display: none; }
+  .ledger { min-width: 0; }
+  .ledger th:nth-child(2), .ledger td:nth-child(2),
+  .ledger th:nth-child(n + 5), .ledger td:nth-child(n + 5) { display: none; }
 }
 
 .numberLink {
@@ -418,7 +461,7 @@
   font-family: var(--font-mono);
   font-size: 13px;
   font-weight: 600;
-  color: var(--t1);
+  color: var(--ink);
   text-decoration: underline;
   text-decoration-color: var(--t3);
   text-underline-offset: 4px;
@@ -426,19 +469,7 @@
 }
 
 .numberLink:hover {
-  text-decoration-color: var(--t1);
-}
-
-.stateCell {
-  white-space: nowrap;
-}
-
-.stateCell .swatch {
-  margin-right: 8px;
-}
-
-.muted {
-  color: var(--t2);
+  text-decoration-color: var(--ink);
 }
 
 .date {
@@ -448,16 +479,61 @@
   white-space: nowrap;
 }
 
-/* 3 Your training */
-
-.figures {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+.textLink {
+  background: none;
+  border: 0;
+  padding: 4px 0;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--ink);
+  text-decoration: underline;
+  text-underline-offset: 4px;
+  cursor: pointer;
 }
 
-.figures div + div {
-  border-left: 1px solid var(--rule);
-  padding-left: 20px;
+.textLink:hover {
+  text-decoration-thickness: 2px;
+}
+
+.outline:focus-visible,
+.slipAction:focus-visible,
+.textLink:focus-visible,
+.numberLink:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
+}
+
+.record {
+  flex: 1 1 300px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  background: var(--card-bg);
+  border: 1px solid var(--ink);
+  padding: 16px 18px 20px;
+}
+
+.recordKind {
+  font-size: 13px;
+  font-weight: 400;
+  font-variant: small-caps;
+  text-transform: lowercase;
+  letter-spacing: 0.06em;
+  color: var(--t2);
+  margin-bottom: 8px;
+}
+
+.figures {
+  display: flex;
+  gap: 32px;
+  margin-bottom: 4px;
+}
+
+.figures div {
+  display: flex;
+  flex-direction: column-reverse;
 }
 
 .figures dt {
@@ -467,32 +543,28 @@
 
 .figures dd {
   font-family: var(--serif);
-  font-size: 44px;
-  line-height: 1.1;
+  font-size: 40px;
+  line-height: 1;
   font-variant-numeric: tabular-nums;
 }
 
-.figureOpen {
-  text-decoration: underline;
-  text-decoration-color: var(--lime);
-  text-decoration-thickness: 6px;
-  text-underline-offset: 6px;
+.trailBlock {
+  border-top: 1px solid var(--rule);
+  padding-top: 14px;
 }
-
-/* 4 Audit trail */
 
 .trail {
   list-style: none;
   display: flex;
   flex-direction: column;
+  gap: 10px;
+  margin-bottom: 8px;
 }
 
 .trail li {
   display: flex;
   flex-direction: column;
-  gap: 2px;
-  padding: 10px 0;
-  border-bottom: 1px solid var(--rule);
+  gap: 1px;
 }
 
 .trailTime {
