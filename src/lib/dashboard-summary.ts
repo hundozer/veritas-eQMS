@@ -116,3 +116,23 @@ export function lifecycleCounts(documents: readonly Pick<DashboardDocument, 'sta
 export function recentlyChanged<T extends Pick<DashboardDocument, 'updatedAt'>>(documents: readonly T[], limit = 6): T[] {
   return [...documents].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)).slice(0, limit);
 }
+
+const SUMMARY_NOUN: Record<SignatureMeaning, [string, string]> = {
+  REVIEW: ['review', 'reviews'],
+  APPROVE: ['approval', 'approvals'],
+  RELEASE: ['release', 'releases'],
+  READ: ['training to sign', 'trainings to sign'],
+};
+
+// One sentence for the overview: "2 reviews, 1 approval and 1 release."
+export function queueSummary(queue: readonly Pick<QueueItem, 'meaning'>[]): string {
+  const parts = (['REVIEW', 'APPROVE', 'RELEASE', 'READ'] as const).flatMap((meaning) => {
+    const count = queue.filter((item) => item.meaning === meaning).length;
+    if (count === 0) return [];
+    const [one, many] = SUMMARY_NOUN[meaning];
+    return [`${count} ${count === 1 ? one : many}`];
+  });
+  if (parts.length === 0) return '';
+  const last = parts.pop();
+  return `${parts.length ? `${parts.join(', ')} and ` : ''}${last}.`;
+}

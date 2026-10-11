@@ -10,7 +10,7 @@ describe('role-registry containment', () => {
     expect(page).not.toContain('DEFAULT_SYSTEM_ROLES');
     expect(page).not.toContain('SYSTEM_PERMISSIONS');
     expect(page).not.toContain('Visual Permission Matrix (13 System Roles × Permissions)');
-    expect(page).toContain('Effective access is enforced from persisted IAM role assignments.');
+    expect(page).toContain('access comes from the permissions of their assigned role and is checked on every request; job titles grant nothing.');
     expect(existsSync(resolve('src/lib/permissions.ts'))).toBe(false);
   });
 });

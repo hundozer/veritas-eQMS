@@ -744,17 +744,6 @@
   color: #0A0E17;
 }
 
-.luxuryBadge {
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: #047857;
-  background: transparent;
-  padding: 2px 0;
-  border-bottom: 1px solid #047857;
-}
-
 .btnLuxuryPrimary {
   background: #0A0E17;
   color: #FBFBFA;
@@ -832,56 +821,6 @@
   max-width: 1000px;
 }
 
-.darkNavySection {
-  background-color: #061325;
-  color: #F8FAFC;
-  width: 100%;
-  padding: 160px 48px;
-}
-
-/* Topology Graph Styling */
-.topologyFrame {
-  background: #FFFFFF;
-  border: 1px solid rgba(10, 14, 23, 0.12);
-  border-radius: 0px;
-  padding: 0;
-  width: 100%;
-  max-width: 1040px;
-  position: relative;
-  overflow: hidden;
-}
-
-.topologyBar {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 16px 24px;
-  border-bottom: 1px solid rgba(10, 14, 23, 0.08);
-  background: #FBFBFA;
-  font-family: monospace;
-  font-size: 11px;
-  color: #475569;
-}
-
-.topologyNode {
-  cursor: pointer;
-  transition: transform 0.2s ease, filter 0.2s ease;
-}
-.topologyNode:hover {
-  filter: brightness(1.1);
-}
-
-@keyframes pulseGlow {
-  0% { opacity: 0.3; transform: scale(1); }
-  50% { opacity: 0.8; transform: scale(1.08); }
-  100% { opacity: 0.3; transform: scale(1); }
-}
-
-.nodePulseRing {
-  animation: pulseGlow 3s infinite ease-in-out;
-  transform-origin: center;
-}
-
 /* Precision Component Styles */
 .gxpCardHeader {
   display: flex;
@@ -893,37 +832,4 @@
   font-family: monospace;
   font-size: 11px;
 }
-
-.terminalWindow {
-  background: #030A14;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 0px;
-  overflow: hidden;
-}
-
-.terminalBar {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 14px 20px;
-  background: #061325;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-  font-family: monospace;
-  font-size: 11px;
-  color: #94A3B8;
-}
-
-.valueCard {
-  background: #FFFFFF;
-  border: 1px solid rgba(10, 14, 23, 0.1);
-  padding: 36px 32px;
-  text-align: left;
-  transition: border-color 0.2s ease;
-}
-.valueCard:hover {
-  border-color: rgba(10, 14, 23, 0.3);
-}
-
-
-
 
