@@ -12,6 +12,8 @@ import { AUDIT_ACTIONS, type AuditChange, type AuditDetail } from '@/lib/audit-r
 import { REASON_REQUIRED, SIGNING_LABELS, signingRequest, type SigningMode } from '@/lib/signing-request';
 import InviteMemberPanel from '@/ui/components/InviteMemberPanel';
 import Dashboard from './Dashboard';
+import Documents from './Documents';
+import type { PanelAction } from '@/lib/document-panel';
 import { resendInvitation, resetTwoStepVerification } from '@/lib/invitations-client';
 import { prepareDocumentFile, sha256Hex } from '@/lib/document-file-upload';
 import {
@@ -538,14 +540,23 @@ export default function Workspace() {
   };
 
   const selectedDoc = documents.find((d) => d.id === selectedDocId);
-  const {
-    canAuthor: canAuthorDocuments,
-    canReview: canReviewDocuments,
-    canApprove: canApproveDocuments,
-    canObsolete: canObsoleteDocuments,
-    canRelease: canReleaseDocuments,
-    canWithdrawRevision: canWithdrawRevisions,
-  } = documentActionsFor(currentUser?.permissions);
+
+  // The Documents tab offers only the actions documentPanelActions allows;
+  // each one goes to the same handler or signing dialog as before.
+  const handleDocumentAction = (action: PanelAction, doc: { id: string }) => {
+    switch (action) {
+      case 'REPLACE_FILE': return handleReplaceDraftFile(doc.id);
+      case 'SUBMIT_REVIEW': return handleSubmitForReview();
+      case 'SIGN_REVIEW': return setSigningMode('REVIEW');
+      case 'RETURN': return handleReturnDocument();
+      case 'SIGN_APPROVE': return setSigningMode('APPROVE');
+      case 'SIGN_RELEASE': return setSigningMode('RELEASE');
+      case 'START_REVISION': return handleUploadNewVersion(doc.id);
+      case 'WITHDRAW_REVISION': return handleWithdrawRevision();
+      case 'SIGN_RETIRE': return setSigningMode('RETIRE');
+    }
+  };
+  const { canAuthor: canAuthorDocuments } = documentActionsFor(currentUser?.permissions);
   const canInviteUsers = Boolean(currentUser?.permissions?.includes('users.create'));
   const canResetMfa = Boolean(currentUser?.permissions?.includes('users.update'));
   const canExportAudit = Boolean(currentUser?.permissions?.includes('audit.read') && currentUser?.permissions?.includes('audit.export'));
@@ -553,12 +564,6 @@ export default function Workspace() {
     ...(auditActionFilter && { action: auditActionFilter }),
     ...(auditTypeFilter && { objectType: auditTypeFilter }),
   }).toString()}`;
-  const currentWorkflow = selectedDoc?.versions.find((version) => version.versionNumber === selectedDoc.currentVersionNumber)?.approvalRoutes?.[0];
-  const assignedReviewStep = currentWorkflow?.steps.find((step) => step.stepType === 'REVIEW');
-  const assignedApprovalStep = currentWorkflow?.steps.find((step) => step.stepType === 'APPROVAL');
-  const isAssignedReviewer = canReviewDocuments && Boolean(assignedReviewStep && assignedReviewStep.approver.id === currentUser?.id && assignedReviewStep.status === 'PENDING');
-  const isAssignedApprover = canApproveDocuments && Boolean(assignedApprovalStep && assignedApprovalStep.approver.id === currentUser?.id && assignedApprovalStep.status === 'PENDING');
-
   const { mode, toggleTheme } = useThemeMode();
 
   const sections = workspaceSections(currentUser?.permissions);
@@ -650,180 +655,17 @@ export default function Workspace() {
           />
         )}
 
-        {/* TAB 2: DOCUMENT CONTROL */}
+        {/* TAB 2: DOCUMENTS */}
         {activeTab === 'documents' && (
-          <div className={styles.grid2}>
-            {/* Document Listing */}
-            <div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-                <h2>eQMS Document Repository</h2>
-                {canAuthorDocuments && (
-                  <button className={`${styles.btn} ${styles.btnPrimary}`} onClick={() => setShowCreateModal(true)}>
-                    + New Document Draft
-                  </button>
-                )}
-              </div>
-
-              <div className={styles.docGrid}>
-                {documents.map((doc) => (
-                  <div 
-                    key={doc.id} 
-                    className={`${styles.docItem} ${selectedDocId === doc.id ? 'glass' : ''}`}
-                    onClick={() => setSelectedDocId(doc.id)}
-                    style={{ cursor: 'pointer', borderColor: selectedDocId === doc.id ? 'var(--primary)' : 'rgba(255,255,255,0.06)' }}
-                  >
-                    <div className={styles.docLeft}>
-                      <span className={styles.docTitle}>{doc.title}</span>
-                      <div className={styles.docMeta}>
-                        <span>{doc.documentNumber || 'LEGACY'}</span>
-                        <span>{doc.documentType}</span>
-                        <span>Owner: {doc.owner.fullName}</span>
-                        <span>Ver: {doc.currentVersionNumber}.0</span>
-                        <span>Scope: {doc.classification}</span>
-                        {doc.versions.find((version) => version.versionNumber === doc.currentVersionNumber)?.effectiveDate && (
-                          <span>Effective: {new Date(doc.versions.find((version) => version.versionNumber === doc.currentVersionNumber)!.effectiveDate!).toLocaleDateString()}</span>
-                        )}
-                      </div>
-                    </div>
-                    <div className={styles.docRight}>
-                      <span className={`${styles.badge} ${
-                        doc.status === 'EFFECTIVE' ? styles.badgeEffective :
-                        doc.status === 'DRAFT' ? styles.badgeDraft : styles.badgeReview
-                      }`}>
-                        {doc.status.replaceAll('_', ' ')}
-                      </span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Document Details & Actions */}
-            <div>
-              <h2>Document Metadata & Controls</h2>
-              {selectedDoc ? (
-                <div className={styles.card} style={{ marginTop: '16px' }}>
-                  <div className={styles.cardTitle}>
-                    <span>{selectedDoc.title}</span>
-                    <span className={`${styles.badge} ${
-                      selectedDoc.status === 'EFFECTIVE' ? styles.badgeEffective :
-                      selectedDoc.status === 'DRAFT' ? styles.badgeDraft : styles.badgeReview
-                    }`}>
-                      {selectedDoc.status.replaceAll('_', ' ')}
-                    </span>
-                  </div>
-                  
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                    <div>
-                      <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Description</span>
-                      <p style={{ marginTop: '4px' }}>{selectedDoc.description || 'No description provided.'}</p>
-                    </div>
-
-                    <div className={styles.grid3} style={{ margin: 0, gap: '12px' }}>
-                      <div>
-                        <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Document Number</span>
-                        <div style={{ fontWeight: '600' }}>{selectedDoc.documentNumber || 'LEGACY'}</div>
-                      </div>
-                      <div>
-                        <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Type / Classification</span>
-                        <div style={{ fontWeight: '600' }}>{selectedDoc.documentType} / {selectedDoc.classification}</div>
-                      </div>
-                      <div>
-                        <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Current Version</span>
-                        <div style={{ fontWeight: '600' }}>v{selectedDoc.currentVersionNumber}.0</div>
-                      </div>
-                    </div>
-
-                    {selectedDoc.trainingRequirement && (
-                      <div className="glass" style={{ padding: '12px', background: 'rgba(99, 102, 241, 0.03)', borderColor: 'rgba(99, 102, 241, 0.15)' }}>
-                        <strong>Training Profile Required:</strong>
-                        <div style={{ fontSize: '13px', marginTop: '4px' }}>
-                          Departments: <span className={styles.currentBadge}>{selectedDoc.trainingRequirement.requiredForRoles}</span>
-                          {selectedDoc.trainingRequirement.requiresQuiz && <span style={{ marginLeft: '12px', color: 'var(--secondary)' }}>✓ Quiz Configured</span>}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Immutable version history and workflow assignments */}
-                    <div>
-                      <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Version History & Workflow</span>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '8px' }}>
-                        {selectedDoc.versions.map((ver) => (
-                          <div key={ver.id} className="glass" style={{ padding: '12px', fontSize: '13px', background: 'rgba(0,0,0,0.1)' }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: '600' }}>
-                              <span>Version {ver.versionNumber}.0 · {ver.status.replaceAll('_', ' ')}</span>
-                              <span style={{ color: 'var(--text-muted)', fontSize: '11px' }}>{new Date(ver.createdAt).toLocaleDateString()}</span>
-                            </div>
-                            <div style={{ color: 'var(--text-muted)', fontSize: '12px', marginTop: '2px' }}>
-                              Integrity Hash: <span style={{ fontFamily: 'var(--font-mono)', fontSize: '10px' }}>{ver.hash.substring(0, 16)}...</span>
-                            </div>
-                            {ver.effectiveDate && <div style={{ fontSize: '11px' }}>Effective: {new Date(ver.effectiveDate).toLocaleString()}</div>}
-                            {ver.changeSummary && <div style={{ fontSize: '11px' }}>Change: {ver.changeSummary}</div>}
-                            {ver.approvalRoutes?.[0]?.steps?.map((step) => (
-                              <div key={step.id} style={{ fontSize: '11px', marginTop: '4px' }}>
-                                {step.stepType}: {step.approver.fullName} — {step.status}
-                              </div>
-                            ))}
-                            <a href={`/api/documents/${selectedDoc.id}/pdf?version=${ver.versionNumber}`} target="_blank" rel="noreferrer" style={{ fontSize: '11px' }}>
-                              {ver.status === 'EFFECTIVE' ? 'View effective version' : 'View (marked uncontrolled copy)'}
-                            </a>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* Action buttons */}
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', marginTop: '8px' }}>
-                      {selectedDoc.status === 'DRAFT' && canAuthorDocuments && (
-                        <>
-                          <button className={`${styles.btn} ${styles.btnSecondary}`} onClick={() => handleReplaceDraftFile(selectedDoc.id)}>Replace Draft File</button>
-                          <button className={`${styles.btn} ${styles.btnPrimary}`} onClick={handleSubmitForReview}>Submit for Review</button>
-                        </>
-                      )}
-                      {selectedDoc.status === 'IN_REVIEW' && isAssignedReviewer && (
-                        <>
-                          <button className={`${styles.btn} ${styles.btnSecondary}`} onClick={() => setSigningMode('REVIEW')}>Sign Assigned Review</button>
-                          <button className={`${styles.btn} ${styles.btnSecondary}`} onClick={handleReturnDocument}>Return for Changes</button>
-                        </>
-                      )}
-                      {selectedDoc.status === 'IN_REVIEW' && isAssignedApprover && assignedReviewStep?.status === 'COMPLETED' && (
-                        <button className={`${styles.btn} ${styles.btnPrimary}`} onClick={() => setSigningMode('APPROVE')}>Sign Assigned Approval</button>
-                      )}
-                      {canWithdrawRevisions && ['DRAFT', 'IN_REVIEW', 'APPROVED'].includes(selectedDoc.status)
-                        && selectedDoc.versions.some((version) => version.status === 'EFFECTIVE') && (
-                        <button className={`${styles.btn} ${styles.btnSecondary}`} onClick={handleWithdrawRevision}>Withdraw Revision</button>
-                      )}
-                      {selectedDoc.status === 'APPROVED' && canReleaseDocuments && (
-                        <button className={`${styles.btn} ${styles.btnPrimary}`} onClick={() => setSigningMode('RELEASE')}>Sign Release (Make Effective)</button>
-                      )}
-                      {canObsoleteDocuments && ['DRAFT', 'APPROVED', 'EFFECTIVE'].includes(selectedDoc.status) && (
-                        <button className={`${styles.btn} ${styles.btnSecondary}`} onClick={() => setSigningMode('RETIRE')}>Sign Retirement (Obsolete)</button>
-                      )}
-                      <a href={`/api/documents/${selectedDoc.id}/pdf`} target="_blank" rel="noreferrer" className={`${styles.btn} ${styles.btnSecondary}`}>
-                        {selectedDoc.versions.some((version) => version.status === 'EFFECTIVE') ? 'View Effective Version' : 'View Current Version (Uncontrolled)'}
-                      </a>
-                    </div>
-
-                    {selectedDoc.status === 'EFFECTIVE' && canAuthorDocuments && (
-                      <div className="glass" style={{ padding: '16px', background: 'rgba(255, 255, 255, 0.02)', marginTop: '12px', borderStyle: 'dashed' }}>
-                        <h4 style={{ marginBottom: '8px', color: 'var(--primary)' }}>Controlled Revision</h4>
-                        <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '12px' }}>
-                          Create a new draft with a required reason and replacement source file. The effective version remains immutable and available until the new revision completes the lifecycle.
-                        </p>
-                        <button className={`${styles.btn} ${styles.btnPrimary}`} onClick={() => handleUploadNewVersion(selectedDoc.id)}>
-                          Create Draft Revision v{selectedDoc.currentVersionNumber + 1}.0
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              ) : (
-                <div className="glass" style={{ padding: '32px', textAlign: 'center', color: 'var(--text-muted)', marginTop: '16px' }}>
-                  Select a document to view its controlled metadata, retained version history, assignments, and permitted lifecycle actions.
-                </div>
-              )}
-            </div>
-          </div>
+          <Documents
+            user={currentUser}
+            documents={documents}
+            selectedId={selectedDocId}
+            canAuthor={canAuthorDocuments}
+            onSelect={setSelectedDocId}
+            onNewDraft={() => setShowCreateModal(true)}
+            onAction={handleDocumentAction}
+          />
         )}
 
         {/* TAB 3: TRAINING HUB */}
