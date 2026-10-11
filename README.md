@@ -1,36 +1,125 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Veritas
 
-## Getting Started
+Document and training control for small EU GMP companies: controlled
+documents from draft through review, approval and release, "read and
+understood" training on every released version, electronic signatures, and
+an audit trail that cannot be edited. Multi-tenant; each customer is one
+organisation and sees only its own records.
 
-First, run the development server:
+Production: Vercel, deployed from `main`. Regulated customers will rely on
+this code, so correctness beats speed.
+
+## Where to read first
+
+| File | What it tells you |
+| --- | --- |
+| `docs/USER-MANUAL.md` | Every user flow, step by step, as a user sees it |
+| `docs/FEATURES.md` | What is built, live, disabled or dormant, and where it lives |
+| `docs/ROADMAP.md` | The current phase and its open items; work only on those |
+| `docs/REVIEW.md` | The checklist every pull request must pass |
+| `CLAUDE.md` | Working rules (they apply to people as much as to Claude) |
+| `docs/recovery/decisions/DECISION-LOG.md` | Why things are the way they are (`DEC-nnn`) |
+
+## How work gets done
+
+- Claude writes most changes and reviews its own pull requests against
+  `docs/REVIEW.md`; the product owner reviews, merges and releases.
+- One capability per pull request, on a branch from `main`. Never push to
+  `main`; merging deploys production.
+- Every fix ships with a test that fails without it.
+- Regulated changes (anything that changes a document, signature, training
+  record or member) follow one pattern: permission check, tenant-scoped
+  query, status-guarded `updateMany`, and `writeMandatoryAudit` in the same
+  `tenantTransaction` (`src/lib/tenant-db.ts`).
+- Tenant-owned tables have row-level security: read and write them only
+  through `tenantRead` / `tenantTransaction`. A new tenant-owned table needs a
+  policy and a two-tenant test in `src/db-tests/`.
+- No compliance claims ("Part 11 compliant", "validated") in the product or
+  the docs.
+- Nobody touches the production database directly. Migrations and one-off
+  maintenance (`prisma/maintenance/`) run only with the owner's explicit
+  approval.
+- This is Next.js 16 with breaking changes from older versions: read the
+  relevant guide in `node_modules/next/dist/docs/` before writing code.
+
+## Local setup
+
+You need Node 22 and a PostgreSQL 16 you can throw away.
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm ci
+cp .env.example .env.local
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+In `.env.local` set at least:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+# A disposable local database, never a shared or production one.
+DATABASE_URL=postgresql://postgres:postgres@localhost:5432/veritas_dev
+# 32 random bytes, base64; without it sign-in refuses (two-step verification).
+MFA_ENCRYPTION_KEY=   # openssl rand -base64 32
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Then create the schema and start the app:
 
-## Learn More
+```bash
+npx prisma migrate deploy
+npm run dev            # http://localhost:3000
+```
 
-To learn more about Next.js, take a look at the following resources:
+What does not work locally out of the box:
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+- **Signing in.** A fresh database has no accounts. Invitations need email
+  (Resend), and the demo seed (`prisma/seed.js`) creates fictional records
+  but no sign-in identities. There is no local-account script yet. To see
+  the screens, use the Vercel preview of a pull request (it has its own
+  database, separate from production; ask the owner for an account there).
+  To exercise the code, use the tests.
+- **Uploading documents.** Files go to a private Vercel Blob store; without
+  `BLOB_READ_WRITE_TOKEN` (or Vercel OIDC) creating a draft fails because
+  controlled-record storage is unavailable.
+- **Email.** Without `APP_ORIGIN`, `RESEND_API_KEY` and `EMAIL_FROM`,
+  invitations and setup links are not sent.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Tests and checks
 
-## Deploy on Vercel
+Run these before opening a pull request; CI runs the same.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+```bash
+npx vitest run         # unit and route tests (src/**/*.test.ts)
+npx tsc --noEmit
+npx eslint .
+```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Changes to queries, routes, migrations or database roles also need the
+database suite against a disposable PostgreSQL that the connecting role
+owns. It applies every migration, creates the least-privileged runtime role
+`veritas_app`, and runs `src/db-tests/` as that role with two organisations:
+
+```bash
+TEST_DATABASE_URL=postgresql://postgres:postgres@localhost:5432/veritas_test npm run test:db
+```
+
+CI (`.github/workflows/ci.yml`) has four checks: unit tests, types and lint;
+database and two-tenant isolation tests, including a check that the
+migrations match `prisma/schema.prisma`; the validation pack (URS, risk
+assessment, traceability matrix and executed OQ built from
+`docs/validation/requirements.json` and both test runs); and the Vercel
+preview. A requirement without passing tests fails the validation pack.
+
+## Map of the code
+
+| Path | What |
+| --- | --- |
+| `src/app/(marketing)/` | Public home page and sign-in |
+| `src/app/(app)/app/` | The signed-in workspace: `page.tsx` holds state and handlers; one component per tab (`Dashboard`, `Documents`, `Training`, `People`, `AuditTrail`) |
+| `src/app/api/` | Route handlers; each checks identity, then a persisted permission |
+| `src/lib/` | Domain logic, mostly pure and unit-tested (`document-panel`, `training-record`, `dashboard-summary`, `audit-review`, …) |
+| `src/lib/auth.ts`, `src/lib/rbac.ts` | Session context and permission checks |
+| `src/lib/tenant-db.ts` | `tenantRead` / `tenantTransaction` |
+| `src/lib/audit.ts` | Transactional audit writes |
+| `src/lib/document-lifecycle.ts` | Allowed status transitions |
+| `src/lib/controlled-storage.ts` | Blob storage with SHA-256 verification |
+| `src/lib/iam/` | Passwords, sessions, two-step verification, invitations |
+| `prisma/schema.prisma`, `prisma/migrations/` | Schema and migrations |
+| `src/db-tests/` | Database tests with two organisations |
