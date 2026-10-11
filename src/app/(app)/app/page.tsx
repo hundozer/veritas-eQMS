@@ -9,10 +9,10 @@ import { documentActionsFor } from '@/lib/document-actions';
 import { workspaceSections } from '@/lib/workspace-access';
 import { AUDIT_ACTIONS, type AuditChange, type AuditDetail } from '@/lib/audit-review';
 import { REASON_REQUIRED, SIGNING_LABELS, signingRequest, type SigningMode } from '@/lib/signing-request';
-import InviteMemberPanel from '@/ui/components/InviteMemberPanel';
 import Dashboard from './Dashboard';
 import Documents from './Documents';
 import Training from './Training';
+import People from './People';
 import type { PanelAction } from '@/lib/document-panel';
 import { resendInvitation, resetTwoStepVerification } from '@/lib/invitations-client';
 import { prepareDocumentFile, sha256Hex } from '@/lib/document-file-upload';
@@ -558,7 +558,6 @@ export default function Workspace() {
   };
   const { canAuthor: canAuthorDocuments } = documentActionsFor(currentUser?.permissions);
   const canInviteUsers = Boolean(currentUser?.permissions?.includes('users.create'));
-  const canResetMfa = Boolean(currentUser?.permissions?.includes('users.update'));
   const canExportAudit = Boolean(currentUser?.permissions?.includes('audit.read') && currentUser?.permissions?.includes('audit.export'));
   const auditExportHref = `/api/audit/export?${new URLSearchParams({
     ...(auditActionFilter && { action: auditActionFilter }),
@@ -682,96 +681,17 @@ export default function Workspace() {
           />
         )}
 
-        {/* TAB: USER ROLES & RBAC/ABAC MANAGEMENT */}
+        {/* TAB: PEOPLE */}
         {activeTab === 'users-management' && (
-          <div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-              <div>
-                <h2>People</h2>
-                <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '4px' }}>
-                  Changing a member&apos;s role and deactivating a member are not available yet.
-                </p>
-              </div>
-            </div>
-
-            {/* What the software enforces about segregation of duties, and what it leaves to the customer's procedures */}
-            <div style={{ padding: '14px 0', borderTop: '1px solid var(--border)', borderBottom: '1px solid var(--border)', marginBottom: '24px', fontSize: '13px', lineHeight: 1.55 }}>
-              <strong>Segregation of duties.</strong>{' '}
-              Veritas stops an author from approving or releasing their own revision. Other separation rules are not enforced by the software; set them in your own procedures and confirm them when you validate.
-            </div>
-
-            {/* User Organization Roster */}
-            <div className={styles.card} style={{ marginBottom: '28px' }}>
-              <div className={styles.cardTitle}>Members ({users.length})</div>
-              <div className={styles.tableWrapper}>
-                <table className={styles.table}>
-                  <thead>
-                    <tr>
-                      <th>Employee Name</th>
-                      <th>Work Email</th>
-                      <th>Site / Facility</th>
-                      <th>Employment</th>
-                      <th>Assigned GxP Role</th>
-                      <th>Department</th>
-                      <th>Clearance</th>
-                      <th>Sign-in</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {users.map((u: any) => (
-                      <tr key={u.id} className={styles.tableRow}>
-                        <td style={{ fontWeight: '600' }}>
-                          {u.fullName} {u.id === currentUser?.id && <span style={{ fontSize: '10px', background: 'rgba(16,185,129,0.2)', color: '#10B981', padding: '2px 6px', borderRadius: '4px', marginLeft: '6px' }}>YOU</span>}
-                        </td>
-                        <td>{u.email}</td>
-                        <td><span className={styles.badge}>{u.site || 'Main Facility'}</span></td>
-                        <td><span className={styles.currentBadge} style={{ background: 'rgba(255,255,255,0.06)' }}>{u.employmentType || 'EMPLOYEE'}</span></td>
-                        <td>
-                          <span className={styles.currentBadge} style={{
-                            background: u.role === 'OWNER' ? 'rgba(168,85,247,0.15)' : u.role === 'ADMIN' ? 'rgba(239,68,68,0.15)' : u.role === 'APPROVER' ? 'rgba(245,158,11,0.15)' : 'rgba(59,130,246,0.15)',
-                            color: u.role === 'OWNER' ? '#A855F7' : u.role === 'ADMIN' ? '#EF4444' : u.role === 'APPROVER' ? '#F59E0B' : '#3B82F6',
-                          }}>
-                            {u.role}
-                          </span>
-                        </td>
-                        <td><span className={styles.badge}>{u.department}</span></td>
-                        <td><span className={styles.badge}>{u.clearance || 'INTERNAL'}</span></td>
-                        <td>
-                          {u.invitationPending ? (
-                            <>
-                              <span className={styles.badge}>Invitation pending</span>
-                              {canInviteUsers && (
-                                <button type="button" className={`${styles.btn} ${styles.btnSecondary}`} style={{ marginLeft: '8px', padding: '4px 10px', fontSize: '12px' }} onClick={() => handleResendInvitation(u.id)}>Resend</button>
-                              )}
-                            </>
-                          ) : (
-                            <>
-                              <span className={styles.badge}>Active</span>
-                              {canResetMfa && u.id !== currentUser?.id && (
-                                <button type="button" className={`${styles.btn} ${styles.btnSecondary}`} style={{ marginLeft: '8px', padding: '4px 10px', fontSize: '12px' }} onClick={() => handleResetMfa(u.id, u.fullName)}>Reset 2-step</button>
-                              )}
-                            </>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-
-            {canInviteUsers && <InviteMemberPanel onInvited={reloadUsers} />}
-
-            {/* Canonical permission presentation containment */}
-            <div className={styles.card}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
-                <div className={styles.cardTitle} style={{ margin: 0 }}>Roles and permissions</div>
-              </div>
-              <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '20px' }}>
-                Each member&apos;s access comes from the permissions of their assigned role and is checked on every request; job titles grant nothing. An overview of which role holds which permission is not available yet.
-              </p>
-            </div>
-          </div>
+          <People
+            user={currentUser}
+            organisation={currentUser?.tenantName || currentUser?.tenant?.name}
+            members={users}
+            canInvite={canInviteUsers}
+            onInvited={reloadUsers}
+            onResendInvitation={handleResendInvitation}
+            onResetTwoStep={handleResetMfa}
+          />
         )}
 
         {/* TAB 4: COMPLIANCE LOGS */}
