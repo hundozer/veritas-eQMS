@@ -22,7 +22,10 @@ describe('in-page action forms', () => {
   it('ACTION-FORM-T006 a new revision asks for the reason and the source file in the page', () => {
     const html = renderToStaticMarkup(createElement(ReasonForm, { kind: 'START_REVISION', subject: 'SOP-001 rev 3', onSubmit: noop, onCancel: () => {} }));
     expect(html).toContain('Reason for the revision');
-    expect(html).toMatch(/<input[^>]*type="file"[^>]*accept=".pdf,.doc,.docx,.txt,.png"/);
+    const accept = html.match(/<input[^>]*type="file"[^>]*accept="([^"]+)"/)?.[1].split(',');
+    expect(accept).toEqual(expect.arrayContaining(['.pdf', '.docx', '.xlsx', '.pptx', '.txt']));
+    expect(accept).not.toEqual(expect.arrayContaining(['.doc']));
+    expect(accept).not.toEqual(expect.arrayContaining(['.png']));
     expect(html).toContain('SOP-001 rev 3');
   });
 

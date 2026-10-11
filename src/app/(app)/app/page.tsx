@@ -17,6 +17,7 @@ import AuditTrail from './AuditTrail';
 import type { PanelAction } from '@/lib/document-panel';
 import { resendInvitation, resetTwoStepVerification } from '@/lib/invitations-client';
 import { prepareDocumentFile, sha256Hex } from '@/lib/document-file-upload';
+import { DOCUMENT_FILE_ACCEPT, DOCUMENT_FILE_TYPES_TEXT } from '@/lib/document-file-types';
 import {
   Dashboard as DashboardIcon,
   Description as DescriptionIcon,
@@ -321,7 +322,7 @@ export default function Workspace() {
     const file = await new Promise<File | null>((resolve) => {
       const input = document.createElement('input');
       input.type = 'file';
-      input.accept = '.pdf,.doc,.docx,.txt,.png';
+      input.accept = DOCUMENT_FILE_ACCEPT;
       input.onchange = () => resolve(input.files?.[0] || null);
       input.click();
     });
@@ -690,10 +691,10 @@ export default function Workspace() {
                 )}
 
                 <div className={styles.formGroup}>
-                  <label className={styles.formLabel}>Attach Physical SOP File (.pdf, .docx, .doc, .txt)</label>
+                  <label className={styles.formLabel}>Source file: {DOCUMENT_FILE_TYPES_TEXT}</label>
                   <input
                     type="file"
-                    accept=".pdf,.doc,.docx,.txt,.png"
+                    accept={DOCUMENT_FILE_ACCEPT}
                     onChange={handleDocFileSelect}
                     className={styles.input}
                     style={{ padding: '8px' }}

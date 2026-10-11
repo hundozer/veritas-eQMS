@@ -5,10 +5,10 @@ import {
   checkReason,
   checkRouting,
   REASON_FORMS,
-  SOURCE_FILE_TYPES,
   type ReasonFormKind,
   type RoutingMember,
 } from '../../../lib/action-forms';
+import { DOCUMENT_FILE_ACCEPT } from '../../../lib/document-file-types';
 
 // Resolves null when the action went through, so the form closes, or with
 // the reason it was refused, shown in the form.
@@ -95,7 +95,7 @@ export function ReasonForm({ kind, subject, onSubmit, onCancel }: {
             id={fileId}
             type="file"
             className={styles.file}
-            accept={SOURCE_FILE_TYPES}
+            accept={DOCUMENT_FILE_ACCEPT}
             required
             onChange={(event) => setFile(event.target.files?.[0] ?? null)}
           />
