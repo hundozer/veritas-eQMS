@@ -1,8 +1,4 @@
 'use client';
-import {
-  DarkMode as DarkIcon,
-  LightMode as LightIcon,
-} from '@mui/icons-material';
 import type { ReactNode } from 'react';
 
 interface HeaderProps {
@@ -39,8 +35,8 @@ export function Header({
       <div className="header-actions">
         {actions}
         {onThemeToggle && (
-          <button className="hdr-btn accent" onClick={onThemeToggle}>
-            {themeMode === 'dark' ? <LightIcon /> : <DarkIcon />}
+          <button type="button" className="hdr-btn theme-toggle" onClick={onThemeToggle} aria-label={themeMode === 'dark' ? 'Use light theme' : 'Use dark theme'}>
+            {themeMode === 'dark' ? 'Light' : 'Dark'}
           </button>
         )}
       </div>

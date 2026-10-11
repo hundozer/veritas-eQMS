@@ -54,7 +54,6 @@
 :root[data-theme='dark'] .detail-item{background:var(--blight);border-color:var(--border)}
 :root[data-theme='dark'] .detail-notes{background:var(--blight);border-color:var(--border)}
 :root[data-theme='dark'] .card-btn.green{color:#1e241e}
-:root[data-theme='dark'] .hdr-btn.accent{color:#1e241e}
 :root[data-theme='dark'] .search-pill{background:var(--card-bg);border-color:var(--border)}
 
 html{font-size:13.5px;scroll-behavior:smooth}
@@ -79,56 +78,42 @@ body{
 /* --- APP SHELL --- */
 .app{display:flex;min-height:100vh}
 .sidebar{
-  width:240px;min-width:240px;height:100vh;position:sticky;top:0;z-index:50;
-  background:var(--sidebar-bg);
-  border-right:1px solid var(--border);
+  width:232px;min-width:232px;height:100vh;position:sticky;top:0;z-index:50;
+  background:var(--bg2);
+  border-right:1px solid var(--t1);
   display:flex;flex-direction:column;
   transition:background var(--ts),border-color var(--ts);
 }
-.sidebar-logo{display:flex;align-items:center;gap:10px;padding:20px 20px 8px}
-.sidebar-logo img{height:28px;width:auto}
-.sidebar-logo h1{font-size:1rem;font-weight:800;letter-spacing:-.02em}
-.sidebar-logo h1 em{font-style:normal;color:var(--olive);font-weight:600}
-.sidebar-cult{
-  display:flex;align-items:center;gap:8px;padding:10px 20px 8px;
-  font-size:.78rem;font-weight:700;color:var(--t2);
-  text-transform:uppercase;letter-spacing:.06em;
+/* Binder index: the wordmark, then numbered tabs; the active tab joins the page. */
+.wordmark{
+  font-family:'Iowan Old Style','Charter','Bitstream Charter','Sitka Text',Cambria,Georgia,serif;
+  font-size:26px;font-weight:400;letter-spacing:-.01em;color:var(--t1);
 }
-.sidebar-cult svg{width:16px;height:16px;color:var(--olive)}
-.sidebar-nav{flex:1;overflow-y:auto;padding:4px 12px 20px}
-.nav-group{margin-bottom:4px}
-.nav-group-title{
-  font-size:.6rem;font-weight:700;letter-spacing:.12em;
-  text-transform:uppercase;color:var(--t3);padding:16px 10px 6px;
-}
+.sidebar-logo{display:flex;align-items:center;gap:10px;padding:28px 22px 22px}
+.sidebar-nav{flex:1;overflow-y:auto;display:flex;flex-direction:column;border-bottom:1px solid var(--border)}
 .nav-link{
-  display:flex;align-items:center;gap:10px;
-  padding:9px 12px;border-radius:var(--radius-sm);
-  font-size:.84rem;font-weight:500;color:var(--t2);
-  cursor:pointer;transition:all .2s var(--ease-smooth);
-  margin:2px 0;position:relative;
+  display:flex;align-items:baseline;gap:12px;width:100%;
+  padding:14px 22px;margin:0;border:0;border-top:1px solid var(--border);border-radius:0;
+  background:transparent;font:inherit;font-size:.98rem;font-weight:500;color:var(--t2);
+  text-align:left;cursor:pointer;position:relative;
+  transition:background .16s ease,color .16s ease;
 }
-.nav-link:hover{background:var(--lime5);color:var(--t1)}
+.nav-link:hover{background:var(--blight);color:var(--t1)}
 .nav-link.active{
-  background:var(--lime4);color:var(--t1);font-weight:700;
+  background:var(--card-bg);color:var(--t1);font-weight:600;
+  margin-right:-1px;
 }
-.nav-link.active::before{
-  content:'';position:absolute;left:0;top:25%;bottom:25%;
-  width:3px;border-radius:0 3px 3px 0;background:var(--lime);
-  animation:slideIn .3s var(--ease-spring);
-}
-@keyframes slideIn{from{transform:scaleY(0)}to{transform:scaleY(1)}}
-.nav-link svg{width:16px;height:16px;flex-shrink:0;opacity:.4;transition:opacity .2s}
-.nav-link:hover svg,.nav-link.active svg{opacity:.85}
+.nav-link:focus-visible{outline:2px solid var(--t1);outline-offset:-2px}
+.nav-index{font-family:var(--font-mono);font-size:.78rem;color:var(--t3);min-width:22px}
+.nav-link.active .nav-index{color:var(--t2)}
 .sidebar-footer{
-  padding:16px 20px;border-top:1px solid var(--border);
-  font-size:.65rem;color:var(--t3);font-weight:600;
-  transition:border-color var(--ts);
+  padding:16px 22px;
+  font-size:.75rem;color:var(--t3);
 }
 
 .main{
   flex:1;display:flex;flex-direction:column;min-width:0;position:relative;z-index:1;
-  background:var(--bg);
+  background:var(--card-bg);
   transition:background var(--ts);
 }
 
@@ -136,12 +121,12 @@ body{
 .header{
   display:flex;align-items:center;justify-content:space-between;
   padding:12px 28px;min-height:56px;
-  background:var(--sidebar-bg);
+  background:var(--card-bg);
   border-bottom:1px solid var(--border);
   position:sticky;top:0;z-index:40;
   transition:background var(--ts),border-color var(--ts);
 }
-.header-title{font-size:1.05rem;font-weight:800;display:flex;align-items:center;gap:8px}
+.header-title{font-family:'Iowan Old Style','Charter','Bitstream Charter','Sitka Text',Cambria,Georgia,serif;font-size:1.35rem;font-weight:400;display:flex;align-items:center;gap:8px}
 .header-title svg{width:20px;height:20px;color:var(--olive)}
 .header-actions{display:flex;align-items:center;gap:8px}
 .facility-btn{
@@ -165,8 +150,7 @@ body{
 }
 .hdr-btn:hover{background:var(--lime5);color:var(--t1);border-color:var(--lime4)}
 .hdr-btn svg{width:17px;height:17px}
-.hdr-btn.accent{background:var(--lime);color:var(--dark);border:none;font-size:.75rem;font-weight:800;width:32px;height:32px}
-.hdr-btn.accent:hover{background:var(--lime2)}
+.hdr-btn.theme-toggle{width:auto;height:32px;padding:0 12px;border-radius:3px;font-size:.85rem;font-weight:500;color:var(--t1)}
 .hdr-btn.avatar{background:var(--lime5);border:none}
 .hdr-btn.notif{position:relative}
 .hdr-btn.notif::after{content:'';width:7px;height:7px;border-radius:50%;background:var(--danger);position:absolute;top:4px;right:4px;border:2px solid var(--sidebar-bg)}
@@ -897,7 +881,7 @@ body{
   border-bottom:1px solid var(--border);
 }
 .mobile-nav-link{
-  display:flex;align-items:center;gap:12px;
+  display:flex;align-items:center;gap:12px;width:100%;text-align:left;font-family:inherit;
   padding:14px 16px;border-radius:var(--radius-md);margin:4px 0;
   background:var(--card-bg);
   border:1.5px solid var(--border);
@@ -966,7 +950,7 @@ body{
 :root[data-theme='dark'] .mobile-menu-footer{color:var(--t2)}
 
 /* === RESPONSIVE === */
-@media(max-width:1500px){
+@media(max-width:900px){
   .sidebar{display:none}
   .menu-btn{display:flex}
   .content{padding:20px 20px 40px}

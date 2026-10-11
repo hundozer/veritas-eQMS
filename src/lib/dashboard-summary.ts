@@ -10,12 +10,14 @@ export type SignatureMeaning = 'REVIEW' | 'APPROVE' | 'RELEASE' | 'READ';
 interface StepLike {
   stepType: string;
   status: string;
-  approver: { id: string };
+  approver: { id: string; fullName?: string };
 }
 
 interface VersionLike {
   versionNumber: number;
   authoredById?: string | null;
+  createdBy?: string;
+  createdAt?: string;
   approvalRoutes?: Array<{ steps: StepLike[] }>;
 }
 
@@ -135,4 +137,47 @@ export function queueSummary(queue: readonly Pick<QueueItem, 'meaning'>[]): stri
   if (parts.length === 0) return '';
   const last = parts.pop();
   return `${parts.length ? `${parts.join(', ')} and ` : ''}${last}.`;
+}
+
+// One box of a routing slip: who signs at that step and where it stands.
+// Dates are only shown where the documents and trainings lists return them.
+export interface SlipBox {
+  role: string;
+  name: string | null;
+  state: 'signed' | 'yours' | 'waiting' | 'open';
+  date?: string;
+}
+
+// The signature boxes of the routing slip for one queue item, from the
+// records the overview already holds. Nothing is invented: a step with no
+// assignee is "open", a step another person must sign is "waiting".
+export function routingSlip(
+  item: QueueItem,
+  documents: readonly DashboardDocument[],
+  trainings: readonly DashboardTraining[],
+): SlipBox[] {
+  if (item.meaning === 'READ') {
+    const assignment = trainings.find((t) => t.id === item.trainingId);
+    return [
+      { role: 'Assigned', name: null, state: 'signed', date: assignment?.assignedAt },
+      { role: 'Read and understood', name: null, state: 'yours' },
+    ];
+  }
+
+  const doc = documents.find((d) => d.id === item.documentId);
+  const version = doc?.versions.find((v) => v.versionNumber === doc.currentVersionNumber);
+  const steps = version?.approvalRoutes?.[0]?.steps ?? [];
+  const box = (role: string, meaning: SignatureMeaning, stepType: string): SlipBox => {
+    if (item.meaning === meaning) return { role, name: null, state: 'yours' };
+    const step = steps.find((s) => s.stepType === stepType);
+    if (!step) return { role, name: null, state: 'open' };
+    return { role, name: step.approver.fullName ?? null, state: step.status === 'COMPLETED' ? 'signed' : 'waiting' };
+  };
+
+  return [
+    { role: 'Author', name: version?.createdBy ?? null, state: 'signed', date: version?.createdAt },
+    box('Review', 'REVIEW', 'REVIEW'),
+    box('Approve', 'APPROVE', 'APPROVAL'),
+    item.meaning === 'RELEASE' ? { role: 'Release', name: null, state: 'yours' } : { role: 'Release', name: null, state: 'open' },
+  ];
 }
