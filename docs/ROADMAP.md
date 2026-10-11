@@ -29,9 +29,9 @@ it depends on are merged.
       invitation end to end (code done, DEC-063).
 - [ ] Password recovery for active accounts.
 - [ ] Member role changes (audited, sessions re-checked).
-- [ ] Member deactivation with immediate session revocation.
-- [ ] Administrator session revocation; revocation on role change,
-      deactivation and password reset.
+- [x] Member deactivation with immediate session revocation (#74).
+- [ ] Administrator session revocation; revocation on role change and
+      password reset (deactivation revokes sessions, #74).
 - [ ] Organisation choice at sign-in for people with several memberships.
 - [x] Tenant isolation (row-level security, two-tenant suite in CI).
 - [x] Electronic-signature integrity (DEC-062, DEC-072).

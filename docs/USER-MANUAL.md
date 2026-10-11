@@ -54,6 +54,7 @@ grant nothing. The permissions that matter in this manual:
 | `users.read` | See the People tab |
 | `users.create` | Invite people and resend invitations |
 | `users.update` | Reset another member's two-step verification |
+| `users.deactivate` | Deactivate another member who has left |
 | `audit.read` | See the audit trail |
 | `audit.export` | Export the audit trail as PDF (with `audit.read`) |
 
@@ -405,6 +406,22 @@ one stops working.
 **Result:** at their next sign-in the member sets up two-step verification
 again (UF-03). **Recorded:** in both audit trails, with the reason.
 
+### UF-28 Deactivate a member who has left
+
+**Who:** `users.deactivate`. Not for yourself.
+
+1. In the member's row, choose **Deactivate**. A form opens under the row.
+2. Enter the **Reason for deactivating** (for example "left the company,
+   HR ticket 7") and choose **Deactivate member**.
+
+**Result:** the member is signed out everywhere at once and can no longer
+sign in to this organisation; the register shows them as **Deactivated**.
+Nothing they wrote, signed or completed changes. The confirmation names the
+open work still in their name (pending approval steps, open training
+assignments, documents they own) so you can reassign it. There is no
+reactivation yet. **Recorded:** in both audit trails, with the reason and the
+statuses before and after.
+
 ## 7. Audit trail
 
 ### UF-26 Review the audit trail
@@ -453,7 +470,7 @@ Production staff are in the department "Production".
 
 Shown or answered as "not available"; do not promise them to users:
 
-- Changing a member's role, editing or deactivating a member.
+- Changing a member's role, editing a member, reactivating a deactivated member.
 - Choosing an organisation at sign-in for people in several organisations.
 - Resetting a forgotten password of an active account (an administrator can
   only reset two-step verification).

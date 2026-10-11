@@ -20,8 +20,8 @@ decision that changed it.
 | Invitation and account activation | Built, not live | `POST /api/users`, `/auth/setup-password`, `src/db-tests/provisioning.dbtest.ts` (DEC-063). Email domain not verified in Resend, so no invitation reaches anyone. |
 | Password recovery | Missing | Token library supports `PASSWORD_RESET` for active accounts; no route or UI. On 11 Oct 2026 the owner needed a one-off database fix (DEC-085). |
 | Member role changes | Missing | `PUT /api/users/[id]` answers `503`. |
-| Member deactivation | Missing | `DELETE /api/users/[id]` answers `503`. A leaver cannot be removed. |
-| Session revocation | Partial | A member can end their own session (logout). No administrator revocation; nothing revokes sessions on role change or deactivation (none exist yet). Sessions expire after 12 h. |
+| Member deactivation | Built, not live (merged code awaits release and a production check) | `POST /api/users/[id]/deactivate` suspends the membership, sets the user inactive and revokes every session, audited; `src/db-tests/member-deactivation.dbtest.ts` (#74). No reactivation yet. |
+| Session revocation | Partial | A member can end their own session (logout). Deactivation revokes all of the member's sessions. No administrator revocation of single sessions; nothing revokes sessions on role change or password reset (neither exists yet). Sessions expire after 12 h. |
 | Multi-organisation membership | Missing | Sign-in answers `409 MembershipSelectionRequired`. |
 | Tenant isolation | Complete | Row-level security on tenant tables, composite tenant keys, two-tenant suite in CI (`src/db-tests/`, DEC-059/060/061/069). Not yet covered: `Deviation`, `CAPA` and other dormant tables (no code reads them). |
 | Electronic-signature integrity | Complete | Password re-entry, append-only signature rows, SHA-256 of the signed file, attempt limit (DEC-062, DEC-072). |
