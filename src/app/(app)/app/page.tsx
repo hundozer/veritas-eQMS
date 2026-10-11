@@ -567,13 +567,13 @@ export default function Workspace() {
       title: 'Veritas eQMS',
       items: [
         { id: 'dashboard', label: 'Overview', route: 'dashboard', icon: <DashboardIcon /> },
-        { id: 'documents', label: 'Document Control', route: 'documents', icon: <DescriptionIcon /> },
-        { id: 'training', label: 'Training Hub', route: 'training', icon: <SchoolIcon /> },
+        { id: 'documents', label: 'Documents', route: 'documents', icon: <DescriptionIcon /> },
+        { id: 'training', label: 'Training', route: 'training', icon: <SchoolIcon /> },
         ...(sections.includes('users-management') ? [
-          { id: 'users-management', label: 'User Access & ABAC/RBAC', route: 'users-management', icon: <SchoolIcon /> }
+          { id: 'users-management', label: 'People', route: 'users-management', icon: <SchoolIcon /> }
         ] : []),
         ...(sections.includes('audit') ? [
-          { id: 'audit', label: 'Compliance Audit Logs', route: 'audit', icon: <HistoryIcon /> }
+          { id: 'audit', label: 'Audit trail', route: 'audit', icon: <HistoryIcon /> }
         ] : []),
       ]
     }
@@ -598,10 +598,10 @@ export default function Workspace() {
   const getHeaderTitle = () => {
     switch (activeTab) {
       case 'dashboard': return 'Overview';
-      case 'documents': return 'Document Repository';
-      case 'training': return 'Training matrix & assignments';
-      case 'users-management': return 'User Access Policy & ABAC/RBAC Roster';
-      case 'audit': return 'Tenant Audit Event Index';
+      case 'documents': return 'Documents';
+      case 'training': return 'Training';
+      case 'users-management': return 'People';
+      case 'audit': return 'Audit trail';
       default: return 'Veritas eQMS';
     }
   };
@@ -615,7 +615,7 @@ export default function Workspace() {
       headerActions={headerActions}
       themeMode={mode}
       onThemeToggle={toggleTheme}
-      footerText="v1.0.0 -- Veritas eQMS"
+      footerText="Veritas"
     >
       <div style={{ flex: 1, padding: '24px 0', overflowY: 'auto' }}>
         {/* Global Notifications */}
@@ -955,30 +955,22 @@ export default function Workspace() {
           <div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
               <div>
-                <h2>Organization User Roster</h2>
+                <h2>People</h2>
                 <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '4px' }}>
-                  Read-only recovery view. IAM-bound provisioning, role changes, and deactivation are temporarily unavailable.
+                  Changing a member&apos;s role and deactivating a member are not available yet.
                 </p>
               </div>
-              <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>User administration disabled</span>
             </div>
 
-            {/* Segregation of Duties (SoD) Compliance Guard Banner */}
-            <div className="glass" style={{ padding: '16px 20px', borderRadius: '12px', background: 'linear-gradient(135deg, rgba(16,185,129,0.08) 0%, rgba(15,23,42,0.6) 100%)', border: '1px solid rgba(16,185,129,0.25)', marginBottom: '24px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <span style={{ fontSize: '20px' }}>🛡️</span>
-                <div>
-                  <div style={{ fontWeight: '700', color: '#10B981', fontSize: '14px' }}>Segregation of Duties recovery status</div>
-                  <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '2px' }}>
-                    Some workflow restrictions are implemented, but the complete policy set has not been independently validated. Do not rely on this interface as evidence of Annex 11 or Part 11 compliance.
-                  </div>
-                </div>
-              </div>
+            {/* What the software enforces about segregation of duties, and what it leaves to the customer's procedures */}
+            <div style={{ padding: '14px 0', borderTop: '1px solid var(--border)', borderBottom: '1px solid var(--border)', marginBottom: '24px', fontSize: '13px', lineHeight: 1.55 }}>
+              <strong>Segregation of duties.</strong>{' '}
+              Veritas stops an author from approving or releasing their own revision. Other separation rules are not enforced by the software; set them in your own procedures and confirm them when you validate.
             </div>
 
             {/* User Organization Roster */}
             <div className={styles.card} style={{ marginBottom: '28px' }}>
-              <div className={styles.cardTitle}>Active Organization Roster ({users.length} Users)</div>
+              <div className={styles.cardTitle}>Members ({users.length})</div>
               <div className={styles.tableWrapper}>
                 <table className={styles.table}>
                   <thead>
@@ -1041,11 +1033,10 @@ export default function Workspace() {
             {/* Canonical permission presentation containment */}
             <div className={styles.card}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
-                <div className={styles.cardTitle} style={{ margin: 0 }}>Role & Permission Registry</div>
-                <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Unavailable during recovery</span>
+                <div className={styles.cardTitle} style={{ margin: 0 }}>Roles and permissions</div>
               </div>
               <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '20px' }}>
-                Effective access is enforced from persisted IAM role assignments. The policy matrix is hidden until role ownership, tenant visibility, and authorized administration are implemented and validated.
+                Each member&apos;s access comes from the permissions of their assigned role and is checked on every request; job titles grant nothing. An overview of which role holds which permission is not available yet.
               </p>
             </div>
           </div>

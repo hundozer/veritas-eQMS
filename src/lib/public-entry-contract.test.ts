@@ -32,7 +32,7 @@ describe('public entry containment contract', () => {
     expect(landingSource).not.toContain('Sign in with Microsoft');
     expect(landingSource).not.toContain('Sign in with Google');
     expect(landingSource).not.toContain('Sign in with Simpleafied Identity');
-    expect(landingSource).toContain('Single sign-on is unavailable during controlled recovery');
+    expect(landingSource).toContain('Single sign-on is not available yet.');
   });
 
   it('ENTRY-T003: excludes categorical compliance guarantees', () => {
@@ -52,7 +52,7 @@ describe('public entry containment contract', () => {
     expect(landingSource).toContain('Member Sign In');
     expect(landingSource).toContain('Work Email Address');
     expect(landingSource).toContain('Password');
-    expect(landingSource).toContain('AUTHENTICATE WORKSPACE SESSION');
+    expect(landingSource).toContain('Sign in →');
   });
 
   it('ENTRY-T006: does not collect or dispatch demonstration-request personal data', () => {

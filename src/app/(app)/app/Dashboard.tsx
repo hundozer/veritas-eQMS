@@ -266,6 +266,8 @@ export default function Dashboard({
               )}
             </section>
           )}
+
+          <p className={styles.notYet}>Change control, deviations and CAPA are not part of Veritas yet.</p>
         </div>
       </div>
     </div>

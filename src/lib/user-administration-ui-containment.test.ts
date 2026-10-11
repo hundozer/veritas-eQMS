@@ -14,6 +14,6 @@ describe('user-administration UI containment', () => {
     expect(page).not.toContain('Invite Team Member & Assign Role');
     expect(page).not.toContain('Reassign Role');
     expect(page).not.toMatch(/fetch\(`?\/api\/users\/\$\{/);
-    expect(page).toContain('IAM-bound provisioning, role changes, and deactivation are temporarily unavailable.');
+    expect(page).toContain('Changing a member&apos;s role and deactivating a member are not available yet.');
   });
 });

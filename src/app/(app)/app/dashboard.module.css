@@ -512,3 +512,11 @@
   color: var(--t2);
   overflow-wrap: anywhere;
 }
+
+.notYet {
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--t2);
+  border-top: 1px solid var(--rule);
+  padding-top: 12px;
+}

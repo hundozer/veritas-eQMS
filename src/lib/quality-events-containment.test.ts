@@ -44,6 +44,6 @@ describe('quality-event containment', () => {
       'quality-events', "fetch('/api/deviations", "fetch('/api/capas", 'selectedEquipment.deviations',
     ]) expect(page).not.toContain(token);
     expect(page).not.toContain('<DashboardAnalytics');
-    expect(page).toContain('Unavailable during recovery');
+    expect(page).toContain('Change control, deviations and CAPA are not part of Veritas yet.');
   });
 });
