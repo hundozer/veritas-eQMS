@@ -458,7 +458,7 @@ Shown or answered as "not available"; do not promise them to users:
 - Resetting a forgotten password of an active account (an administrator can
   only reset two-step verification).
 - Single sign-on.
-- Change control, deviations and CAPA (planned for Phase 3).
+- Change control, deviations and CAPA (planned for VER-02).
 - Numbered, tracked paper copies.
 - Self-service organisation sign-up and the online demo request form.
 
