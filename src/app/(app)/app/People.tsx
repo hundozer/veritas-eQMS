@@ -7,6 +7,7 @@ interface Member {
   fullName: string;
   email: string;
   department?: string | null;
+  roleName?: string | null;
   invitationPending?: boolean;
 }
 
@@ -47,7 +48,7 @@ export default function People({ user, organisation, members, canInvite, onInvit
           <div className={styles.tableScroll}>
             <table className={styles.ledger}>
               <thead>
-                <tr><th scope="col">Name</th><th scope="col">Work email</th><th scope="col">Department</th><th scope="col">Sign-in</th><th scope="col"><span className={styles.visuallyHidden}>Actions</span></th></tr>
+                <tr><th scope="col">Name</th><th scope="col">Work email</th><th scope="col">Role</th><th scope="col">Department</th><th scope="col">Sign-in</th><th scope="col"><span className={styles.visuallyHidden}>Actions</span></th></tr>
               </thead>
               <tbody>
                 {register.map((member) => {
@@ -59,6 +60,7 @@ export default function People({ user, organisation, members, canInvite, onInvit
                         {member.id === user?.id && <span className={styles.you}>you</span>}
                       </th>
                       <td className={styles.email}>{member.email}</td>
+                      <td>{member.roleName || <span className={styles.muted}>No role</span>}</td>
                       <td>{member.department || <span className={styles.muted}>—</span>}</td>
                       <td>
                         {member.invitationPending

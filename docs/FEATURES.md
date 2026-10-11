@@ -62,7 +62,7 @@ Last updated: 10 Oct 2026 (workspace overview redesign).
 | Invite a person into your organisation with one role (holder of `users.create`); identity, user, membership and both audit rows in one transaction | Built, not live (needs email) | `POST /api/users`, `src/lib/iam/provisioning.ts` (DEC-063) |
 | Set your own password from a single-use 30-minute link; request a fresh link | Built, not live (needs email) | `/auth/setup-password`, `POST /api/auth/setup-password`, `POST /api/auth/setup-password/request` |
 | Resend an invitation | Built, not live | `POST /api/users/[id]/invitation` |
-| Member list with "invitation pending" | Live | `GET /api/users` (`users.read`) |
+| Member list with organisation role and "invitation pending" | Live | `GET /api/users` (`users.read`) |
 | Assignable roles for invitations (no platform roles) | Live | `GET /api/roles` (`users.create`) |
 | Edit or deactivate a member, change roles | Disabled | `PUT/DELETE /api/users/[id]` |
 | Self-service organisation sign-up | Disabled | `POST /api/auth/register` |

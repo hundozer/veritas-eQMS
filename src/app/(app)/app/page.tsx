@@ -34,6 +34,8 @@ interface User {
   tenantId: string;
   tenantName?: string;
   membershipRole?: string;
+  // Organisation role from the member list (/api/users).
+  roleName?: string | null;
   permissions?: string[];
   tenant?: {
     id?: string;

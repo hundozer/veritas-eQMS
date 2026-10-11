@@ -79,13 +79,30 @@ describe('user-administration containment', () => {
         employmentType: true,
         clearance: true,
         expiresAt: true,
+        iamMembership: { select: { role: { select: { name: true } } } },
       },
       orderBy: { fullName: 'asc' },
     });
     await expect(response.json()).resolves.toEqual({ users: [
-      { id: 'user-1', fullName: 'Current User', invitationPending: false },
-      { id: 'user-2', fullName: 'Invited User', invitationPending: true },
+      { id: 'user-1', fullName: 'Current User', roleName: null, invitationPending: false },
+      { id: 'user-2', fullName: 'Invited User', roleName: null, invitationPending: true },
     ] });
+  });
+
+  it('USER-ADMIN-T006 lists each member\'s organisation role, not their job title', async () => {
+    getContext.mockResolvedValue(context);
+    findMany.mockResolvedValue([
+      { id: 'user-1', fullName: 'Current User', role: 'QUALITY_MANAGER', iamMembership: { role: { name: 'Quality approver' } } },
+      { id: 'user-2', fullName: 'Legacy User', role: 'EMPLOYEE', iamMembership: null },
+    ]);
+
+    const body = await (await GET(request())).json();
+
+    expect(body.users).toEqual([
+      { id: 'user-1', fullName: 'Current User', role: 'QUALITY_MANAGER', roleName: 'Quality approver', invitationPending: false },
+      { id: 'user-2', fullName: 'Legacy User', role: 'EMPLOYEE', roleName: null, invitationPending: true },
+    ]);
+    expect(body.users[0]).not.toHaveProperty('iamMembership');
   });
 
   it.each([

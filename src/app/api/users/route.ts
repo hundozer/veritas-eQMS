@@ -29,13 +29,22 @@ export async function GET(req: NextRequest) {
         employmentType: true,
         clearance: true,
         expiresAt: true,
+        // The organisation role that grants the member's permissions; the
+        // job title in `role` grants nothing (DEC-058).
+        iamMembership: { select: { role: { select: { name: true } } } },
       },
       orderBy: { fullName: 'asc' },
     }));
     const pending = await pendingInvitationUserIds(user.tenantId);
 
     return NextResponse.json(
-      { users: users.map((member) => ({ ...member, invitationPending: pending.has(member.id) })) },
+      {
+        users: users.map(({ iamMembership, ...member }) => ({
+          ...member,
+          roleName: iamMembership?.role.name ?? null,
+          invitationPending: pending.has(member.id),
+        })),
+      },
       { headers: { 'Cache-Control': 'no-store' } },
     );
   } catch (error: any) {
