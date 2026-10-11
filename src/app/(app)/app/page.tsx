@@ -158,14 +158,6 @@ export default function Workspace() {
   const [newClassification, setNewClassification] = useState('CONTROLLED');
   const [newDocumentType, setNewDocumentType] = useState('SOP');
   const [newRequiredRoles, setNewRequiredRoles] = useState('');
-  const [newRequiresQuiz, setNewRequiresQuiz] = useState(false);
-  const [newQuizQ1, setNewQuizQ1] = useState('What is the correct way to correct a handwritten error on a GxP document?');
-  const [newQuizQ1Options, setNewQuizQ1Options] = useState([
-    'Use white-out/correction fluid',
-    'Draw a single line through it, write correction, then initial and date',
-    'Scribble it out completely so it cannot be read'
-  ]);
-  const [newQuizQ1Correct, setNewQuizQ1Correct] = useState(1);
 
   // Attached Physical File State
   const [docFile, setDocFile] = useState<File | null>(null);
@@ -355,15 +347,6 @@ export default function Workspace() {
     }
 
     try {
-      const quizQuestionsList = [
-        {
-          id: 'q1',
-          text: newQuizQ1,
-          options: newQuizQ1Options,
-          correctAnswerIndex: newQuizQ1Correct
-        }
-      ];
-
       const fileFields = await prepareDocumentFile(docFile);
       const res = await fetch('/api/documents', {
         method: 'POST',
@@ -377,8 +360,6 @@ export default function Workspace() {
           description: newDesc,
           classification: newClassification,
           requiredRoles: newRequiredRoles,
-          requiresQuiz: newRequiresQuiz,
-          quizQuestions: newRequiresQuiz ? quizQuestionsList : null,
         }),
       });
 
@@ -391,7 +372,6 @@ export default function Workspace() {
         setNewDocumentType('SOP');
         setNewClassification('CONTROLLED');
         setNewRequiredRoles('');
-        setNewRequiresQuiz(false);
         setDocFile(null);
         setDocFileName('');
         setDocFileSize('');
@@ -769,58 +749,6 @@ export default function Workspace() {
                       placeholder="e.g. QA, Production (blank for none)"
                     />
                   </div>
-                </div>
-
-                <div className={styles.formGroup} style={{ background: 'rgba(255,255,255,0.02)', padding: '12px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.06)' }}>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontWeight: '600' }}>
-                    <input 
-                      type="checkbox"
-                      checked={newRequiresQuiz}
-                      onChange={(e) => setNewRequiresQuiz(e.target.checked)}
-                    />
-                    Enable Quiz Verification for Training Complete
-                  </label>
-                  
-                  {newRequiresQuiz && (
-                    <div style={{ marginTop: '12px', borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: '12px' }}>
-                      <label className={styles.formLabel}>Quiz Question 1</label>
-                      <input 
-                        className={styles.input}
-                        type="text" 
-                        value={newQuizQ1}
-                        onChange={(e) => setNewQuizQ1(e.target.value)}
-                        style={{ marginBottom: '8px' }}
-                      />
-                      
-                      <label className={styles.formLabel}>Options</label>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                        {newQuizQ1Options.map((opt, idx) => (
-                          <div key={idx} style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                            <input 
-                              type="radio" 
-                              name="correctAnswer" 
-                              checked={newQuizQ1Correct === idx}
-                              onChange={() => setNewQuizQ1Correct(idx)}
-                            />
-                            <input 
-                              className={styles.input}
-                              type="text" 
-                              value={opt}
-                              onChange={(e) => {
-                                const newOpts = [...newQuizQ1Options];
-                                newOpts[idx] = e.target.value;
-                                setNewQuizQ1Options(newOpts);
-                              }}
-                              style={{ padding: '6px 10px', fontSize: '13px' }}
-                            />
-                          </div>
-                        ))}
-                      </div>
-                      <span style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'block', marginTop: '6px' }}>
-                        Select the radio button next to the correct answer.
-                      </span>
-                    </div>
-                  )}
                 </div>
               </div>
               <div className={styles.modalFooter}>
