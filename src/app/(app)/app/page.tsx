@@ -7,12 +7,12 @@ import { AppShell, useThemeMode } from '@/ui';
 import type { NavGroup } from '@/ui';
 import { documentActionsFor } from '@/lib/document-actions';
 import { workspaceSections } from '@/lib/workspace-access';
-import { buildTrainingMatrix } from '@/lib/training-matrix';
 import { AUDIT_ACTIONS, type AuditChange, type AuditDetail } from '@/lib/audit-review';
 import { REASON_REQUIRED, SIGNING_LABELS, signingRequest, type SigningMode } from '@/lib/signing-request';
 import InviteMemberPanel from '@/ui/components/InviteMemberPanel';
 import Dashboard from './Dashboard';
 import Documents from './Documents';
+import Training from './Training';
 import type { PanelAction } from '@/lib/document-panel';
 import { resendInvitation, resetTwoStepVerification } from '@/lib/invitations-client';
 import { prepareDocumentFile, sha256Hex } from '@/lib/document-file-upload';
@@ -668,128 +668,18 @@ export default function Workspace() {
           />
         )}
 
-        {/* TAB 3: TRAINING HUB */}
+        {/* TAB 3: TRAINING */}
         {activeTab === 'training' && (
-          <div className={styles.grid2}>
-            {/* User assignments */}
-            <div>
-              <h2>My Required Training Assignments</h2>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '16px' }}>
-                {trainings.filter(t => t && t.userId && currentUser?.id && t.userId === currentUser.id).length > 0 ? (
-                  trainings.filter(t => t && t.userId && currentUser?.id && t.userId === currentUser.id).map((tr) => (
-                    <div 
-                      key={tr.id} 
-                      className={styles.card}
-                      style={{ borderColor: tr.status === 'ASSIGNED' ? 'var(--warning)' : 'var(--secondary)' }}
-                    >
-                      <div className={styles.cardTitle}>
-                        <span>{tr.requirement?.document?.title || 'Controlled SOP Training'}</span>
-                        <span className={`${styles.badge} ${tr.status === 'COMPLETED' ? styles.badgeEffective : styles.badgeReview}`}>
-                          {tr.status}
-                        </span>
-                      </div>
-                      <p style={{ fontSize: '13px', color: 'var(--text-muted)' }}>
-                        {tr.documentVersion ? `Version ${tr.documentVersion.versionNumber}. ` : ''}{tr.requirement?.document?.description || 'Read the effective version, then sign that you have read and understood it.'}
-                      </p>
-                      
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '16px' }}>
-                        <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
-                          Assigned: {tr.assignedAt ? new Date(tr.assignedAt).toLocaleDateString() : 'N/A'}
-                          {tr.completedAt && ` | Completed: ${new Date(tr.completedAt).toLocaleDateString()}`}
-                        </span>
-                        
-                        {tr.status === 'ASSIGNED' && tr.documentVersion ? (
-                          <div style={{ display: 'flex', gap: '8px' }}>
-                            <a className={`${styles.btn} ${styles.btnSecondary}`} href={`/api/documents/${tr.requirement.document.id}/pdf`} target="_blank" rel="noreferrer">Open document</a>
-                            <button
-                              className={`${styles.btn} ${styles.btnPrimary}`}
-                              onClick={() => {
-                                setSigningTraining({ id: tr.id, title: tr.requirement.document.title, versionNumber: tr.documentVersion!.versionNumber });
-                                setSigningMode('READ');
-                              }}
-                            >
-                              Sign as Read and Understood
-                            </button>
-                          </div>
-                        ) : tr.status === 'ASSIGNED' ? (
-                          <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
-                            Waiting for the next effective version
-                          </span>
-                        ) : tr.status === 'SUPERSEDED' ? (
-                          <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
-                            Replaced by training on a newer version
-                          </span>
-                        ) : (
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#10B981', fontWeight: '600', fontSize: '13px' }}>
-                            {tr.quizResult ? `Recorded quiz result (${tr.quizResult.score}%)` : 'Completion previously recorded'}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  ))
-                ) : (
-                  <div className="glass" style={{ padding: '32px', textAlign: 'center', color: 'var(--text-muted)' }}>
-                    No pending training assignments required for your profile context.
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Training matrix: everyone's training, for holders of training.read_all (DEC-076) */}
-            {trainingMatrixView && (() => {
-              const matrix = buildTrainingMatrix(trainings);
-              return (
-                <div>
-                  <h2>Training Matrix</h2>
-                  <div className={styles.card} style={{ marginTop: '16px' }}>
-                    <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '16px' }}>
-                      Each cell shows a person&apos;s training on the newest version they were assigned. {matrix.totals.open} open, {matrix.totals.completed} completed.
-                    </div>
-                    <div className={styles.tableWrapper}>
-                      <table className={styles.table}>
-                        <thead>
-                          <tr>
-                            <th>Person</th>
-                            <th>Department</th>
-                            {matrix.documents.map((document) => (
-                              <th key={document.id} title={document.title}>{document.documentNumber ?? document.title}</th>
-                            ))}
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {matrix.people.length > 0 ? matrix.people.map((person) => (
-                            <tr key={person.id} className={styles.tableRow}>
-                              <td style={{ fontWeight: '600' }}>{person.fullName}</td>
-                              <td>{person.department}</td>
-                              {matrix.documents.map((document) => {
-                                const cell = person.cells[document.id];
-                                if (!cell) return <td key={document.id} style={{ color: 'var(--text-muted)' }}>—</td>;
-                                const version = cell.versionNumber ? `v${cell.versionNumber} ` : '';
-                                return (
-                                  <td key={document.id}>
-                                    <span className={`${styles.badge} ${cell.status === 'COMPLETED' ? styles.badgeEffective : styles.badgeReview}`}>
-                                      {cell.status === 'COMPLETED' ? `${version}trained` : `${version}open`}
-                                    </span>
-                                    {cell.completedAt && <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{new Date(cell.completedAt).toLocaleDateString()}</div>}
-                                  </td>
-                                );
-                              })}
-                            </tr>
-                          )) : (
-                            <tr>
-                              <td colSpan={2 + matrix.documents.length} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '24px' }}>
-                                No training assigned yet.
-                              </td>
-                            </tr>
-                          )}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                </div>
-              );
-            })()}
-          </div>
+          <Training
+            user={currentUser}
+            assignments={trainings}
+            showMatrix={trainingMatrixView}
+            onSign={(assignment) => {
+              if (!assignment.documentVersion) return;
+              setSigningTraining({ id: assignment.id, title: assignment.requirement.document.title, versionNumber: assignment.documentVersion.versionNumber });
+              setSigningMode('READ');
+            }}
+          />
         )}
 
         {/* TAB: USER ROLES & RBAC/ABAC MANAGEMENT */}
