@@ -4,16 +4,11 @@ import { createHash, randomUUID } from 'node:crypto';
 import { del, get, head, issueSignedToken, put } from '@vercel/blob';
 import { handleUploadPresigned, type HandleUploadPresignedBody } from '@vercel/blob/client';
 import { reportServerError } from './server-errors';
+import { DOCUMENT_MIME_TYPES } from './document-file-types';
 
 export const MAX_CONTROLLED_FILE_BYTES = 25 * 1024 * 1024;
 
-const ALLOWED_MIME_TYPES = new Set([
-  'application/pdf',
-  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-  'application/vnd.openxmlformats-officedocument.presentationml.presentation',
-  'text/plain',
-]);
+const ALLOWED_MIME_TYPES = new Set(DOCUMENT_MIME_TYPES);
 
 export type StoredObject = {
   key: string;

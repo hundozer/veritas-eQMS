@@ -44,8 +44,6 @@ export const REASON_FORMS: Record<ReasonFormKind, ReasonFormSpec> = {
   },
 };
 
-export const SOURCE_FILE_TYPES = '.pdf,.doc,.docx,.txt,.png';
-
 export type FormCheck<T> = { ok: true; value: T } | { ok: false; message: string };
 
 export function checkReason(kind: ReasonFormKind, reason: string, file: File | null = null): FormCheck<{ reason: string; file: File | null }> {
