@@ -195,5 +195,9 @@ Biotech" and "BioLabs Inc" as read-only history (DEC-056).
 - `npm run test:db` with `TEST_DATABASE_URL`: applies all migrations to a
   disposable PostgreSQL, creates `veritas_app`, and runs `src/db-tests/` as
   that role with two tenants.
+- `npm run dev:account` (with `VERITAS_ALLOW_DEV_ACCOUNT=local-only`): creates a
+  local organisation with three members holding every permission, for signing
+  in on a developer's machine; refuses deployed environments and any
+  `DATABASE_URL` not on this machine (`prisma/dev-account-guard.js`).
 - Requirement-style test ids (`LIFE-T003`, `COPY-T007`, `IDRLS-T002`, …) are
   cited from decisions and pull requests.

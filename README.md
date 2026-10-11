@@ -48,10 +48,10 @@ You need Node 22 and a PostgreSQL 16 you can throw away.
 
 ```bash
 npm ci
-cp .env.example .env.local
+cp .env.example .env    # git ignores it; Next and Prisma both read it
 ```
 
-In `.env.local` set at least:
+In `.env` set at least:
 
 ```bash
 # A disposable local database, never a shared or production one.
@@ -60,21 +60,25 @@ DATABASE_URL=postgresql://postgres:postgres@localhost:5432/veritas_dev
 MFA_ENCRYPTION_KEY=   # openssl rand -base64 32
 ```
 
-Then create the schema and start the app:
+Then create the schema, create the local accounts, and start the app:
 
 ```bash
 npx prisma migrate deploy
+VERITAS_ALLOW_DEV_ACCOUNT=local-only npm run dev:account
 npm run dev            # http://localhost:3000
 ```
 
+`npm run dev:account` creates an organisation with three members (an author,
+a reviewer and a quality manager), all with every permission, and prints
+their email addresses and one shared password. Each sets up two-step
+verification at the first sign-in, so keep an authenticator app at hand. The
+script refuses to run unless `VERITAS_ALLOW_DEV_ACCOUNT=local-only` is set
+and `DATABASE_URL` points at this machine, and never in a deployed
+environment (`prisma/dev-account-guard.js`). Run it again for a fresh
+organisation.
+
 What does not work locally out of the box:
 
-- **Signing in.** A fresh database has no accounts. Invitations need email
-  (Resend), and the demo seed (`prisma/seed.js`) creates fictional records
-  but no sign-in identities. There is no local-account script yet. To see
-  the screens, use the Vercel preview of a pull request (it has its own
-  database, separate from production; ask the owner for an account there).
-  To exercise the code, use the tests.
 - **Uploading documents.** Files go to a private Vercel Blob store; without
   `BLOB_READ_WRITE_TOKEN` (or Vercel OIDC) creating a draft fails because
   controlled-record storage is unavailable.

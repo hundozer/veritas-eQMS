@@ -12,7 +12,8 @@
     "start": "next start",
     "lint": "eslint",
     "test:auth": "vitest run src/lib/auth.test.ts --reporter=verbose",
-    "test:db": "vitest run --config vitest.db.config.ts"
+    "test:db": "vitest run --config vitest.db.config.ts",
+    "dev:account": "node --env-file-if-exists=.env prisma/dev-account.js"
   },
   "dependencies": {
     "@emotion/cache": "^11.14.0",
