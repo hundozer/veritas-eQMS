@@ -27,6 +27,11 @@
   /* Typography */
   --font-sans: Arial, Helvetica, system-ui, sans-serif;
   --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', monospace;
+  /* Paper language (docs/design-system/foundations.md): headings in a system
+     serif, ink for rules and text, rule for hairlines. System fonts only. */
+  --font-serif: 'Iowan Old Style', 'Charter', 'Bitstream Charter', 'Sitka Text', Cambria, Georgia, serif;
+  --ink: var(--t1);
+  --rule: var(--border);
 
   /* Shadows & Blur */
   --shadow-lg: var(--shadow-lg);

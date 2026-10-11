@@ -1,0 +1,610 @@
+/* The shared paper language: controlled-form headers, ruled ledgers, state
+   stamps, signature boxes and square buttons, as on the GMP paper records a
+   quality team already uses. Tokens only (src/app/globals.css and
+   src/ui/styles/liquid-glass.css), light and dark; system fonts only
+   (BUILD-T001). Rules: docs/design-system/foundations.md. */
+
+.mono {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Page intro: serif headline, lede, actions on the right; a heavy ink rule below. */
+
+.intro {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 16px 32px;
+  border-bottom: 2px solid var(--ink);
+  padding-bottom: 14px;
+}
+
+.headline {
+  font-family: var(--font-serif);
+  font-weight: 400;
+  font-size: clamp(28px, 3.4vw, 40px);
+  line-height: 1.08;
+  letter-spacing: -0.02em;
+}
+
+.lede {
+  margin-top: 6px;
+  font-size: 15px;
+  color: var(--t2);
+}
+
+.introActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.sectionTitle {
+  font-family: var(--font-serif);
+  font-weight: 400;
+  font-size: 20px;
+  margin-bottom: 12px;
+}
+
+.label {
+  display: block;
+  font-size: 12px;
+  font-variant: small-caps;
+  text-transform: lowercase;
+  letter-spacing: 0.06em;
+  color: var(--t2);
+}
+
+.note {
+  max-width: 64ch;
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--t2);
+}
+
+/* Empty state: a dashed sheet that says what is missing and what to do. */
+
+.empty {
+  border: 1px dashed var(--t3);
+  padding: 40px 28px;
+  color: var(--t2);
+  font-size: 15px;
+  line-height: 1.55;
+}
+
+/* Buttons: square, 44 px tall. Primary moves a record forward, outline is a
+   secondary action, quiet takes something out of use (turns danger on hover). */
+
+.primary,
+.outline,
+.quiet {
+  min-height: 44px;
+  padding: 0 18px;
+  border-radius: 0;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 140ms ease;
+}
+
+.primary {
+  border: 1.5px solid var(--ink);
+  background: var(--ink);
+  color: var(--card-bg);
+}
+
+.primary:hover:not(:disabled) {
+  background: var(--dark);
+  border-color: var(--dark);
+}
+
+.outline {
+  border: 1.5px solid var(--ink);
+  background: transparent;
+  color: var(--ink);
+}
+
+.outline:hover:not(:disabled) {
+  background: var(--blight);
+}
+
+.quiet {
+  border: 1px solid var(--rule);
+  background: transparent;
+  color: var(--t2);
+  font-weight: 500;
+}
+
+.quiet:hover:not(:disabled) {
+  color: var(--ink);
+  border-color: var(--danger);
+}
+
+.primary:active:not(:disabled),
+.outline:active:not(:disabled),
+.quiet:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+.primary:disabled,
+.outline:disabled,
+.quiet:disabled {
+  opacity: 0.6;
+  cursor: progress;
+}
+
+.primary:focus-visible,
+.outline:focus-visible,
+.quiet:focus-visible,
+.field:focus-visible,
+.file:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
+}
+
+.buttonRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+/* Fields: small-caps label above a square, ink-bordered control. */
+
+.fieldGroup {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.fieldGroup .label {
+  margin-top: 6px;
+  margin-bottom: 4px;
+}
+
+.field {
+  width: 100%;
+  min-height: 44px;
+  padding: 10px 12px;
+  border: 1.5px solid var(--ink);
+  border-radius: 0;
+  background: var(--card-bg);
+  color: var(--ink);
+  font: inherit;
+  font-size: 15px;
+}
+
+textarea.field {
+  resize: vertical;
+  line-height: 1.5;
+}
+
+.file {
+  font: inherit;
+  font-size: 14px;
+  color: var(--ink);
+}
+
+.hint {
+  margin-top: 4px;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--t2);
+}
+
+.pair {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 0 16px;
+}
+
+/* Notices: a rule on the left in the tone's colour; text stays legible ink. */
+
+.notice {
+  padding: 10px 12px;
+  border: 1px solid var(--rule);
+  border-left: 3px solid var(--ink);
+  background: var(--card-bg);
+  color: var(--ink);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.noticeError {
+  border-left-color: var(--danger);
+  background: var(--danger-bg);
+}
+
+.noticeSuccess {
+  border-left-color: var(--lime);
+}
+
+/* Danger red on white is 3.1:1, too faint for text: errors are ink on the
+   danger wash, marked by the danger rule. */
+.error {
+  padding: 8px 10px;
+  border-left: 3px solid var(--danger);
+  background: var(--danger-bg);
+  color: var(--ink);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+/* State stamp: outlined like a rubber stamp. Lime marks what is in force;
+   drafts are dashed; retired states are struck through. */
+
+.stamp {
+  display: inline-block;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  padding: 2px 6px;
+  border: 1.5px solid var(--t1);
+  border-radius: 2px;
+  color: var(--t1);
+  white-space: nowrap;
+}
+
+.stampEFFECTIVE {
+  background: var(--lime);
+  border-color: var(--on-lime);
+  color: var(--on-lime);
+}
+
+.stampDRAFT,
+.stampWITHDRAWN {
+  border-style: dashed;
+}
+
+.stampSUPERSEDED,
+.stampOBSOLETE {
+  color: var(--t2);
+  border-color: var(--t2);
+  text-decoration: line-through;
+}
+
+/* Record sheet: the controlled record, bordered in ink with a hard offset shadow. */
+
+.sheet {
+  display: flex;
+  flex-direction: column;
+  gap: 26px;
+  background: var(--card-bg);
+  border: 1px solid var(--ink);
+  box-shadow: 4px 4px 0 var(--rule);
+  padding: clamp(16px, 2.4vw, 28px);
+}
+
+/* Controlled-form header: labelled cells ruled in ink, title row with its stamp. */
+
+.formHeader {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.formHeader td {
+  border: 1px solid var(--ink);
+  padding: 8px 10px;
+  vertical-align: top;
+  font-size: 14px;
+}
+
+.titleCell {
+  position: relative;
+}
+
+.title {
+  font-family: var(--font-serif);
+  font-weight: 400;
+  font-size: clamp(22px, 2.4vw, 28px);
+  line-height: 1.2;
+  padding: 6px 140px 6px 0;
+}
+
+.titleCell .recordStamp {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%) rotate(-5deg);
+  font-size: 12px;
+  padding: 3px 9px;
+  border-width: 2px;
+}
+
+@media (max-width: 640px) {
+  .formHeader td { display: block; border-bottom-width: 0; }
+  .formHeader tr:last-child td:last-child { border-bottom-width: 1px; }
+  .title { padding-right: 0; padding-top: 34px; }
+  .titleCell .recordStamp { top: 12px; right: 10px; transform: rotate(-5deg); }
+}
+
+/* Lifecycle path and signature boxes. */
+
+.path {
+  list-style: none;
+  display: grid;
+  grid-template-columns: repeat(var(--steps, 4), minmax(0, 1fr));
+  border: 1px solid var(--ink);
+  border-bottom: 0;
+}
+
+.pathStep {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  font-size: 14px;
+  color: var(--t2);
+  border-left: 1px solid var(--ink);
+}
+
+.pathStep:first-child {
+  border-left: 0;
+}
+
+.pathMark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 20px;
+  height: 20px;
+  border: 1.5px solid var(--t3);
+  border-radius: 50%;
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
+
+.pathDone {
+  color: var(--ink);
+}
+
+.pathDone .pathMark {
+  border-color: var(--ink);
+  background: var(--ink);
+  color: var(--card-bg);
+}
+
+.pathNow {
+  color: var(--ink);
+  font-weight: 600;
+  background: var(--lime3);
+}
+
+.pathNow .pathMark {
+  border-color: var(--ink);
+}
+
+.pathOnly {
+  border-bottom: 1px solid var(--ink);
+}
+
+.sigRow {
+  display: grid;
+  grid-template-columns: repeat(var(--boxes, 4), minmax(0, 1fr));
+  border: 1px solid var(--ink);
+}
+
+.sigBox {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  padding: 10px 12px;
+  border-left: 1px solid var(--ink);
+}
+
+.sigBox:first-child {
+  border-left: 0;
+}
+
+.sigLine {
+  min-height: 22px;
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-size: 15px;
+  border-bottom: 1px solid var(--ink);
+  padding-bottom: 2px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sigState {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--t2);
+}
+
+@media (max-width: 640px) {
+  .path, .sigRow { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .pathStep:nth-child(odd), .sigBox:nth-child(odd) { border-left: 0; }
+  .pathStep:nth-child(n + 3), .sigBox:nth-child(n + 3) { border-top: 1px solid var(--ink); }
+}
+
+/* Ledger: a ruled register table; scrolls sideways inside its own box. */
+
+.tableScroll {
+  overflow-x: auto;
+}
+
+.ledger {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.ledger th {
+  text-align: left;
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--t2);
+  padding: 8px 12px 8px 0;
+  border-bottom: 1.5px solid var(--ink);
+  white-space: nowrap;
+}
+
+.ledger td {
+  padding: 10px 12px 10px 0;
+  border-bottom: 1px solid var(--rule);
+  font-size: 14px;
+  vertical-align: top;
+}
+
+.ledger a {
+  color: var(--ink);
+  text-underline-offset: 3px;
+}
+
+.ledger caption {
+  caption-side: top;
+  text-align: left;
+}
+
+/* Form sheet: an in-page form, a ruled slip with a heavy top rule. */
+
+.formSheet {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+  max-width: 640px;
+  padding: 14px 16px 16px;
+  border: 1px solid var(--ink);
+  border-top-width: 3px;
+  background: var(--bg);
+  color: var(--ink);
+  text-align: left;
+  white-space: normal;
+}
+
+.formSheetHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 4px 16px;
+}
+
+.formSheetTitle {
+  font-family: var(--font-serif);
+  font-weight: 400;
+  font-size: 20px;
+}
+
+.subject {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--t2);
+}
+
+.formButtons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+/* Dialog: a native modal <dialog> drawn as a form sheet over a dimmed page. */
+
+.dialog {
+  width: min(560px, calc(100vw - 32px));
+  max-height: calc(100vh - 48px);
+  margin: auto;
+  padding: 0;
+  border: 1px solid var(--ink);
+  border-top-width: 3px;
+  border-radius: 0;
+  background: var(--card-bg);
+  color: var(--ink);
+  box-shadow: 6px 6px 0 var(--rule);
+}
+
+.dialog::backdrop {
+  background: var(--overlay);
+}
+
+.dialogForm {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 18px 20px 20px;
+}
+
+.dialogHead {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 16px;
+  margin-bottom: 4px;
+}
+
+.close {
+  min-width: 44px;
+  min-height: 44px;
+  margin: -12px -12px 0 0;
+  border: 0;
+  background: transparent;
+  color: var(--t2);
+  font: inherit;
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.close:hover {
+  color: var(--ink);
+}
+
+.close:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: -2px;
+}
+
+/* Signature manifest inside the signing dialog: what is signed and what it means. */
+
+.manifest {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 6px 14px;
+  margin: 4px 0 6px;
+  padding: 10px 12px;
+  border: 1px solid var(--ink);
+  font-size: 14px;
+}
+
+.manifest dt {
+  font-size: 12px;
+  font-variant: small-caps;
+  text-transform: lowercase;
+  letter-spacing: 0.06em;
+  color: var(--t2);
+  padding-top: 2px;
+}
+
+.manifest dd {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.meaning {
+  font-weight: 700;
+}
+
+.visuallyHidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .primary, .outline, .quiet { transition: none; }
+}

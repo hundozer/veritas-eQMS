@@ -370,7 +370,7 @@
 
 .countEffective {
   background: var(--lime);
-  color: #1E241E;
+  color: var(--on-lime);
   padding: 0 4px;
 }
 

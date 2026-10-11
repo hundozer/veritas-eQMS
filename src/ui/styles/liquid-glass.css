@@ -12,6 +12,7 @@
   --lime:#BFE530;--lime2:#D1FA94;--lime3:#DEF3BC;--lime4:#E9F2D8;--lime5:#f2f7e8;
   --dark:#464C3D;--olive:#9AA981;--scroll-track:#ECEEE6;
   --danger:#FC5B3E;--danger-bg:#FFF0ED;--gold:#FFE388;--gold-bg:#FFFBE8;
+  --on-lime:#1E241E;
   --t1:#2D2F2A;--t2:#6B6E65;--t3:#A3A69D;--border:#E0E3D8;--blight:#F0F1EB;
   --card-bg:#fff;--card-hover:#FAFBF7;
   --shadow-sm:0 1px 3px rgba(0,0,0,.04),0 1px 2px rgba(0,0,0,.03);
@@ -38,6 +39,7 @@
   --lime:#BFE530;--lime2:#C9EF70;--lime3:#2E3A2B;--lime4:#223020;--lime5:#1c241b;
   --dark:#E6EAD9;--olive:#A5AD9B;--scroll-track:#1a201a;
   --danger:#FC5B3E;--danger-bg:#3a221e;--gold:#FFE388;--gold-bg:#3b341f;
+  --on-lime:#1E241E;
   --t1:#E8EAE3;--t2:#A0A39A;--t3:#6B6E65;--border:#2B2E28;--blight:#222520;
   --card-bg:#1E211E;--card-hover:#242724;
   --shadow-sm:0 1px 3px rgba(0,0,0,.2),0 1px 2px rgba(0,0,0,.15);

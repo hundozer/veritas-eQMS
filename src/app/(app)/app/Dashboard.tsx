@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import styles from './dashboard.module.css';
-import Stamp, { stateLabel } from './Stamp';
+import { Stamp, stateLabel } from '@/ui/paper';
 import {
   lifecycleCounts,
   queueSummary,

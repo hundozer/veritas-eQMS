@@ -2,13 +2,13 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import styles from '../../page.module.css';
 import { AppShell, useThemeMode } from '@/ui';
 import type { NavGroup } from '@/ui';
 import { documentActionsFor } from '@/lib/document-actions';
 import { workspaceSections } from '@/lib/workspace-access';
 import type { AuditChange, AuditDetail } from '@/lib/audit-review';
-import { REASON_REQUIRED, SIGNING_LABELS, signingRequest, type SigningMode } from '@/lib/signing-request';
+import { REASON_REQUIRED, SIGNING_CONSEQUENCE, SIGNING_LABELS, signingRequest, type SigningMode } from '@/lib/signing-request';
+import { Dialog, FieldPair, FileField, Notice, SelectField, SignatureDialog, TextAreaField, TextField } from '@/ui/paper';
 import Dashboard from './Dashboard';
 import Documents, { type DocumentFormValues } from './Documents';
 import Training from './Training';
@@ -151,6 +151,7 @@ export default function Workspace() {
   const [signingMode, setSigningMode] = useState<SigningMode | null>(null);
   const [signingTraining, setSigningTraining] = useState<{ id: string; title: string; versionNumber: number } | null>(null);
   const [signPassword, setSignPassword] = useState('');
+  const [signing, setSigning] = useState(false);
 
   // Document creation form state
   const [newTitle, setNewTitle] = useState('');
@@ -404,6 +405,7 @@ export default function Workspace() {
     if (!targetId || !signingMode) return;
     const { path, method, body } = signingRequest(signingMode, targetId, esignComment, signPassword);
     setSignPassword('');
+    setSigning(true);
 
     try {
       const res = await fetch(path, {
@@ -437,6 +439,8 @@ export default function Workspace() {
     } catch (err: any) {
       setErrorMessage(err.message);
       setTimeout(() => setErrorMessage(null), 5000);
+    } finally {
+      setSigning(false);
     }
   };
 
@@ -566,15 +570,11 @@ export default function Workspace() {
       footerText="Veritas"
     >
       <div style={{ flex: 1, padding: '24px 0', overflowY: 'auto' }}>
-        {/* Global Notifications */}
-        {successMessage && (
-          <div className="glass" style={{ borderColor: 'var(--secondary)', color: '#34D399', padding: '16px', borderRadius: '8px', marginBottom: '24px', fontWeight: '500' }}>
-            ✓ {successMessage}
-          </div>
-        )}
-        {errorMessage && (
-          <div className="glass" style={{ borderColor: 'var(--danger)', color: '#F87171', padding: '16px', borderRadius: '8px', marginBottom: '24px', fontWeight: '500' }}>
-            ⚠ {errorMessage}
+        {/* Messages about the last action; a modal shows its own refusal. */}
+        {!showCreateModal && !signingMode && (successMessage || errorMessage) && (
+          <div style={{ marginBottom: '24px' }}>
+            {successMessage && <Notice tone="success">{successMessage}</Notice>}
+            {errorMessage && <Notice tone="error">{errorMessage}</Notice>}
           </div>
         )}
 
@@ -656,173 +656,77 @@ export default function Workspace() {
 
       {/* MODAL 1: CREATE DOCUMENT */}
       {showCreateModal && (
-        <div className={styles.modalOverlay}>
-          <div className={styles.modalContent}>
-            <div className={styles.modalHeader}>
-              <h3>Create New eQMS Document Draft</h3>
-              <button style={{ background: 'transparent', border: 'none', color: '#fff', fontSize: '20px', cursor: 'pointer' }} onClick={() => setShowCreateModal(false)}>×</button>
-            </div>
-            <form onSubmit={handleCreateDocument}>
-              <div className={styles.modalBody}>
-                {errorMessage && (
-                  <div style={{ background: 'rgba(239,68,68,0.15)', border: '1px solid #EF4444', color: '#F87171', padding: '10px 14px', borderRadius: '6px', fontSize: '13px', marginBottom: '16px' }}>
-                    ⚠ {errorMessage}
-                  </div>
-                )}
-
-                <div className={styles.formGroup}>
-                  <label className={styles.formLabel}>Source file: {DOCUMENT_FILE_TYPES_TEXT}</label>
-                  <input
-                    type="file"
-                    accept={DOCUMENT_FILE_ACCEPT}
-                    onChange={handleDocFileSelect}
-                    className={styles.input}
-                    style={{ padding: '8px' }}
-                  />
-                  {docFileName ? (
-                    <div style={{ marginTop: '8px', padding: '10px 14px', background: 'rgba(16,185,129,0.08)', borderRadius: '6px', border: '1px solid rgba(16,185,129,0.2)', fontSize: '12px' }}>
-                      <div style={{ fontWeight: '600', color: '#10B981' }}>📎 Attached: {docFileName} ({docFileSize})</div>
-                      <div style={{ color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', fontSize: '11px', marginTop: '2px' }}>
-                        SHA-256 Checksum: {docFileHash || 'Calculating integrity hash...'}
-                      </div>
-                    </div>
-                  ) : (
-                    <span style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '4px', display: 'block' }}>
-                      A source file is required. Its immutable storage key, size, and SHA-256 digest are recorded with the draft.
-                    </span>
-                  )}
-                </div>
-
-                <div className={styles.formGroup}>
-                  <label className={styles.formLabel}>Document Type</label>
-                  <select className={styles.select} value={newDocumentType} onChange={(e) => setNewDocumentType(e.target.value)}>
-                    <option value="SOP">Standard Operating Procedure</option>
-                    <option value="POLICY">Policy</option>
-                    <option value="WORK_INSTRUCTION">Work Instruction</option>
-                    <option value="FORM">Form</option>
-                    <option value="OTHER">Other</option>
-                  </select>
-                </div>
-
-                <div className={styles.formGroup}>
-                  <label className={styles.formLabel}>Document Title</label>
-                  <input 
-                    className={styles.input}
-                    type="text" 
-                    placeholder="e.g. SOP-103: Equipment Calibration Procedure"
-                    value={newTitle}
-                    onChange={(e) => setNewTitle(e.target.value)}
-                    required
-                  />
-                </div>
-
-                <div className={styles.formGroup}>
-                  <label className={styles.formLabel}>Description</label>
-                  <textarea 
-                    className={styles.textarea}
-                    placeholder="Brief description of the document scope and intent..."
-                    value={newDesc}
-                    onChange={(e) => setNewDesc(e.target.value)}
-                    rows={3}
-                  />
-                </div>
-
-                <div className={styles.grid3} style={{ margin: 0, gap: '16px', marginBottom: '16px' }}>
-                  <div style={{ gridColumn: 'span 2' }}>
-                    <label className={styles.formLabel}>Classification</label>
-                    <select 
-                      className={styles.select}
-                      value={newClassification}
-                      onChange={(e) => setNewClassification(e.target.value)}
-                    >
-                      <option value="CONTROLLED">CONTROLLED (SOPs, Policies)</option>
-                      <option value="INTERNAL">INTERNAL (Internal guidance)</option>
-                      <option value="HIGHLY_RESTRICTED">HIGHLY RESTRICTED (Patents, Board files)</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className={styles.formLabel}>Training departments</label>
-                    <input
-                      className={styles.input}
-                      value={newRequiredRoles}
-                      onChange={(e) => setNewRequiredRoles(e.target.value)}
-                      placeholder="e.g. QA, Production (blank for none)"
-                    />
-                  </div>
-                </div>
-              </div>
-              <div className={styles.modalFooter}>
-                <button type="button" className={`${styles.btn} ${styles.btnSecondary}`} onClick={() => setShowCreateModal(false)}>
-                  Cancel
-                </button>
-                <button type="submit" className={`${styles.btn} ${styles.btnPrimary}`}>
-                  Create Controlled Draft
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
+        <Dialog
+          title="New controlled draft"
+          error={errorMessage}
+          submit="Create controlled draft"
+          onSubmit={handleCreateDocument}
+          onCancel={() => setShowCreateModal(false)}
+        >
+          <FileField
+            label={`Source file: ${DOCUMENT_FILE_TYPES_TEXT}`}
+            accept={DOCUMENT_FILE_ACCEPT}
+            onChange={handleDocFileSelect}
+            hint={docFileName
+              ? <>Attached: {docFileName} ({docFileSize}). SHA-256: <span style={{ fontFamily: 'var(--font-mono)', overflowWrap: 'anywhere' }}>{docFileHash || 'calculating…'}</span></>
+              : 'A source file is required. Its immutable storage key, size and SHA-256 digest are recorded with the draft.'}
+          />
+          <SelectField label="Document type" value={newDocumentType} onChange={(e) => setNewDocumentType(e.target.value)}>
+            <option value="SOP">Standard operating procedure</option>
+            <option value="POLICY">Policy</option>
+            <option value="WORK_INSTRUCTION">Work instruction</option>
+            <option value="FORM">Form</option>
+            <option value="OTHER">Other</option>
+          </SelectField>
+          <TextField
+            label="Title"
+            placeholder="e.g. Cleaning of the filling line"
+            value={newTitle}
+            onChange={(e) => setNewTitle(e.target.value)}
+            required
+          />
+          <TextAreaField
+            label="Description"
+            placeholder="Scope and purpose of the document"
+            value={newDesc}
+            onChange={(e) => setNewDesc(e.target.value)}
+          />
+          <FieldPair>
+            <SelectField label="Classification" value={newClassification} onChange={(e) => setNewClassification(e.target.value)}>
+              <option value="CONTROLLED">Controlled (SOPs, policies)</option>
+              <option value="INTERNAL">Internal (internal guidance)</option>
+              <option value="HIGHLY_RESTRICTED">Highly restricted (patents, board files)</option>
+            </SelectField>
+            <TextField
+              label="Training departments"
+              value={newRequiredRoles}
+              onChange={(e) => setNewRequiredRoles(e.target.value)}
+              placeholder="e.g. QA, Production (blank for none)"
+            />
+          </FieldPair>
+        </Dialog>
       )}
 
-      {/* MODAL 2: SIGN REVIEW OR APPROVAL */}
+      {/* MODAL 2: SIGN (review, approval, release, retirement, training) */}
       {signingMode && (signingMode === 'READ' ? signingTraining : selectedDoc) && (
-        <div className={styles.modalOverlay}>
-          <div className={styles.modalContent} style={{ maxWidth: '500px' }}>
-            <div className={styles.modalHeader}>
-              <h3>{SIGNING_LABELS[signingMode].title}</h3>
-              <button style={{ background: 'transparent', border: 'none', color: '#fff', fontSize: '20px', cursor: 'pointer' }} onClick={closeSigning}>×</button>
-            </div>
-            <form onSubmit={handleSignDocument}>
-              <div className={styles.modalBody}>
-                {errorMessage && (
-                  <div style={{ background: 'rgba(239,68,68,0.15)', border: '1px solid #EF4444', color: '#F87171', padding: '10px 14px', borderRadius: '6px', fontSize: '13px', marginBottom: '16px' }}>
-                    ⚠ {errorMessage}
-                  </div>
-                )}
-                <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '16px' }}>
-                  You are signing <strong style={{ color: '#fff' }}>{signingMode === 'READ' ? signingTraining?.title : selectedDoc?.title}</strong> (Version {signingMode === 'READ' ? signingTraining?.versionNumber : selectedDoc?.currentVersionNumber}.0) with the meaning <strong style={{ color: '#fff' }}>{SIGNING_LABELS[signingMode].meaning}</strong>. Your signature records your name, role, the time and the SHA-256 of this version&apos;s file.
-                  {signingMode === 'APPROVE' && ' Approval does not make the document effective.'}
-                  {signingMode === 'RELEASE' && ' Releasing makes this version effective now and supersedes the previously effective version.'}
-                  {signingMode === 'RETIRE' && ' Retiring takes the document out of use; its versions and records are kept.'}
-                  {signingMode === 'READ' && ' Your training on this version is then complete.'}
-                </div>
-
-                <div className={styles.formGroup}>
-                  <label className={styles.formLabel}>{REASON_REQUIRED[signingMode] ? 'Reason (required)' : 'Comments (Optional)'}</label>
-                  <input
-                    className={styles.input}
-                    type="text"
-                    placeholder={REASON_REQUIRED[signingMode] ? 'Why is this document retired?' : 'Remarks...'}
-                    required={REASON_REQUIRED[signingMode]}
-                    value={esignComment}
-                    onChange={(e) => setEsignComment(e.target.value)}
-                  />
-                </div>
-
-                <div className={styles.formGroup}>
-                  <label className={styles.formLabel}>Your password</label>
-                  <input
-                    className={styles.input}
-                    type="password"
-                    autoComplete="current-password"
-                    required
-                    value={signPassword}
-                    onChange={(e) => setSignPassword(e.target.value)}
-                  />
-                </div>
-
-              </div>
-              <div className={styles.modalFooter}>
-                <button type="button" className={`${styles.btn} ${styles.btnSecondary}`} onClick={closeSigning}>
-                  Cancel
-                </button>
-                <button type="submit" className={`${styles.btn} ${styles.btnPrimary}`} style={{ background: 'var(--warning)', color: '#000' }}>
-                  {SIGNING_LABELS[signingMode].submit}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
+        <SignatureDialog
+          title={SIGNING_LABELS[signingMode].title}
+          record={signingMode === 'READ' ? signingTraining?.title : `${selectedDoc?.documentNumber ?? 'No number'} ${selectedDoc?.title}`}
+          version={`Revision ${signingMode === 'READ' ? signingTraining?.versionNumber : selectedDoc?.currentVersionNumber}`}
+          meaning={SIGNING_LABELS[signingMode].meaning}
+          consequence={SIGNING_CONSEQUENCE[signingMode]}
+          reasonRequired={REASON_REQUIRED[signingMode]}
+          reasonPlaceholder={REASON_REQUIRED[signingMode] ? 'Why is this document retired?' : undefined}
+          reason={esignComment}
+          onReasonChange={setEsignComment}
+          password={signPassword}
+          onPasswordChange={setSignPassword}
+          error={errorMessage}
+          busy={signing}
+          submit={SIGNING_LABELS[signingMode].submit}
+          onSubmit={handleSignDocument}
+          onCancel={closeSigning}
+        />
       )}
 
       </AppShell>

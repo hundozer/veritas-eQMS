@@ -14,7 +14,8 @@ Development: Claude and Száva develop; Claude self-reviews against
 
 ## Order of work
 
-1. Close critical VER-00 gaps.
+1. Close critical VER-00 gaps. VER-DS-01 runs alongside and is a
+   dependency for every new frontend module.
 2. Minimum viable relationship graph (contracts and versioning first).
 3. Change control. 4. Deviations and CAPA. 5. First Quality Impact Map.
 6. Evidence readiness. 7. Guided setup. 8. MVP release gate.
@@ -52,6 +53,32 @@ it depends on are merged.
 and training workflows, recover access, revoke access and retrieve
 trustworthy evidence without developer intervention. No unresolved critical
 security or data-integrity finding.
+
+## VER-DS-01 — Shared design system and UI governance (P0)
+
+One visual language and one set of components for both development teams
+(`docs/design-system/`, `CONTRIBUTING.md`). **Dependency:** every new
+frontend module (VER-02 onwards) is built on it; no module adds its own
+buttons, fields, record headers, stamps, dialogs or tokens.
+
+- [x] Design tokens documented from the code; paper aliases (`--font-serif`,
+      `--ink`, `--rule`, `--on-lime`) added.
+- [x] Shared paper components in `src/ui/paper/` (buttons, fields, notices,
+      stamp, record header, lifecycle path, signature boxes, ledger, form
+      sheet, dialog, signature dialog), with behaviour tests.
+- [x] Documents tab, in-page action forms and the workspace dialogs migrated.
+- [x] Development-only component showcase at `/dev/design-system`.
+- [x] Token, contrast-relevant and unused-class gates in the unit suite.
+- [x] Design-system docs, collaboration protocol, handover package for Száva.
+- [ ] Migrate Overview, Training, People and Audit trail to the shared components.
+- [ ] Delete the unused legacy `src/ui` components, `src/styles/liquid-glass.css`
+      and the legacy Verdant CSS once nothing uses it.
+- [ ] Browser test job: axe accessibility scan, 390/1440 px screenshots,
+      visual regression of the showcase.
+- [ ] URL per workspace section and record (shell change, Claude).
+
+**Gate:** a new module screen can be built from `@/ui/paper` alone, and the
+design-system gates run in CI.
 
 ## VER-01 — Quality relationship graph (P0)
 

@@ -231,10 +231,10 @@ every action.
 1. Choose **New draft** (Overview or Documents).
 2. Attach the source file: PDF, Word (.docx), Excel (.xlsx), PowerPoint
    (.pptx) or plain text, up to 25 MB. Its size and SHA-256 are shown.
-3. Choose the **Document Type**, enter the **Document Title**, an optional
+3. Choose the **Document type**, enter the **Title**, an optional
    **Description**, the **Classification**, and the **Training departments**
    (comma-separated, for example "QA, Production"; blank for none).
-4. Choose **Create Controlled Draft**.
+4. Choose **Create controlled draft**.
 
 **Result:** a new document numbered automatically, revision 1, in DRAFT,
 with you as author. **Recorded:** document created, in the audit trail.
@@ -269,7 +269,7 @@ which stays open.
 2. Choose **Sign review**. The signing dialog names the document, the
    revision and the meaning "Reviewed".
 3. Optionally add a comment, type **Your password**, choose **Sign as
-   Reviewed**.
+   reviewed**.
 
 **Result:** the review step is complete; the approver can now sign.
 
@@ -288,7 +288,7 @@ trail. The author can change the file and submit again.
 **Who:** the assigned approver with `documents.approve`, after the review
 is signed.
 
-**Sign approval** → optional comment → password → **Sign as Approved**.
+**Sign approval** → optional comment → password → **Sign as approved**.
 Approval does not make the document effective; the revision becomes
 APPROVED.
 
@@ -300,7 +300,7 @@ of the revision.
 1. Choose **Sign release (make effective)**.
 2. The dialog warns that releasing makes this version effective now and
    supersedes the previously effective version.
-3. Password → **Sign and Make Effective**.
+3. Password → **Sign and make effective**.
 
 **Result, all at once:** the revision is EFFECTIVE; the previous effective
 revision becomes SUPERSEDED; every active member whose department is one of

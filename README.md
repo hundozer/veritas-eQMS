@@ -21,6 +21,9 @@ this code, so correctness beats speed.
 | `docs/FEATURES.md` | What is built, live, disabled or dormant, and where it lives |
 | `docs/ROADMAP.md` | Roadmap V3 (VER-00 … VER-07); work only on the current phase |
 | `docs/architecture/`, `docs/features/` | Relationship graph, workflows, human accountability, impact map, evidence readiness, guided setup |
+| `docs/architecture/system-overview.md` | The system as built: stack, request flow, conventions |
+| `docs/design-system/` | Tokens, shared components, page patterns, words, accessibility; see them at `/dev/design-system` |
+| `CONTRIBUTING.md` | How the two development teams work in parallel |
 | `docs/REVIEW.md` | The checklist every pull request must pass |
 | `AGENTS.md` | Working rules for every developer and coding agent |
 | `docs/recovery/decisions/DECISION-LOG.md` | Why things are the way they are (`DEC-nnn`) |

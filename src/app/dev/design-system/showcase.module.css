@@ -1,0 +1,119 @@
+/* Layout of the development-only showcase page; the specimens themselves are
+   styled by src/ui/paper. Tokens only. */
+
+.page {
+  max-width: 1120px;
+  display: flex;
+  flex-direction: column;
+  gap: 40px;
+  padding: 8px 0 72px;
+  color: var(--ink);
+}
+
+.devTag {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--t2);
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  scroll-margin-top: 72px;
+}
+
+.sectionHeading {
+  font-family: var(--font-serif);
+  font-weight: 400;
+  font-size: 24px;
+  border-bottom: 1px solid var(--ink);
+  padding-bottom: 6px;
+}
+
+.specimen {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  align-items: flex-start;
+}
+
+.specimen > * {
+  max-width: 100%;
+}
+
+.specimenName {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--t2);
+}
+
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: min(640px, 100%);
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: min(640px, 100%);
+}
+
+.swatches {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 240px), 1fr));
+  gap: 10px 24px;
+}
+
+.swatch {
+  display: grid;
+  grid-template-columns: 32px 1fr;
+  grid-template-rows: auto auto;
+  column-gap: 10px;
+  align-items: center;
+}
+
+.chip {
+  grid-row: span 2;
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--ink);
+}
+
+.swatchUse {
+  font-size: 13px;
+  color: var(--t2);
+}
+
+.type {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.typeSerif {
+  font-family: var(--font-serif);
+  font-size: 32px;
+  line-height: 1.1;
+}
+
+.typeSans {
+  font-size: 15px;
+}
+
+.typeLabel {
+  font-size: 12px;
+  font-variant: small-caps;
+  text-transform: lowercase;
+  letter-spacing: 0.06em;
+  color: var(--t2);
+}
+
+.stamps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}

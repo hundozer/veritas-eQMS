@@ -8,12 +8,6 @@
 }
 
 /* Grid Layouts */
-.grid3 {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-  gap: 24px;
-  margin-bottom: 32px;
-}
 
 /* Buttons */
 .btn {
@@ -66,7 +60,7 @@
   color: var(--text-muted);
 }
 
-.input, .select, .textarea {
+.input, .select {
   width: 100%;
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid rgba(255, 255, 255, 0.1);
@@ -76,7 +70,7 @@
   outline: none;
   font-family: var(--font-sans);
 }
-.input:focus, .select:focus, .textarea:focus {
+.input:focus, .select:focus {
   border-color: var(--primary);
   box-shadow: 0 0 0 2px var(--primary-glow);
 }
@@ -126,14 +120,7 @@
   padding: 24px;
 }
 
-.modalFooter {
-  padding: 20px 24px;
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
-  display: flex;
-  justify-content: flex-end;
-  gap: 12px;
-  background: rgba(0, 0, 0, 0.15);
-}
+
 
 /* ==========================================
    Luxury Enterprise Brand System (Mission-Critical Infrastructure)
