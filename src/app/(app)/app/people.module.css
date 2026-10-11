@@ -1,0 +1,209 @@
+/* People tab in the paper language: the member register as a ruled sheet,
+   then how access works. Theme variables only; system fonts only. */
+
+.page {
+  --serif: 'Iowan Old Style', 'Charter', 'Bitstream Charter', 'Sitka Text', Cambria, Georgia, serif;
+  --ink: var(--t1);
+  --rule: var(--border);
+  max-width: 1120px;
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+  padding: 8px 0 72px;
+  color: var(--ink);
+}
+
+.muted {
+  color: var(--t2);
+}
+
+.visuallyHidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+.intro {
+  border-bottom: 2px solid var(--ink);
+  padding-bottom: 14px;
+}
+
+.headline {
+  font-family: var(--serif);
+  font-weight: 400;
+  font-size: clamp(28px, 3.4vw, 40px);
+  line-height: 1.08;
+  letter-spacing: -0.02em;
+}
+
+.lede {
+  margin-top: 6px;
+  max-width: 72ch;
+  font-size: 15px;
+  line-height: 1.5;
+  color: var(--t2);
+}
+
+.sheet {
+  background: var(--card-bg);
+  border: 1px solid var(--ink);
+  box-shadow: 4px 4px 0 var(--rule);
+}
+
+.sheetHead {
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--ink);
+}
+
+.sheetKind {
+  font-size: 14px;
+  font-weight: 400;
+  font-variant: small-caps;
+  text-transform: lowercase;
+  letter-spacing: 0.06em;
+  color: var(--t2);
+}
+
+.empty {
+  padding: 18px 16px;
+  color: var(--t2);
+}
+
+.tableScroll {
+  overflow-x: auto;
+}
+
+.ledger {
+  width: 100%;
+  min-width: 620px;
+  border-collapse: collapse;
+}
+
+.ledger thead th {
+  text-align: left;
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--t2);
+  padding: 10px 16px;
+  border-bottom: 1.5px solid var(--ink);
+  white-space: nowrap;
+}
+
+.ledger td,
+.ledger tbody th {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--rule);
+  font-size: 14px;
+  text-align: left;
+  vertical-align: baseline;
+}
+
+.ledger tbody tr:last-child td,
+.ledger tbody tr:last-child th {
+  border-bottom: 0;
+}
+
+.name {
+  font-family: var(--serif);
+  font-size: 17px;
+  font-weight: 400;
+  white-space: nowrap;
+}
+
+.you {
+  margin-left: 8px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  padding: 1px 6px;
+  background: var(--lime);
+  color: #1E241E;
+  vertical-align: 2px;
+}
+
+.email {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  word-break: break-all;
+}
+
+.pending {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  padding: 2px 6px;
+  border: 1.5px dashed var(--ink);
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.actions {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.textButton {
+  background: none;
+  border: 0;
+  padding: 6px 0;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ink);
+  text-decoration: underline;
+  text-underline-offset: 4px;
+  cursor: pointer;
+}
+
+.textButton:hover {
+  text-decoration-thickness: 2px;
+}
+
+.textButton:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
+}
+
+/* On a phone each member becomes a short block: name, email, sign-in, action. */
+@media (max-width: 720px) {
+  .ledger { min-width: 0; }
+  .ledger thead { display: none; }
+  .ledger tbody tr { display: block; padding: 12px 16px; border-bottom: 1px solid var(--rule); }
+  .ledger tbody tr:last-child { border-bottom: 0; }
+  .ledger td, .ledger tbody th { display: block; padding: 2px 0; border: 0; }
+  .ledger td:nth-child(3) { display: none; }
+  .actions { text-align: left; white-space: normal; }
+}
+
+.notes {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.sectionTitle {
+  font-family: var(--serif);
+  font-weight: 400;
+  font-size: 24px;
+  border-bottom: 2px solid var(--ink);
+  padding-bottom: 8px;
+}
+
+.noteGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr));
+  gap: 16px 40px;
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--t2);
+}
+
+.noteTitle {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink);
+  margin-bottom: 4px;
+}

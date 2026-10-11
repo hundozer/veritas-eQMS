@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import styles from '@/app/page.module.css';
+import styles from './InviteMemberPanel.module.css';
 import { inviteMember, type InviteForm } from '@/lib/invitations-client';
 
 type Role = { id: string; name: string; description: string };
@@ -44,30 +44,30 @@ export default function InviteMemberPanel({ onInvited }: { onInvited: () => void
   };
 
   return (
-    <div className={styles.card}>
-      <div className={styles.cardTitle}>Invite a colleague</div>
-      <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '16px' }}>
-        They receive an email with a single-use link, valid for 30 minutes, to set their own password.
-      </p>
+    <section aria-labelledby="invite-title" className={styles.panel}>
+      <div className={styles.head}>
+        <h3 id="invite-title" className={styles.kind}>Invite a colleague</h3>
+        <span className={styles.note}>They receive an email with a single-use link, valid for 30 minutes, to set their own password.</span>
+      </div>
       {message && (
-        <p role={message.kind === 'error' ? 'alert' : 'status'} style={{ color: message.kind === 'error' ? '#F87171' : '#10B981', fontSize: '13px' }}>
+        <p role={message.kind === 'error' ? 'alert' : 'status'} className={message.kind === 'error' ? styles.error : styles.ok}>
           {message.text}
         </p>
       )}
-      <form onSubmit={onSubmit} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px', alignItems: 'end' }}>
-        <div className={styles.formGroup}><label className={styles.formLabel}>First name</label><input className={styles.input} required {...field('firstName')} /></div>
-        <div className={styles.formGroup}><label className={styles.formLabel}>Last name</label><input className={styles.input} required {...field('lastName')} /></div>
-        <div className={styles.formGroup}><label className={styles.formLabel}>Work email</label><input className={styles.input} type="email" required {...field('email')} /></div>
-        <div className={styles.formGroup}><label className={styles.formLabel}>Department</label><input className={styles.input} required {...field('department')} /></div>
-        <div className={styles.formGroup}>
-          <label className={styles.formLabel}>Role</label>
-          <select className={styles.select} required {...field('roleId')}>
+      <form onSubmit={onSubmit} className={styles.form}>
+        <label className={styles.field}><span className={styles.label}>First name</span><input className={styles.input} required {...field('firstName')} /></label>
+        <label className={styles.field}><span className={styles.label}>Last name</span><input className={styles.input} required {...field('lastName')} /></label>
+        <label className={styles.field}><span className={styles.label}>Work email</span><input className={styles.input} type="email" required {...field('email')} /></label>
+        <label className={styles.field}><span className={styles.label}>Department</span><input className={styles.input} required {...field('department')} /></label>
+        <label className={styles.field}>
+          <span className={styles.label}>Role</span>
+          <select className={styles.input} required {...field('roleId')}>
             <option value="">Choose a role…</option>
             {roles.map((role) => <option key={role.id} value={role.id}>{role.name}</option>)}
           </select>
-        </div>
-        <button type="submit" className={`${styles.btn} ${styles.btnPrimary}`} disabled={busy}>{busy ? 'Sending…' : 'Send invitation'}</button>
+        </label>
+        <button type="submit" className={styles.submit} disabled={busy}>{busy ? 'Sending…' : 'Send invitation'}</button>
       </form>
-    </div>
+    </section>
   );
 }
