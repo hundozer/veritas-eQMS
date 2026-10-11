@@ -1,4 +1,6 @@
+import { Fragment, useState } from 'react';
 import styles from './people.module.css';
+import { ReasonForm } from './ActionForm';
 import InviteMemberPanel from '@/ui/components/InviteMemberPanel';
 import { memberActions, peopleRegister } from '@/lib/people-register';
 
@@ -18,7 +20,8 @@ interface PeopleProps {
   canInvite: boolean;
   onInvited: () => void;
   onResendInvitation: (memberId: string) => void;
-  onResetTwoStep: (memberId: string, name: string) => void;
+  // Resolves null when the reset went through, else the reason it was refused.
+  onResetTwoStep: (memberId: string, name: string, reason: string) => Promise<string | null>;
 }
 
 // The People tab: the organisation's members as a register, the invitation
@@ -26,6 +29,8 @@ interface PeopleProps {
 export default function People({ user, organisation, members, canInvite, onInvited, onResendInvitation, onResetTwoStep }: PeopleProps) {
   const register = peopleRegister(members, user?.id);
   const pending = members.filter((m) => m.invitationPending).length;
+  // The member whose two-step verification reset form is open.
+  const [resetting, setResetting] = useState<string | null>(null);
 
   return (
     <div className={styles.page}>
@@ -54,7 +59,8 @@ export default function People({ user, organisation, members, canInvite, onInvit
                 {register.map((member) => {
                   const actions = memberActions(member, user?.id, user?.permissions);
                   return (
-                    <tr key={member.id}>
+                    <Fragment key={member.id}>
+                    <tr>
                       <th scope="row" className={styles.name}>
                         {member.fullName}
                         {member.id === user?.id && <span className={styles.you}>you</span>}
@@ -72,10 +78,30 @@ export default function People({ user, organisation, members, canInvite, onInvit
                           <button type="button" className={styles.textButton} onClick={() => onResendInvitation(member.id)}>Resend invitation</button>
                         )}
                         {actions.includes('RESET_TWO_STEP') && (
-                          <button type="button" className={styles.textButton} onClick={() => onResetTwoStep(member.id, member.fullName)}>Reset two-step verification</button>
+                          <button
+                            type="button"
+                            className={styles.textButton}
+                            aria-expanded={resetting === member.id}
+                            onClick={() => setResetting(resetting === member.id ? null : member.id)}
+                          >
+                            Reset two-step verification
+                          </button>
                         )}
                       </td>
                     </tr>
+                    {resetting === member.id && actions.includes('RESET_TWO_STEP') && (
+                      <tr className={styles.formRow}>
+                        <td colSpan={6}>
+                          <ReasonForm
+                            kind="RESET_TWO_STEP"
+                            subject={member.fullName}
+                            onSubmit={({ reason }) => onResetTwoStep(member.id, member.fullName, reason)}
+                            onCancel={() => setResetting(null)}
+                          />
+                        </td>
+                      </tr>
+                    )}
+                    </Fragment>
                   );
                 })}
               </tbody>

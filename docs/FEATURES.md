@@ -70,7 +70,7 @@ Last updated: 10 Oct 2026 (workspace overview redesign).
 | Password reset links (for active accounts) | Library only, no route or UI | `src/lib/iam/credential-action-token.ts` |
 | Failed sign-in limit: 5 failures per email or 20 per network address in 15 minutes, then `429` before the password is checked; unknown emails are limited the same way; a successful sign-in clears the email's count; every failure and success recorded in `IamAuditTrail` (`LOGIN_FAILED` with reason, `LOGIN_SUCCEEDED`) | Live | `src/lib/iam/login-throttle.ts` (DEC-079) |
 | Two-step verification for everyone: after the password, a 6-digit code from an authenticator app (RFC 6238); first sign-in sets it up (QR code, setup key, add-to-passwords link); secrets stored AES-256-GCM encrypted with `MFA_ENCRYPTION_KEY`; the password step only issues a 5-minute pending cookie for `/api/auth/mfa`; 5 wrong codes in 15 minutes stop the code step; each code accepted once; every step in `IamAuditTrail`; without the key, sign-in fails closed (`503`) | Live | `POST /api/auth/login`, `POST /api/auth/mfa`, `src/lib/iam/mfa.ts`, `src/lib/iam/totp.ts` (DEC-080) |
-| Reset a member's two-step verification (lost phone), with a reason; not one's own, not for a person in another organisation; audited in both audit trails | Live, `users.update` | `POST /api/users/[id]/mfa-reset`, "Reset 2-step" on the Users screen |
+| Reset a member's two-step verification (lost phone), with a reason; not one's own, not for a person in another organisation; audited in both audit trails | Live, `users.update` | `POST /api/users/[id]/mfa-reset`; "Reset two-step verification" on the People tab opens a reason form in the member's row |
 | SSO | Not built (Phase 4) | — |
 
 Persisted permissions: `users.read/create/update/deactivate`,
@@ -95,11 +95,11 @@ transaction.
 | Create a draft with a source file (PDF, Word, Excel, PowerPoint, text; 25 MB) and a document number | `documents.create` | `POST /api/documents` |
 | Edit draft metadata or replace the draft file (new immutable object) | `documents.update_draft` | `PUT /api/documents/[id]` |
 | Upload files straight from the browser to private storage; server re-reads and re-hashes them; inline Base64 fallback up to 3 MB | `documents.create` or `documents.update_draft` | `POST /api/documents/uploads`, `src/lib/document-file-upload.ts` (DEC-068) |
-| Submit for review with an assigned reviewer and approver (approver may not be the author) | `documents.submit_review` | `POST /api/documents/[id]/submit-review` |
+| Submit for review with an assigned reviewer and approver (approver may not be the author), chosen from the active members in a form in the document record | `documents.submit_review` | `POST /api/documents/[id]/submit-review`, `src/app/(app)/app/ActionForm.tsx` |
 | Complete the assigned review (signed `REVIEWED`) or return for changes | `documents.review` + assignment | `POST /api/documents/[id]/review` |
 | Approve (signed `APPROVED`) | `documents.approve` + assignment | `POST /api/documents/[id]/approve` |
 | Release to effective (signed `RELEASED`, never by the author); supersedes the previous effective version atomically | `documents.release` | `POST /api/documents/[id]/release` (DEC-064) |
-| Start a revision of an effective document; numbers never reused | `documents.update_draft` | `POST /api/documents/[id]/revision` |
+| Start a revision of an effective document (reason and source file in a form in the document record); numbers never reused | `documents.update_draft` | `POST /api/documents/[id]/revision` |
 | Withdraw an open revision (reason; review route cancelled; effective version stays in force) | `documents.update_draft` | `POST /api/documents/[id]/withdraw-revision` (DEC-065) |
 | Retire an effective document (signed `RETIRED`, reason required) | `documents.obsolete` | `DELETE /api/documents/[id]` (DEC-066) |
 | Controlled copy viewer: effective version by default, served exactly as stored; every other version stamped "UNCONTROLLED COPY - status - NOT FOR USE" (PDF pages, text header, Office file name) | `documents.read` | `GET /api/documents/[id]/pdf`, `src/lib/controlled-copy.ts` (DEC-067) |
