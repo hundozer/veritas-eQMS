@@ -173,6 +173,26 @@
       ]
     },
     {
+      "id": "URS-USR-04",
+      "area": "People",
+      "requirement": "An administrator can change another member's organisation role with a reason; the change applies to the member's existing sessions at once, never assigns a platform role, and is audited.",
+      "source": "VER-00.3 (#77)",
+      "hazard": "A member keeps permissions of a role they no longer hold, or someone gains a platform role or changes roles without trace.",
+      "severity": 3,
+      "likelihood": 2,
+      "control": "Role change needs users.update and a reason; refused for oneself, across organisations, for deactivated members, for platform roles and for the current role; permissions are read from the membership's role on every request; audited in both trails.",
+      "tests": [
+        "ROLE-T001",
+        "ROLE-T002",
+        "ROLE-T003",
+        "ROLE-T004",
+        "PEOPLE-T007",
+        "ACTION-FORM-T009",
+        "ACTION-FORM-T010",
+        "INVITE-UI-T007"
+      ]
+    },
+    {
       "id": "URS-TEN-01",
       "area": "Tenancy",
       "requirement": "One organisation never sees or changes another organisation's documents, training, audit entries, people or notifications.",

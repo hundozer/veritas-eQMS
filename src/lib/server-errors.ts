@@ -28,6 +28,7 @@ export type ServerErrorEvent =
   | 'user.deactivate'
   | 'user.mfaReset'
   | 'user.resendInvitation'
+  | 'user.roleChange'
   | 'role.list';
 
 export function reportServerError(event: ServerErrorEvent) {

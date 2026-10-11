@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { checkReason, checkRouting, REASON_FORMS, routingCandidates } from './action-forms';
+import { checkReason, checkRoleChange, checkRouting, REASON_FORMS, routingCandidates } from './action-forms';
 
 const members = [
   { id: 'u3', fullName: 'Zoe Approver', email: 'zoe@example.test', accountStatus: 'ACTIVE' },
@@ -32,5 +32,14 @@ describe('action forms', () => {
     expect(checkReason('START_REVISION', 'annual review')).toEqual({ ok: false, message: 'Choose the source file for the new revision.' });
     const file = new File(['x'], 'sop.pdf', { type: 'application/pdf' });
     expect(checkReason('START_REVISION', 'annual review', file)).toEqual({ ok: true, value: { reason: 'annual review', file } });
+  });
+
+  it('ACTION-FORM-T009 a role change needs a listed role other than the current one, and a reason', () => {
+    const roles = [{ id: 'r1', name: 'Quality Manager' }, { id: 'r2', name: 'Employee' }];
+    expect(checkRoleChange('', 'moved', 'Employee', roles)).toEqual({ ok: false, message: 'Choose the new role from the list.' });
+    expect(checkRoleChange('r9', 'moved', 'Employee', roles)).toEqual({ ok: false, message: 'Choose the new role from the list.' });
+    expect(checkRoleChange('r2', 'moved', 'Employee', roles)).toEqual({ ok: false, message: 'The member already has this role.' });
+    expect(checkRoleChange('r1', '  ', 'Employee', roles)).toEqual({ ok: false, message: 'Enter the reason for the change.' });
+    expect(checkRoleChange('r1', ' promoted ', 'Employee', roles)).toEqual({ ok: true, value: { roleId: 'r1', reason: 'promoted' } });
   });
 });

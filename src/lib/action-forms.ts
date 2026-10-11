@@ -87,3 +87,24 @@ export function checkRouting(
   if (!known.has(reviewerId) || !known.has(approverId)) return { ok: false, message: 'Choose the reviewer and approver from the list.' };
   return { ok: true, value: { reviewerId, approverId } };
 }
+
+export interface AssignableRole {
+  id: string;
+  name: string;
+}
+
+// A new role for a member: one of the assignable roles, not the one they have,
+// and a reason.
+export function checkRoleChange(
+  roleId: string,
+  reason: string,
+  currentRoleName: string | null | undefined,
+  roles: readonly AssignableRole[],
+): FormCheck<{ roleId: string; reason: string }> {
+  const role = roles.find((candidate) => candidate.id === roleId);
+  if (!role) return { ok: false, message: 'Choose the new role from the list.' };
+  if (role.name === currentRoleName) return { ok: false, message: 'The member already has this role.' };
+  const trimmed = reason.trim();
+  if (!trimmed) return { ok: false, message: 'Enter the reason for the change.' };
+  return { ok: true, value: { roleId, reason: trimmed } };
+}

@@ -3,8 +3,10 @@ import styles from './action-form.module.css';
 // Relative import so the unit tests can render this form without a path alias.
 import {
   checkReason,
+  checkRoleChange,
   checkRouting,
   REASON_FORMS,
+  type AssignableRole,
   type ReasonFormKind,
   type RoutingMember,
 } from '../../../lib/action-forms';
@@ -170,6 +172,59 @@ export function RoutingForm({ candidates, subject, onSubmit, onCancel }: {
       {candidates.length < 2 && (
         <p className={styles.note}>Routing needs two active members besides invitations still pending. Invite a colleague on the People tab first.</p>
       )}
+    </FormSheet>
+  );
+}
+
+// A member's new organisation role and the reason for the change.
+export function RoleForm({ roles, currentRoleName, subject, onSubmit, onCancel }: {
+  roles: readonly AssignableRole[];
+  currentRoleName?: string | null;
+  subject?: string;
+  onSubmit: Submit<{ roleId: string; reason: string }>;
+  onCancel: () => void;
+}) {
+  const [roleId, setRoleId] = useState('');
+  const [reason, setReason] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const roleFieldId = useId();
+  const reasonId = useId();
+  const roleRef = useRef<HTMLSelectElement>(null);
+  useEffect(() => roleRef.current?.focus(), []);
+
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const checked = checkRoleChange(roleId, reason, currentRoleName, roles);
+    if (!checked.ok) return setError(checked.message);
+    setError(null);
+    setBusy(true);
+    const refused = await onSubmit(checked.value);
+    setBusy(false);
+    if (refused) setError(refused);
+    else onCancel();
+  };
+
+  return (
+    <FormSheet
+      title="Change role"
+      subject={subject}
+      note="The member's permissions change at their next action; they stay signed in. The reason is kept in the audit trail."
+      error={error}
+      busy={busy}
+      submit="Change role"
+      onCancel={onCancel}
+      onSubmit={handleSubmit}
+    >
+      <label htmlFor={roleFieldId} className={styles.label}>New role</label>
+      <select id={roleFieldId} ref={roleRef} className={styles.field} value={roleId} required onChange={(event) => setRoleId(event.target.value)}>
+        <option value="">Choose a role</option>
+        {roles.map((role) => (
+          <option key={role.id} value={role.id} disabled={role.name === currentRoleName}>{role.name}</option>
+        ))}
+      </select>
+      <label htmlFor={reasonId} className={styles.label}>Reason for the change</label>
+      <textarea id={reasonId} className={styles.field} rows={3} value={reason} required onChange={(event) => setReason(event.target.value)} />
     </FormSheet>
   );
 }

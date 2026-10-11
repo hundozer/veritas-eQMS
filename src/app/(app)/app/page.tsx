@@ -15,7 +15,7 @@ import Training from './Training';
 import People from './People';
 import AuditTrail from './AuditTrail';
 import type { PanelAction } from '@/lib/document-panel';
-import { deactivateMember, openWorkSummary, resendInvitation, resetTwoStepVerification } from '@/lib/invitations-client';
+import { changeMemberRole, deactivateMember, openWorkSummary, resendInvitation, resetTwoStepVerification } from '@/lib/invitations-client';
 import { prepareDocumentFile, sha256Hex } from '@/lib/document-file-upload';
 import { DOCUMENT_FILE_ACCEPT, DOCUMENT_FILE_TYPES_TEXT } from '@/lib/document-file-types';
 import {
@@ -221,6 +221,15 @@ export default function Workspace() {
     const result = await resetTwoStepVerification(userId, reason);
     if (!result.ok) return result.message;
     flashSuccess(`Two-step verification was reset for ${name}.`);
+    return null;
+  };
+
+  // A member's new organisation role (VER-00.3); it applies at their next action.
+  const handleChangeRole = async (userId: string, name: string, roleId: string, reason: string): Promise<string | null> => {
+    const result = await changeMemberRole(userId, roleId, reason);
+    if (!result.ok) return result.message;
+    flashSuccess(`${name} now has the role ${result.roleName}.`);
+    reloadUsers();
     return null;
   };
 
@@ -649,6 +658,7 @@ export default function Workspace() {
             onResendInvitation={handleResendInvitation}
             onResetTwoStep={handleResetMfa}
             onDeactivate={handleDeactivate}
+            onChangeRole={handleChangeRole}
           />
         )}
 

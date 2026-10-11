@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { deactivateMember, inviteMember, openWorkSummary, resendInvitation, resetTwoStepVerification } from './invitations-client';
+import { changeMemberRole, deactivateMember, inviteMember, openWorkSummary, resendInvitation, resetTwoStepVerification } from './invitations-client';
 
 describe('invitations from the Users screen', () => {
   it('INVITE-UI-T001 sends a normalised invitation', async () => {
@@ -43,5 +43,13 @@ describe('invitations from the Users screen', () => {
     expect(openWorkSummary({ approvalSteps: [{}], trainingAssignments: [{}, {}], ownedDocuments: [] }))
       .toBe('They still have 1 pending approval step, 2 open training assignments to reassign.');
     expect(openWorkSummary({ approvalSteps: [], trainingAssignments: [], ownedDocuments: [] })).toBe('They had no open work.');
+  });
+
+  it('INVITE-UI-T007 changes a role with a trimmed reason and reports the new role, or the refusal', async () => {
+    const send = vi.fn(async () => Response.json({ success: true, role: { roleId: 'r1', roleName: 'Quality Manager' } }));
+    await expect(changeMemberRole('user/1', 'r1', '  promoted ', send as never)).resolves.toEqual({ ok: true, roleName: 'Quality Manager' });
+    expect(send).toHaveBeenCalledWith('/api/users/user%2F1/role', expect.objectContaining({ method: 'POST', body: JSON.stringify({ roleId: 'r1', reason: 'promoted' }) }));
+    const refused = vi.fn(async () => Response.json({ error: { message: 'You cannot change your own role' } }, { status: 409 }));
+    await expect(changeMemberRole('me', 'r1', 'x', refused as never)).resolves.toEqual({ ok: false, message: 'You cannot change your own role' });
   });
 });

@@ -81,18 +81,22 @@ function invitationEmailConfigured(): boolean {
 }
 
 /**
- * Roles an administrator may hand out: any organisation role, never a platform
- * role. Administration is kept apart from quality work (DEC-023), so the
+ * Roles an administrator (users.create to invite, users.update to change a
+ * member's role) may hand out: any organisation role, never a platform role. Administration is kept apart from quality work (DEC-023), so the
  * administrator need not hold the permissions of the roles they assign; every
  * invitation is attributed to them in the audit trail.
  */
-export async function assignableRoles(inviter: UserContext) {
-  if (!inviter.permissions.includes('users.create')) return [];
+export async function assignableRoles(administrator: UserContext) {
+  if (!administrator.permissions.includes('users.create') && !administrator.permissions.includes('users.update')) return [];
   const roles = await prisma.iamRole.findMany({
     select: { id: true, name: true, description: true },
     orderBy: { name: 'asc' },
   });
-  return roles.filter((role) => !PLATFORM_ROLES.has(role.name));
+  return roles.filter((role) => !isPlatformRole(role.name));
+}
+
+export function isPlatformRole(name: string): boolean {
+  return PLATFORM_ROLES.has(name);
 }
 
 async function sendInvitation(inviter: UserContext, iamUserId: string, operationalUserId: string, email: string) {

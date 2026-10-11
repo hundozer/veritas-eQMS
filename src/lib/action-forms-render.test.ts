@@ -1,7 +1,7 @@
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
-import { ReasonForm, RoutingForm } from '../app/(app)/app/ActionForm';
+import { ReasonForm, RoleForm, RoutingForm } from '../app/(app)/app/ActionForm';
 import { appPageSource } from '../test-support/app-pages';
 
 const noop = async () => null;
@@ -35,6 +35,14 @@ describe('in-page action forms', () => {
       expect(html).toContain('<textarea');
       expect(html).not.toContain('type="file"');
     }
+  });
+
+  it('ACTION-FORM-T010 the role form lists the assignable roles, the current one not selectable, and asks for a reason', () => {
+    const roles = [{ id: 'r1', name: 'Quality Manager' }, { id: 'r2', name: 'Employee' }];
+    const html = renderToStaticMarkup(createElement(RoleForm, { roles, currentRoleName: 'Employee', onSubmit: noop, onCancel: () => {} }));
+    expect(html).toContain('<option value="r1">Quality Manager</option>');
+    expect(html).toMatch(/<option value="r2" disabled="">Employee<\/option>/);
+    expect(html).toContain('<textarea');
   });
 
   it('ACTION-FORM-T008 the workspace uses no browser prompt dialogs', () => {
