@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import styles from './dashboard.module.css';
+import Stamp, { stateLabel } from './Stamp';
 import {
   lifecycleCounts,
   queueSummary,
@@ -43,14 +44,6 @@ const ACTION: Record<SignatureMeaning, string> = {
   READ: 'Read and sign',
 };
 
-const STATE_LABEL: Record<string, string> = {
-  DRAFT: 'Draft',
-  IN_REVIEW: 'In review',
-  APPROVED: 'Approved',
-  EFFECTIVE: 'Effective',
-  OBSOLETE: 'Obsolete',
-  WITHDRAWN: 'Withdrawn',
-};
 
 const DAY = 24 * 60 * 60 * 1000;
 
@@ -76,10 +69,6 @@ function headline(count: number): string {
   if (count === 0) return 'Nothing is routed to you for signature.';
   if (count === 1) return 'One record is routed to you for signature.';
   return `${count} records are routed to you for signature.`;
-}
-
-function Stamp({ state }: { state: string }) {
-  return <span className={`${styles.stamp} ${styles[`stamp${state}`] ?? ''}`}>{(STATE_LABEL[state] ?? state).toUpperCase()}</span>;
 }
 
 function SignatureBox({ box }: { box: SlipBox }) {
@@ -181,7 +170,7 @@ export default function Dashboard({
                     </span>
                   </div>
                   <div className={styles.slipBody}>
-                    {stampState && <Stamp state={stampState} />}
+                    {stampState && <Stamp state={stampState} className={styles.slipStamp} />}
                     <h3 className={styles.slipTitle}>{item.title}</h3>
                     <span className={age.overdue ? styles.overdue : styles.age}>{age.text}</span>
                   </div>
@@ -206,7 +195,7 @@ export default function Dashboard({
               <span className={styles.counts}>
                 {states.map(({ state, count }) => (
                   <span key={state} className={state === 'EFFECTIVE' ? styles.countEffective : undefined}>
-                    {STATE_LABEL[state]} {count}
+                    {stateLabel(state)} {count}
                   </span>
                 ))}
               </span>

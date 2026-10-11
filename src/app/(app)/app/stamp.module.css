@@ -1,0 +1,30 @@
+.stamp {
+  display: inline-block;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  padding: 2px 6px;
+  border: 1.5px solid var(--t1);
+  border-radius: 2px;
+  color: var(--t1);
+  white-space: nowrap;
+}
+
+.stampEFFECTIVE {
+  background: var(--lime);
+  border-color: #1E241E;
+  color: #1E241E;
+}
+
+.stampDRAFT,
+.stampWITHDRAWN {
+  border-style: dashed;
+}
+
+.stampSUPERSEDED,
+.stampOBSOLETE {
+  color: var(--t2);
+  border-color: var(--t2);
+  text-decoration: line-through;
+}

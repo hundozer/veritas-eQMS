@@ -268,22 +268,9 @@
   .sigBox:nth-child(n + 3) { border-top: 1px solid var(--ink); }
 }
 
-/* Stamps: an outlined mark, rotated on a slip, flat in the ledger */
+/* The state stamp (Stamp.tsx), rotated on a slip */
 
-.stamp {
-  display: inline-block;
-  font-family: var(--font-mono);
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.12em;
-  padding: 2px 6px;
-  border: 1.5px solid var(--ink);
-  border-radius: 2px;
-  color: var(--ink);
-  white-space: nowrap;
-}
-
-.slipBody .stamp {
+.slipBody .slipStamp {
   position: absolute;
   top: 18px;
   right: 14px;
@@ -291,23 +278,6 @@
   padding: 3px 8px;
   border-width: 2px;
   transform: rotate(-6deg);
-}
-
-.stampEFFECTIVE {
-  background: var(--lime);
-  border-color: #1E241E;
-  color: #1E241E;
-}
-
-.stampDRAFT,
-.stampWITHDRAWN {
-  border-style: dashed;
-}
-
-.stampOBSOLETE {
-  color: var(--t2);
-  border-color: var(--t2);
-  text-decoration: line-through;
 }
 
 /* Loading */
