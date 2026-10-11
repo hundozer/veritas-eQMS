@@ -65,9 +65,10 @@ Last updated: 10 Oct 2026 (workspace overview redesign).
 | Set your own password from a single-use 30-minute link; request a fresh link | Built, not live (needs email) | `/auth/setup-password`, `POST /api/auth/setup-password`, `POST /api/auth/setup-password/request` |
 | Resend an invitation | Built, not live | `POST /api/users/[id]/invitation` |
 | Member list with organisation role, "invitation pending" and "deactivated" | Live | `GET /api/users` (`users.read`) |
-| Assignable roles for invitations (no platform roles) | Live | `GET /api/roles` (`users.create`) |
+| Assignable roles for invitations and role changes (no platform roles) | Live | `GET /api/roles` (`users.create` or `users.update`) |
 | Deactivate a member who has left, with a reason: membership suspended, operational user inactive, every session in the organisation revoked, both audit trails written, in one transaction; not oneself, not another organisation's member; nothing they authored or signed changes; the response lists their pending approval steps, open training and owned documents | Live, `users.deactivate` | `POST /api/users/[id]/deactivate`, `src/lib/iam/deactivation.ts`; "Deactivate" on the People tab (VER-00.4) |
-| Edit a member, change roles, reactivate a member | Disabled | `PUT/DELETE /api/users/[id]` |
+| Change another member's organisation role, with a reason: any organisation role, never a platform role; not one's own, not a deactivated member's; the member's existing sessions carry the new role's permissions from their next request; audited in both audit trails with the role before and after | Live, `users.update` | `POST /api/users/[id]/role`, `src/lib/iam/role-change.ts`; "Change role" on the People tab (VER-00.3) |
+| Edit a member, reactivate a member | Disabled | `PUT/DELETE /api/users/[id]` |
 | Self-service organisation sign-up | Disabled | `POST /api/auth/register` |
 | Onboarding initialisation | Disabled | `POST /api/onboarding/initialize` |
 | Password reset links (for active accounts) | Library only, no route or UI | `src/lib/iam/credential-action-token.ts` |

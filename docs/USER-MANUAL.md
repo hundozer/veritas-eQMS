@@ -53,7 +53,7 @@ grant nothing. The permissions that matter in this manual:
 | `training.read_all` | See the training matrix for everyone |
 | `users.read` | See the People tab |
 | `users.create` | Invite people and resend invitations |
-| `users.update` | Reset another member's two-step verification |
+| `users.update` | Reset another member's two-step verification; change another member's role |
 | `users.deactivate` | Deactivate another member who has left |
 | `audit.read` | See the audit trail |
 | `audit.export` | Export the audit trail as PDF (with `audit.read`) |
@@ -406,6 +406,18 @@ one stops working.
 **Result:** at their next sign-in the member sets up two-step verification
 again (UF-03). **Recorded:** in both audit trails, with the reason.
 
+### UF-29 Change someone's role
+
+**Who:** `users.update`. Not for yourself, not for a deactivated member.
+
+1. In the member's row, choose **Change role**. A form opens under the row.
+2. Choose the **New role** (their current role cannot be chosen) and enter the
+   **Reason for the change**, then choose **Change role**.
+
+**Result:** the member keeps working without signing in again; from their
+next action they have exactly the permissions of the new role. **Recorded:**
+in both audit trails, with the role before and after and the reason.
+
 ### UF-28 Deactivate a member who has left
 
 **Who:** `users.deactivate`. Not for yourself.
@@ -470,7 +482,7 @@ Production staff are in the department "Production".
 
 Shown or answered as "not available"; do not promise them to users:
 
-- Changing a member's role, editing a member, reactivating a deactivated member.
+- Editing a member's details, reactivating a deactivated member.
 - Choosing an organisation at sign-in for people in several organisations.
 - Resetting a forgotten password of an active account (an administrator can
   only reset two-step verification).

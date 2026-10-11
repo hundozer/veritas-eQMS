@@ -2,10 +2,11 @@
 // offers only what persisted permissions allow; the routes check again.
 // - Resend an invitation that is still pending: users.create (DEC-063).
 // - Reset someone else's two-step verification: users.update (DEC-080).
+// - Change someone else's role: users.update (VER-00.3).
 // - Deactivate someone else who has left: users.deactivate (VER-00.4).
 // A deactivated member is offered nothing.
 
-export type MemberAction = 'RESEND_INVITATION' | 'RESET_TWO_STEP' | 'DEACTIVATE';
+export type MemberAction = 'RESEND_INVITATION' | 'RESET_TWO_STEP' | 'CHANGE_ROLE' | 'DEACTIVATE';
 
 export interface RegisterMember {
   id: string;
@@ -28,6 +29,7 @@ export function memberActions(member: RegisterMember, currentUserId: string | un
   } else if (granted.has('users.update') && someoneElse) {
     actions.push('RESET_TWO_STEP');
   }
+  if (granted.has('users.update') && someoneElse) actions.push('CHANGE_ROLE');
   if (granted.has('users.deactivate') && someoneElse) actions.push('DEACTIVATE');
   return actions;
 }

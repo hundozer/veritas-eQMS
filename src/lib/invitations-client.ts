@@ -59,3 +59,14 @@ export function openWorkSummary(work: DeactivationOpenWork): string {
   ].filter((part): part is string => part !== null);
   return parts.length === 0 ? 'They had no open work.' : `They still have ${parts.join(', ')} to reassign.`;
 }
+
+export async function changeMemberRole(userId: string, roleId: string, reason: string, send: typeof fetch = fetch): Promise<{ ok: true; roleName: string } | { ok: false; message: string }> {
+  const response = await send(`/api/users/${encodeURIComponent(userId)}/role`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ roleId, reason: reason.trim() }),
+  });
+  const data = await response.json().catch(() => null);
+  if (response.ok) return { ok: true, roleName: data?.role?.roleName ?? '' };
+  return { ok: false, message: data?.error?.message ?? 'The role could not be changed.' };
+}

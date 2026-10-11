@@ -28,10 +28,11 @@ it depends on are merged.
 - [ ] Invitation email live: verify the sending domain in Resend, run one real
       invitation end to end (code done, DEC-063).
 - [ ] Password recovery for active accounts.
-- [ ] Member role changes (audited, sessions re-checked).
+- [x] Member role changes (audited; live sessions get the new permissions at
+      their next request, #77).
 - [x] Member deactivation with immediate session revocation (#74).
-- [ ] Administrator session revocation; revocation on role change and
-      password reset (deactivation revokes sessions, #74).
+- [ ] Administrator session revocation; revocation on password reset
+      (deactivation revokes sessions, #74; a role change needs none, #77).
 - [ ] Organisation choice at sign-in for people with several memberships.
 - [x] Tenant isolation (row-level security, two-tenant suite in CI).
 - [x] Electronic-signature integrity (DEC-062, DEC-072).
