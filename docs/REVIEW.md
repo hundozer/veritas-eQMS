@@ -93,6 +93,19 @@ qualified human reviewer of record.
 - [ ] No compliance, validation or inspection-readiness claims in UI, docs or
       copy.
 
+### Design system (`docs/design-system/`)
+- [ ] Screens use `@/ui/paper` components; no module-local buttons, fields,
+      stamps, record headers, dialogs or notices.
+- [ ] Styles use tokens only (`DS-T001`–`DS-T003` pass); no raw colours,
+      web fonts, rounded corners or blurred shadows on paper elements.
+- [ ] Words follow `docs/design-system/content-guidelines.md` (sentence case,
+      state labels through `stateLabel`, dates through `formatDate`).
+- [ ] Loading, empty and error states exist and say what to do.
+- [ ] Checked by keyboard and at 390 px and 1440 px, light and dark;
+      screenshots in the PR description.
+- [ ] Changes to shared components, tokens or the shell were agreed in a
+      `design-system` issue and are reviewed by the other team.
+
 ### Scope
 - [ ] The PR delivers one capability from the current roadmap phase.
 - [ ] No new module, route, or UI outside the current phase.

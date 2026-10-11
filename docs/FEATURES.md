@@ -15,7 +15,7 @@ the plan is `docs/ROADMAP.md` (Roadmap V3; direction in `docs/product/`, status
 against it in `docs/product/current-state.md`); review rules are `docs/REVIEW.md`; the user's
 view, flow by flow, is `docs/USER-MANUAL.md`.
 
-Last updated: 10 Oct 2026 (workspace overview redesign).
+Last updated: 11 Oct 2026 (shared design system, VER-DS-01).
 
 ## Platform
 
@@ -156,6 +156,8 @@ transaction.
 | Own notifications | Live | `GET /api/notifications` (`notification.read_own`) |
 | Public landing page and sign-in form; a visitor with a session is sent on to `/app` | Live | `src/app/(marketing)/` |
 | Workspace sections offered by persisted permission (`users.read` → user access, `audit.read` → audit log) | Live | `src/lib/workspace-access.ts` |
+| Shared paper components (buttons, fields, notices, stamp, record header, lifecycle path, signature boxes, ledger, in-page form sheet, modal dialog, signing dialog) used by the Documents tab, the in-page action forms and the new-draft and signing dialogs | Live | `src/ui/paper/`, `docs/design-system/` (VER-DS-01) |
+| Component showcase with synthetic data; production builds answer `404` | Development only | `/dev/design-system`, `src/app/dev/design-system/` |
 | Demo request form | Disabled | `POST /api/demo-request` |
 | Report export | Disabled | `GET /api/reports/export` |
 
@@ -190,6 +192,13 @@ Biotech" and "BioLabs Inc" as read-only history (DEC-056).
 - Numbered, tracked paper copies are not built.
 - Organisation selection at sign-in for people with several memberships.
 - External penetration test (Phase 2, arranged by the owner).
+- Overview, Training, People and Audit trail still use module-local copies of
+  the paper styles; legacy `src/ui` components and Verdant CSS are unused
+  but not yet deleted (VER-DS-01).
+- The theme toggle label hydrates with a mismatch warning when a person's
+  stored theme differs from the server default (`src/ui/providers/ThemeProvider.tsx`).
+- The root page metadata still says "Compliance-ready eQMS platform"
+  (`src/app/layout.tsx`), against the no-claims rule.
 
 ## Testing
 

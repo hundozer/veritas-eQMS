@@ -32,6 +32,15 @@ decision that changed it.
 | Validation-support documentation | Partial | CI validation pack: URS, risk assessment, traceability, executed OQ (DEC-081). Missing: intended-use statement, supplier assessment pack, customer validation guidance. |
 | Authentication findings reconciliation | Partial | Risk register (August containment) lists RISK-001/002/010 (open provisioning, SSO), RISK-013/005 (conflicting authority), RISK-024 (user admin), RISK-028 (response exposure) as contained; later work replaced the contained paths (DEC-058, DEC-063, DEC-079, DEC-080). The register itself has not been reconciled line by line, and the external penetration test has not run. |
 
+## VER-DS-01 Shared design system and UI governance
+
+| Capability | Status | Evidence / gap |
+| --- | --- | --- |
+| Design tokens and paper components | Complete | `src/ui/paper/`, `docs/design-system/`, tests `DS-T001`–`DS-T021` |
+| Screens on shared components | Partial | Documents tab, action forms, new-draft and signing dialogs migrated; Overview, Training, People, Audit trail not yet |
+| Component showcase | Complete (development only) | `/dev/design-system` |
+| Browser accessibility, responsive and visual-regression checks | Missing | No browser test job |
+
 ## VER-01 Quality relationship graph
 
 | Capability | Status | Evidence / gap |

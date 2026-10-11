@@ -1,6 +1,6 @@
-import { useEffect, useId, useRef, useState, type FormEvent, type KeyboardEvent, type ReactNode } from 'react';
-import styles from './action-form.module.css';
-// Relative import so the unit tests can render this form without a path alias.
+import { useEffect, useRef, useState, type FormEvent } from 'react';
+// Relative imports so the unit tests can render this form without a path alias.
+import { FieldPair, FileField, FormSheet, Note, SelectField, TextAreaField } from '../../../ui/paper';
 import {
   checkReason,
   checkRoleChange,
@@ -16,38 +16,6 @@ import { DOCUMENT_FILE_ACCEPT } from '../../../lib/document-file-types';
 // the reason it was refused, shown in the form.
 type Submit<T> = (values: T) => Promise<string | null>;
 
-function FormSheet({ title, subject, note, error, busy, submit, onCancel, onSubmit, children }: {
-  title: string;
-  subject?: string;
-  note: string;
-  error: string | null;
-  busy: boolean;
-  submit: string;
-  onCancel: () => void;
-  onSubmit: (event: FormEvent<HTMLFormElement>) => void;
-  children: ReactNode;
-}) {
-  const titleId = useId();
-  const onKeyDown = (event: KeyboardEvent<HTMLFormElement>) => {
-    if (event.key === 'Escape' && !busy) onCancel();
-  };
-  return (
-    <form className={styles.form} aria-labelledby={titleId} onSubmit={onSubmit} onKeyDown={onKeyDown} noValidate>
-      <div className={styles.head}>
-        <h4 id={titleId} className={styles.title}>{title}</h4>
-        {subject && <span className={styles.subject}>{subject}</span>}
-      </div>
-      <p className={styles.note}>{note}</p>
-      {children}
-      {error && <p className={styles.error} role="alert">{error}</p>}
-      <div className={styles.buttons}>
-        <button type="submit" className={styles.primary} disabled={busy}>{busy ? 'Working…' : submit}</button>
-        <button type="button" className={styles.outline} onClick={onCancel} disabled={busy}>Cancel</button>
-      </div>
-    </form>
-  );
-}
-
 // A reason (and for a new revision, its source file) typed into the page
 // instead of a browser prompt.
 export function ReasonForm({ kind, subject, onSubmit, onCancel }: {
@@ -61,8 +29,6 @@ export function ReasonForm({ kind, subject, onSubmit, onCancel }: {
   const [file, setFile] = useState<File | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const reasonId = useId();
-  const fileId = useId();
   const reasonRef = useRef<HTMLTextAreaElement>(null);
   useEffect(() => reasonRef.current?.focus(), []);
 
@@ -80,28 +46,20 @@ export function ReasonForm({ kind, subject, onSubmit, onCancel }: {
 
   return (
     <FormSheet title={spec.title} subject={subject} note={spec.note} error={error} busy={busy} submit={spec.submit} onCancel={onCancel} onSubmit={handleSubmit}>
-      <label htmlFor={reasonId} className={styles.label}>{spec.label}</label>
-      <textarea
-        id={reasonId}
-        ref={reasonRef}
-        className={styles.field}
-        rows={3}
+      <TextAreaField
+        label={spec.label}
+        textareaRef={reasonRef}
         value={reason}
         required
         onChange={(event) => setReason(event.target.value)}
       />
       {spec.needsFile && (
-        <>
-          <label htmlFor={fileId} className={styles.label}>Source file</label>
-          <input
-            id={fileId}
-            type="file"
-            className={styles.file}
-            accept={DOCUMENT_FILE_ACCEPT}
-            required
-            onChange={(event) => setFile(event.target.files?.[0] ?? null)}
-          />
-        </>
+        <FileField
+          label="Source file"
+          accept={DOCUMENT_FILE_ACCEPT}
+          required
+          onChange={(event) => setFile(event.target.files?.[0] ?? null)}
+        />
       )}
     </FormSheet>
   );
@@ -119,8 +77,6 @@ export function RoutingForm({ candidates, subject, onSubmit, onCancel }: {
   const [approverId, setApproverId] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const reviewerFieldId = useId();
-  const approverFieldId = useId();
   const reviewerRef = useRef<HTMLSelectElement>(null);
   useEffect(() => reviewerRef.current?.focus(), []);
 
@@ -153,24 +109,18 @@ export function RoutingForm({ candidates, subject, onSubmit, onCancel }: {
       onCancel={onCancel}
       onSubmit={handleSubmit}
     >
-      <div className={styles.pair}>
-        <div>
-          <label htmlFor={reviewerFieldId} className={styles.label}>Reviewer</label>
-          <select id={reviewerFieldId} ref={reviewerRef} className={styles.field} value={reviewerId} required onChange={(event) => setReviewerId(event.target.value)}>
-            <option value="">Choose a member</option>
-            {options(approverId)}
-          </select>
-        </div>
-        <div>
-          <label htmlFor={approverFieldId} className={styles.label}>Approver</label>
-          <select id={approverFieldId} className={styles.field} value={approverId} required onChange={(event) => setApproverId(event.target.value)}>
-            <option value="">Choose a member</option>
-            {options(reviewerId)}
-          </select>
-        </div>
-      </div>
+      <FieldPair>
+        <SelectField label="Reviewer" selectRef={reviewerRef} value={reviewerId} required onChange={(event) => setReviewerId(event.target.value)}>
+          <option value="">Choose a member</option>
+          {options(approverId)}
+        </SelectField>
+        <SelectField label="Approver" value={approverId} required onChange={(event) => setApproverId(event.target.value)}>
+          <option value="">Choose a member</option>
+          {options(reviewerId)}
+        </SelectField>
+      </FieldPair>
       {candidates.length < 2 && (
-        <p className={styles.note}>Routing needs two active members besides invitations still pending. Invite a colleague on the People tab first.</p>
+        <Note>Routing needs two active members besides invitations still pending. Invite a colleague on the People tab first.</Note>
       )}
     </FormSheet>
   );

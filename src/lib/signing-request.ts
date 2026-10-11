@@ -3,11 +3,20 @@
 export type SigningMode = 'REVIEW' | 'APPROVE' | 'RELEASE' | 'RETIRE' | 'READ';
 
 export const SIGNING_LABELS: Record<SigningMode, { title: string; meaning: string; submit: string }> = {
-  REVIEW: { title: 'Sign Review', meaning: 'Reviewed', submit: 'Sign as Reviewed' },
-  APPROVE: { title: 'Sign Approval', meaning: 'Approved', submit: 'Sign as Approved' },
-  RELEASE: { title: 'Sign Release', meaning: 'Released', submit: 'Sign and Make Effective' },
-  RETIRE: { title: 'Sign Retirement', meaning: 'Retired', submit: 'Sign and Retire' },
-  READ: { title: 'Sign Training', meaning: 'Read and understood', submit: 'Sign as Read and Understood' },
+  REVIEW: { title: 'Sign review', meaning: 'Reviewed', submit: 'Sign as reviewed' },
+  APPROVE: { title: 'Sign approval', meaning: 'Approved', submit: 'Sign as approved' },
+  RELEASE: { title: 'Sign release', meaning: 'Released', submit: 'Sign and make effective' },
+  RETIRE: { title: 'Sign retirement', meaning: 'Retired', submit: 'Sign and retire' },
+  READ: { title: 'Sign training', meaning: 'Read and understood', submit: 'Sign as read and understood' },
+};
+
+/** What accepting each signature does, shown in the signing dialog before the password. */
+export const SIGNING_CONSEQUENCE: Record<SigningMode, string> = {
+  REVIEW: 'Your review is recorded; the assigned approver can then sign.',
+  APPROVE: 'Approval does not make the document effective; it must still be released.',
+  RELEASE: 'Releasing makes this version effective now and supersedes the previously effective version.',
+  RETIRE: 'Retiring takes the document out of use; its versions and records are kept.',
+  READ: 'Your training on this version is then complete.',
 };
 
 /** Retirement needs a reason; the other signatures take an optional comment. */

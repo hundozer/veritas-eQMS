@@ -119,7 +119,7 @@
   font-size: 11px;
   padding: 1px 6px;
   background: var(--lime);
-  color: #1E241E;
+  color: var(--on-lime);
   vertical-align: 2px;
 }
 

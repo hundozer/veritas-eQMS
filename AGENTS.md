@@ -1,13 +1,18 @@
 <!-- BEGIN:nextjs-agent-rules -->
+
 # This is NOT the Next.js you know
 
-This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` before writing any code. Heed deprecation notices.
+This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` (resolved from this file's directory; in monorepos the `next` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
+
+This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
+
 <!-- END:nextjs-agent-rules -->
 
 # Working on Veritas
 
-Shared instructions for every coding agent (Claude, Codex) and for human
-developers. Agent-specific notes live in `CLAUDE.md`.
+Shared instructions for every coding agent (Claude, Codex, Száva's agent)
+and for human developers. Agent-specific notes live in `CLAUDE.md`; how the
+two development teams work in parallel is in `CONTRIBUTING.md`.
 
 ## What Veritas is becoming
 
@@ -33,6 +38,10 @@ Authoritative sources (read the one your task touches; do not copy them here):
 | Workflows (ADR-002), human accountability (ADR-005) | `docs/architecture/` |
 | Impact map, evidence readiness, guided setup | `docs/features/` |
 | Decisions (`DEC-nnn`, ADRs included) | `docs/recovery/decisions/DECISION-LOG.md` |
+| System architecture as built | `docs/architecture/system-overview.md` |
+| Design system: tokens, components, patterns, words, accessibility | `docs/design-system/` |
+| Collaboration between the two development teams | `CONTRIBUTING.md` |
+| Handover for Száva's team (snapshot, links back here) | `docs/handover/szava/` |
 | Review checklist | `docs/REVIEW.md` |
 
 ## Start of every task
@@ -66,6 +75,10 @@ Authoritative sources (read the one your task touches; do not copy them here):
   a decision-log entry. No AI features in the MVP.
 - No compliance claims ("compliant", "validated", "inspection-ready") in UI,
   docs or copy.
+- Screens use the shared design system (`@/ui/paper`, tokens only,
+  `docs/design-system/`); shared components, tokens and the application shell
+  change only through a design-system PR reviewed by the other team
+  (`CONTRIBUTING.md`).
 - No containment stubs or self-audit files; delete unused code instead of
   disabling it. No new modules outside the roadmap.
 - Before opening a PR: `npx vitest run`, `npx tsc --noEmit`, `npx eslint .`.
@@ -83,5 +96,6 @@ Authoritative sources (read the one your task touches; do not copy them here):
   every lifecycle).
 - `src/lib/signatures.ts`: electronic signatures.
 - `src/lib/controlled-storage.ts`: Blob storage with SHA-256 verification.
+- `src/ui/paper/`: shared paper components; see them at `/dev/design-system`.
 - `docs/recovery/`: history of the August containment programme (read-only
   reference; decision log and risk register are still maintained).

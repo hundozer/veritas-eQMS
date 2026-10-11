@@ -1,11 +1,10 @@
 /* Documents tab in the paper language of the overview: a register on the
-   left, the selected document's controlled record on the right. Theme
-   variables only (light and dark); system fonts only (BUILD-T001). */
+   left, the selected document's controlled record on the right. Shared
+   pieces (headers, buttons, ledger, stamps) come from src/ui/paper; this file
+   holds only the register and the record's layout. Tokens only (light and
+   dark); system fonts only (BUILD-T001). */
 
 .page {
-  --serif: 'Iowan Old Style', 'Charter', 'Bitstream Charter', 'Sitka Text', Cambria, Georgia, serif;
-  --ink: var(--t1);
-  --rule: var(--border);
   max-width: 1240px;
   display: flex;
   flex-direction: column;
@@ -14,36 +13,7 @@
   color: var(--ink);
 }
 
-.mono {
-  font-family: var(--font-mono);
-  font-variant-numeric: tabular-nums;
-}
-
 .muted {
-  color: var(--t2);
-}
-
-.intro {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: space-between;
-  align-items: flex-end;
-  gap: 16px 32px;
-  border-bottom: 2px solid var(--ink);
-  padding-bottom: 14px;
-}
-
-.headline {
-  font-family: var(--serif);
-  font-weight: 400;
-  font-size: clamp(28px, 3.4vw, 40px);
-  line-height: 1.08;
-  letter-spacing: -0.02em;
-}
-
-.lede {
-  margin-top: 6px;
-  font-size: 15px;
   color: var(--t2);
 }
 
@@ -104,7 +74,7 @@
 }
 
 .entryTitle {
-  font-family: var(--serif);
+  font-family: var(--font-serif);
   font-size: 17px;
   line-height: 1.3;
 }
@@ -117,187 +87,11 @@
   min-width: 0;
 }
 
-.record {
-  display: flex;
-  flex-direction: column;
-  gap: 26px;
-  background: var(--card-bg);
-  border: 1px solid var(--ink);
-  box-shadow: 4px 4px 0 var(--rule);
-  padding: clamp(16px, 2.4vw, 28px);
-}
-
-.placeholder {
-  border: 1px dashed var(--t3);
-  padding: 40px 28px;
-  color: var(--t2);
-  font-size: 15px;
-  line-height: 1.55;
-}
-
-.formHeader {
-  width: 100%;
-  border-collapse: collapse;
-}
-
-.formHeader td {
-  border: 1px solid var(--ink);
-  padding: 8px 10px;
-  vertical-align: top;
-  font-size: 14px;
-}
-
-.label {
-  display: block;
-  font-size: 12px;
-  font-variant: small-caps;
-  text-transform: lowercase;
-  letter-spacing: 0.06em;
-  color: var(--t2);
-}
-
-.titleCell {
-  position: relative;
-}
-
-.title {
-  font-family: var(--serif);
-  font-weight: 400;
-  font-size: clamp(22px, 2.4vw, 28px);
-  line-height: 1.2;
-  padding: 6px 140px 6px 0;
-}
-
-.titleCell .recordStamp {
-  position: absolute;
-  right: 12px;
-  top: 50%;
-  transform: translateY(-50%) rotate(-5deg);
-  font-size: 12px;
-  padding: 3px 9px;
-  border-width: 2px;
-}
-
-@media (max-width: 640px) {
-  .formHeader td { display: block; border-bottom-width: 0; }
-  .formHeader tr:last-child td:last-child { border-bottom-width: 1px; }
-  .title { padding-right: 0; padding-top: 34px; }
-  .titleCell .recordStamp { top: 12px; right: 10px; transform: rotate(-5deg); }
-}
-
 .description {
   max-width: 68ch;
   font-size: 15px;
   line-height: 1.6;
   color: var(--t2);
-}
-
-/* Lifecycle path and signature boxes */
-
-.path {
-  list-style: none;
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  border: 1px solid var(--ink);
-  border-bottom: 0;
-}
-
-.pathStep {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 10px 12px;
-  font-size: 14px;
-  color: var(--t2);
-  border-left: 1px solid var(--ink);
-}
-
-.pathStep:first-child {
-  border-left: 0;
-}
-
-.pathMark {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 20px;
-  height: 20px;
-  border: 1.5px solid var(--t3);
-  border-radius: 50%;
-  font-family: var(--font-mono);
-  font-size: 11px;
-}
-
-.pathDone {
-  color: var(--ink);
-}
-
-.pathDone .pathMark {
-  border-color: var(--ink);
-  background: var(--ink);
-  color: var(--card-bg);
-}
-
-.pathNow {
-  color: var(--ink);
-  font-weight: 600;
-  background: var(--lime3);
-}
-
-.pathNow .pathMark {
-  border-color: var(--ink);
-}
-
-.sigRow {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  border: 1px solid var(--ink);
-}
-
-.sigBox {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  min-width: 0;
-  padding: 10px 12px;
-  border-left: 1px solid var(--ink);
-}
-
-.sigBox:first-child {
-  border-left: 0;
-}
-
-.sigLine {
-  min-height: 22px;
-  font-family: var(--serif);
-  font-style: italic;
-  font-size: 15px;
-  border-bottom: 1px solid var(--ink);
-  padding-bottom: 2px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.sigState {
-  font-family: var(--font-mono);
-  font-size: 11px;
-  color: var(--t2);
-}
-
-@media (max-width: 640px) {
-  .path, .sigRow { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .pathStep:nth-child(3), .sigBox:nth-child(3) { border-left: 0; }
-  .pathStep:nth-child(n + 3), .sigBox:nth-child(n + 3) { border-top: 1px solid var(--ink); }
-}
-
-/* Actions */
-
-.sectionTitle {
-  font-family: var(--serif);
-  font-weight: 400;
-  font-size: 20px;
-  margin-bottom: 12px;
 }
 
 .actions {
@@ -309,14 +103,8 @@
   padding-top: 18px;
 }
 
-.actions .sectionTitle {
+.actions h4 {
   margin-bottom: 0;
-}
-
-.buttonRow {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
 }
 
 .endingRow {
@@ -325,61 +113,6 @@
   width: 100%;
 }
 
-.primary,
-.outline,
-.quiet {
-  min-height: 44px;
-  padding: 0 18px;
-  border-radius: 0;
-  font: inherit;
-  font-size: 14px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: background-color 140ms ease;
-}
-
-.primary {
-  border: 1.5px solid var(--ink);
-  background: var(--ink);
-  color: var(--card-bg);
-}
-
-.primary:hover {
-  background: var(--dark);
-  border-color: var(--dark);
-}
-
-.outline {
-  border: 1.5px solid var(--ink);
-  background: transparent;
-  color: var(--ink);
-}
-
-.outline:hover {
-  background: var(--blight);
-}
-
-.quiet {
-  border: 1px solid var(--rule);
-  background: transparent;
-  color: var(--t2);
-  font-weight: 500;
-}
-
-.quiet:hover {
-  color: var(--danger);
-  border-color: var(--danger);
-}
-
-.primary:active,
-.outline:active,
-.quiet:active {
-  transform: translateY(1px);
-}
-
-.primary:focus-visible,
-.outline:focus-visible,
-.quiet:focus-visible,
 .entry:focus-visible,
 .copyLink:focus-visible {
   outline: 2px solid var(--ink);
@@ -394,45 +127,13 @@
   text-underline-offset: 4px;
 }
 
-.note {
-  max-width: 64ch;
-  font-size: 14px;
-  line-height: 1.55;
-  color: var(--t2);
-}
-
 /* Revisions */
 
-.tableScroll {
-  overflow-x: auto;
-}
-
-.ledger {
-  width: 100%;
+.revisions {
   min-width: 640px;
-  border-collapse: collapse;
 }
 
-.ledger th {
-  text-align: left;
-  font-size: 12px;
-  font-weight: 400;
-  color: var(--t2);
-  padding: 8px 12px 8px 0;
-  border-bottom: 1.5px solid var(--ink);
-  white-space: nowrap;
-}
-
-.ledger td {
-  padding: 10px 12px 10px 0;
-  border-bottom: 1px solid var(--rule);
-  font-size: 14px;
-  vertical-align: top;
-}
-
-.ledger a {
-  color: var(--ink);
-  text-underline-offset: 3px;
+.revisions a {
   white-space: nowrap;
 }
 
@@ -450,13 +151,13 @@
 
 /* On a phone keep revision, state, effective date and copy; the rest is in the copy itself. */
 @media (max-width: 640px) {
-  .ledger { min-width: 0; }
-  .ledger th:nth-child(3), .ledger td:nth-child(3),
-  .ledger th:nth-child(5), .ledger td:nth-child(5),
-  .ledger th:nth-child(6), .ledger td:nth-child(6) { display: none; }
-  .ledger a { white-space: normal; }
+  .revisions { min-width: 0; }
+  .revisions th:nth-child(3), .revisions td:nth-child(3),
+  .revisions th:nth-child(5), .revisions td:nth-child(5),
+  .revisions th:nth-child(6), .revisions td:nth-child(6) { display: none; }
+  .revisions a { white-space: normal; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .entry, .primary, .outline, .quiet { transition: none; }
+  .entry { transition: none; }
 }
