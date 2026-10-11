@@ -11,7 +11,8 @@ a capability updates it in the same pull request. Status words:
 - **Dormant data**: tables kept for history; no code reads or writes them.
 
 Decisions are referenced as `DEC-nnn` (`docs/recovery/decisions/DECISION-LOG.md`);
-the plan is `docs/ROADMAP.md`; review rules are `docs/REVIEW.md`.
+the plan is `docs/ROADMAP.md`; review rules are `docs/REVIEW.md`; the user's
+view, flow by flow, is `docs/USER-MANUAL.md`.
 
 Last updated: 10 Oct 2026 (workspace overview redesign).
 
