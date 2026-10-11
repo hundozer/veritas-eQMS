@@ -10,7 +10,7 @@ import { workspaceSections } from '@/lib/workspace-access';
 import type { AuditChange, AuditDetail } from '@/lib/audit-review';
 import { REASON_REQUIRED, SIGNING_LABELS, signingRequest, type SigningMode } from '@/lib/signing-request';
 import Dashboard from './Dashboard';
-import Documents from './Documents';
+import Documents, { type DocumentFormValues } from './Documents';
 import Training from './Training';
 import People from './People';
 import AuditTrail from './AuditTrail';
@@ -34,8 +34,10 @@ interface User {
   tenantId: string;
   tenantName?: string;
   membershipRole?: string;
-  // Organisation role from the member list (/api/users).
+  // From the member list (/api/users).
   roleName?: string | null;
+  accountStatus?: string;
+  invitationPending?: boolean;
   permissions?: string[];
   tenant?: {
     id?: string;
@@ -203,6 +205,12 @@ export default function Workspace() {
       .catch(() => undefined);
   }, []);
 
+  const flashSuccess = (message: string) => {
+    setErrorMessage(null);
+    setSuccessMessage(message);
+    setTimeout(() => setSuccessMessage(null), 5000);
+  };
+
   const handleResendInvitation = async (userId: string) => {
     const result = await resendInvitation(userId);
     if (result.ok) setSuccessMessage('A new invitation link was sent.');
@@ -213,17 +221,14 @@ export default function Workspace() {
     }, 5000);
   };
 
-  // Lost phone: an administrator resets a member's two-step verification (DEC-080).
-  const handleResetMfa = async (userId: string, name: string) => {
-    const reason = window.prompt(`Reset two-step verification for ${name}? They set it up again at their next sign-in. Reason:`);
-    if (!reason?.trim()) return;
+  // Lost phone: an administrator resets a member's two-step verification
+  // (DEC-080). The reason comes from the form on the People tab, which shows
+  // a refusal itself.
+  const handleResetMfa = async (userId: string, name: string, reason: string): Promise<string | null> => {
     const result = await resetTwoStepVerification(userId, reason);
-    if (result.ok) setSuccessMessage(`Two-step verification was reset for ${name}.`);
-    else setErrorMessage(result.message);
-    setTimeout(() => {
-      setSuccessMessage(null);
-      setErrorMessage(null);
-    }, 5000);
+    if (!result.ok) return result.message;
+    flashSuccess(`Two-step verification was reset for ${name}.`);
+    return null;
   };
 
   useEffect(() => {
@@ -290,20 +295,9 @@ export default function Workspace() {
     fetchData();
   }, [fetchData]);
 
-  // Create Draft Revision for locked/effective document
-  const handleUploadNewVersion = async (docId: string) => {
-    const reason = window.prompt('Describe the reason for this revision:')?.trim();
-    if (!reason) return;
-
-    const file = await new Promise<File | null>((resolve) => {
-      const input = document.createElement('input');
-      input.type = 'file';
-      input.accept = '.pdf,.doc,.docx,.txt,.png';
-      input.onchange = () => resolve(input.files?.[0] || null);
-      input.click();
-    });
-    if (!file) return;
-
+  // A new draft revision of an effective document, with the reason and
+  // source file from the form in the document record.
+  const handleStartRevision = async (docId: string, reason: string, file: File): Promise<string | null> => {
     try {
       const fileFields = await prepareDocumentFile(file);
       const res = await fetch(`/api/documents/${docId}/revision`, {
@@ -313,21 +307,13 @@ export default function Workspace() {
         },
         body: JSON.stringify({ reason, ...fileFields }),
       });
-
       const data = await res.json();
-      if (res.ok) {
-        setSuccessMessage('A new draft revision was created; the effective version remains controlled.');
-        fetchData();
-      } else {
-        setErrorMessage(data.error?.message || 'Failed to create document revision');
-      }
-      setTimeout(() => {
-        setSuccessMessage(null);
-        setErrorMessage(null);
-      }, 4000);
+      if (!res.ok) return data.error?.message || 'Failed to create document revision';
+      flashSuccess('A new draft revision was created; the effective version remains controlled.');
+      await fetchData();
+      return null;
     } catch (err: any) {
-      setErrorMessage(err.message);
-      setTimeout(() => setErrorMessage(null), 4000);
+      return err.message || 'Failed to create document revision';
     }
   };
 
@@ -473,89 +459,63 @@ export default function Workspace() {
     }
   };
 
+  // Resolves null when the action went through, else the reason it was
+  // refused, which the form in the document record shows.
   const runDocumentAction = async (
     path: string,
-    method: 'POST' | 'DELETE',
     body: Record<string, unknown>,
     success: string,
-  ) => {
+  ): Promise<string | null> => {
     try {
       const res = await fetch(path, {
-        method,
+        method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify(body),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error?.message || 'Document action failed');
-      setSuccessMessage(success);
+      if (!res.ok) return data.error?.message || 'Document action failed';
+      flashSuccess(success);
       await fetchData();
+      return null;
     } catch (error: any) {
-      setErrorMessage(error.message);
+      return error.message || 'Document action failed';
     }
-    setTimeout(() => {
-      setSuccessMessage(null);
-      setErrorMessage(null);
-    }, 5000);
   };
 
-  const handleSubmitForReview = async () => {
-    if (!selectedDoc) return;
-    const reviewerEmail = window.prompt('Reviewer email:')?.trim().toLowerCase();
-    const approverEmail = window.prompt('Approver email (must be a different person):')?.trim().toLowerCase();
-    const reviewer = users.find((user) => user.email.toLowerCase() === reviewerEmail);
-    const approver = users.find((user) => user.email.toLowerCase() === approverEmail);
-    if (!reviewer || !approver) {
-      setErrorMessage('Choose existing active users by exact email address.');
-      return;
+  const handleDocumentForm = (doc: { id: string }, values: DocumentFormValues): Promise<string | null> => {
+    switch (values.action) {
+      case 'SUBMIT_REVIEW':
+        return runDocumentAction(
+          `/api/documents/${doc.id}/submit-review`,
+          { reviewerId: values.reviewerId, approverId: values.approverId },
+          'Draft submitted for assigned review.',
+        );
+      case 'RETURN':
+        return runDocumentAction(`/api/documents/${doc.id}/review`, { action: 'RETURN', comment: values.reason }, 'Document returned to draft.');
+      case 'WITHDRAW_REVISION':
+        return runDocumentAction(
+          `/api/documents/${doc.id}/withdraw-revision`,
+          { reason: values.reason },
+          'Revision withdrawn; the effective version remains in force.',
+        );
+      case 'START_REVISION':
+        return handleStartRevision(doc.id, values.reason, values.file);
     }
-    await runDocumentAction(
-      `/api/documents/${selectedDoc.id}/submit-review`,
-      'POST',
-      { reviewerId: reviewer.id, approverId: approver.id },
-      'Draft submitted for assigned review.',
-    );
-  };
-
-  const handleReturnDocument = async () => {
-    if (!selectedDoc) return;
-    const comment = window.prompt('Required return reason:')?.trim();
-    if (!comment) return;
-    await runDocumentAction(
-      `/api/documents/${selectedDoc.id}/review`,
-      'POST',
-      { action: 'RETURN', comment },
-      'Document returned to draft.',
-    );
-  };
-
-  const handleWithdrawRevision = async () => {
-    if (!selectedDoc) return;
-    const reason = window.prompt('Required reason for withdrawing this revision (the effective version stays in force):')?.trim();
-    if (!reason) return;
-    await runDocumentAction(
-      `/api/documents/${selectedDoc.id}/withdraw-revision`,
-      'POST',
-      { reason },
-      'Revision withdrawn; the effective version remains in force.',
-    );
   };
 
   const selectedDoc = documents.find((d) => d.id === selectedDocId);
 
-  // The Documents tab offers only the actions documentPanelActions allows;
-  // each one goes to the same handler or signing dialog as before.
+  // The Documents tab offers only the actions documentPanelActions allows.
+  // Signing opens the signing dialog; actions that need a reason or the
+  // routing go through the form in the record (handleDocumentForm).
   const handleDocumentAction = (action: PanelAction, doc: { id: string }) => {
     switch (action) {
       case 'REPLACE_FILE': return handleReplaceDraftFile(doc.id);
-      case 'SUBMIT_REVIEW': return handleSubmitForReview();
       case 'SIGN_REVIEW': return setSigningMode('REVIEW');
-      case 'RETURN': return handleReturnDocument();
       case 'SIGN_APPROVE': return setSigningMode('APPROVE');
       case 'SIGN_RELEASE': return setSigningMode('RELEASE');
-      case 'START_REVISION': return handleUploadNewVersion(doc.id);
-      case 'WITHDRAW_REVISION': return handleWithdrawRevision();
       case 'SIGN_RETIRE': return setSigningMode('RETIRE');
     }
   };
@@ -666,7 +626,9 @@ export default function Workspace() {
             canAuthor={canAuthorDocuments}
             onSelect={setSelectedDocId}
             onNewDraft={() => setShowCreateModal(true)}
+            members={users}
             onAction={handleDocumentAction}
+            onSubmitForm={handleDocumentForm}
           />
         )}
 

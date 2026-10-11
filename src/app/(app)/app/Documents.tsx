@@ -1,7 +1,9 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import styles from './documents.module.css';
 import Stamp from './Stamp';
+import { ReasonForm, RoutingForm } from './ActionForm';
 import { documentPanelActions, lifecyclePosition, LIFECYCLE_PATH, type PanelAction } from '@/lib/document-panel';
+import { routingCandidates, type RoutingMember } from '@/lib/action-forms';
 
 interface Step {
   id: string;
@@ -36,14 +38,28 @@ export interface RegisterDocument {
   trainingRequirement?: { requiredForRoles: string } | null;
 }
 
+// Actions that need more than a click open a form in the record.
+const FORM_ACTIONS = ['SUBMIT_REVIEW', 'RETURN', 'START_REVISION', 'WITHDRAW_REVISION'] as const;
+type FormAction = (typeof FORM_ACTIONS)[number];
+const isFormAction = (action: PanelAction): action is FormAction => (FORM_ACTIONS as readonly PanelAction[]).includes(action);
+
+export type DocumentFormValues =
+  | { action: 'SUBMIT_REVIEW'; reviewerId: string; approverId: string }
+  | { action: 'RETURN' | 'WITHDRAW_REVISION'; reason: string }
+  | { action: 'START_REVISION'; reason: string; file: File };
+
 interface DocumentsProps {
   user: { id: string; permissions?: string[] } | null;
   documents: RegisterDocument[];
+  members: readonly RoutingMember[];
   selectedId: string | null;
   canAuthor: boolean;
   onSelect: (id: string) => void;
   onNewDraft: () => void;
+  // Signing and replacing the draft file; the form actions use onSubmitForm.
   onAction: (action: PanelAction, doc: RegisterDocument) => void;
+  // Resolves null when the action went through, else the reason it was refused.
+  onSubmitForm: (doc: RegisterDocument, values: DocumentFormValues) => Promise<string | null>;
 }
 
 const PATH_LABEL: Record<string, string> = {
@@ -80,7 +96,8 @@ function stepBox(steps: Step[], stepType: string, role: string) {
   return { role, name: step.approver.fullName, state: step.status === 'COMPLETED' ? 'signed' : 'not signed yet' };
 }
 
-function DocumentRecord({ doc, user, onAction }: { doc: RegisterDocument; user: DocumentsProps['user']; onAction: DocumentsProps['onAction'] }) {
+function DocumentRecord({ doc, user, members, onAction, onSubmitForm }: Pick<DocumentsProps, 'user' | 'members' | 'onAction' | 'onSubmitForm'> & { doc: RegisterDocument }) {
+  const [form, setForm] = useState<FormAction | null>(null);
   const current = doc.versions.find((v) => v.versionNumber === doc.currentVersionNumber);
   const effective = doc.versions.find((v) => v.status === 'EFFECTIVE');
   const steps = current?.approvalRoutes?.[0]?.steps ?? [];
@@ -88,6 +105,8 @@ function DocumentRecord({ doc, user, onAction }: { doc: RegisterDocument; user: 
   const actions = documentPanelActions(doc, user?.id, user?.permissions);
   const forward = actions.filter((a) => !ENDING.includes(a));
   const ending = actions.filter((a) => ENDING.includes(a));
+  const open = (action: PanelAction) => (isFormAction(action) ? setForm(action) : onAction(action, doc));
+  const subject = `${doc.documentNumber ?? 'No number'} rev ${doc.currentVersionNumber}`;
   // On a narrow screen the record sits below the register; bring it into view
   // when a document is chosen (or arrives selected from an overview slip).
   const ref = useRef<HTMLElement>(null);
@@ -172,14 +191,15 @@ function DocumentRecord({ doc, user, onAction }: { doc: RegisterDocument; user: 
                     key={action}
                     type="button"
                     className={PRIMARY.includes(action) ? styles.primary : styles.outline}
-                    onClick={() => onAction(action, doc)}
+                    aria-expanded={isFormAction(action) ? form === action : undefined}
+                    onClick={() => open(action)}
                   >
                     {action === 'START_REVISION' ? `Start revision ${doc.currentVersionNumber + 1}` : ACTION_LABEL[action]}
                   </button>
                 ))}
               </div>
             )}
-            {forward.includes('START_REVISION') && (
+            {forward.includes('START_REVISION') && form !== 'START_REVISION' && (
               <p className={styles.note}>
                 A new revision starts as a draft with a reason and a new source file. The effective revision stays in force until the new one is released.
               </p>
@@ -187,11 +207,44 @@ function DocumentRecord({ doc, user, onAction }: { doc: RegisterDocument; user: 
             {ending.length > 0 && (
               <div className={`${styles.buttonRow} ${styles.endingRow}`}>
                 {ending.map((action) => (
-                  <button key={action} type="button" className={styles.quiet} onClick={() => onAction(action, doc)}>
+                  <button
+                    key={action}
+                    type="button"
+                    className={styles.quiet}
+                    aria-expanded={isFormAction(action) ? form === action : undefined}
+                    onClick={() => open(action)}
+                  >
                     {ACTION_LABEL[action]}
                   </button>
                 ))}
               </div>
+            )}
+            {form === 'SUBMIT_REVIEW' && (
+              <RoutingForm
+                key={form}
+                subject={subject}
+                candidates={routingCandidates(members)}
+                onSubmit={(values) => onSubmitForm(doc, { action: 'SUBMIT_REVIEW', ...values })}
+                onCancel={() => setForm(null)}
+              />
+            )}
+            {(form === 'RETURN' || form === 'WITHDRAW_REVISION') && (
+              <ReasonForm
+                key={form}
+                kind={form}
+                subject={subject}
+                onSubmit={({ reason }) => onSubmitForm(doc, { action: form, reason })}
+                onCancel={() => setForm(null)}
+              />
+            )}
+            {form === 'START_REVISION' && (
+              <ReasonForm
+                key={form}
+                kind={form}
+                subject={`${doc.documentNumber ?? 'No number'} rev ${doc.currentVersionNumber + 1}`}
+                onSubmit={({ reason, file }) => (file ? onSubmitForm(doc, { action: 'START_REVISION', reason, file }) : Promise.resolve('Choose the source file for the new revision.'))}
+                onCancel={() => setForm(null)}
+              />
             )}
           </>
         )}
@@ -233,7 +286,7 @@ function DocumentRecord({ doc, user, onAction }: { doc: RegisterDocument; user: 
 
 // The Documents tab: the register on the left, the selected document's
 // record on the right, laid out like the controlled documents it manages.
-export default function Documents({ user, documents, selectedId, canAuthor, onSelect, onNewDraft, onAction }: DocumentsProps) {
+export default function Documents({ user, documents, members, selectedId, canAuthor, onSelect, onNewDraft, onAction, onSubmitForm }: DocumentsProps) {
   const selected = documents.find((d) => d.id === selectedId);
 
   return (
@@ -277,7 +330,7 @@ export default function Documents({ user, documents, selectedId, canAuthor, onSe
         </nav>
 
         {selected ? (
-          <DocumentRecord key={selected.id} doc={selected} user={user} onAction={onAction} />
+          <DocumentRecord key={selected.id} doc={selected} user={user} members={members} onAction={onAction} onSubmitForm={onSubmitForm} />
         ) : (
           <div className={styles.placeholder}>
             <p>Select a document in the register to see its record: who signed what, its revisions, and what you can do with it.</p>

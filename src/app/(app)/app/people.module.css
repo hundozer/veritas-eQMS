@@ -207,3 +207,9 @@
   color: var(--ink);
   margin-bottom: 4px;
 }
+
+/* The reset form opens in a full-width row under the member it is for. */
+.ledger .formRow td {
+  padding: 4px 16px 16px;
+  white-space: normal;
+}
