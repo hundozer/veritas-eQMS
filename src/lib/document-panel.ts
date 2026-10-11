@@ -39,12 +39,13 @@ export function documentPanelActions(
   const hasEffective = doc.versions.some((v) => v.status === 'EFFECTIVE');
   const actions: PanelAction[] = [];
 
-  if (doc.status === 'DRAFT' && can.canAuthor) actions.push('REPLACE_FILE', 'SUBMIT_REVIEW');
+  if (doc.status === 'DRAFT' && can.canEditDraft) actions.push('REPLACE_FILE');
+  if (doc.status === 'DRAFT' && can.canSubmitForReview) actions.push('SUBMIT_REVIEW');
   if (doc.status === 'IN_REVIEW' && isAssignedReviewer) actions.push('SIGN_REVIEW', 'RETURN');
   if (doc.status === 'IN_REVIEW' && isAssignedApprover && review?.status === 'COMPLETED') actions.push('SIGN_APPROVE');
   if (doc.status === 'APPROVED' && can.canRelease) actions.push('SIGN_RELEASE');
-  if (doc.status === 'EFFECTIVE' && can.canAuthor) actions.push('START_REVISION');
-  if (can.canWithdrawRevision && ['DRAFT', 'IN_REVIEW', 'APPROVED'].includes(doc.status) && hasEffective) actions.push('WITHDRAW_REVISION');
+  if (doc.status === 'EFFECTIVE' && can.canEditDraft) actions.push('START_REVISION');
+  if (can.canEditDraft && ['DRAFT', 'IN_REVIEW', 'APPROVED'].includes(doc.status) && hasEffective) actions.push('WITHDRAW_REVISION');
   if (can.canObsolete && ['DRAFT', 'APPROVED', 'EFFECTIVE'].includes(doc.status)) actions.push('SIGN_RETIRE');
   return actions;
 }
