@@ -1,7 +1,7 @@
 import { PrismaClient } from '@prisma/client';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { ownerDatabaseUrl } from './connections';
-import { createFullAccessRole, markers, requestAs, seedTenant, type SeededTenant } from './fixtures';
+import { addMember, createFullAccessRole, markers, requestAs, seedTenant, type SeededTenant } from './fixtures';
 
 const owner = new PrismaClient({ datasourceUrl: ownerDatabaseUrl() });
 let a: SeededTenant;
@@ -130,5 +130,24 @@ describe('two-tenant isolation through the real routes and the application datab
     expect(list.status).toBe(200);
     expectNoneOf(await bodyText(list), a);
     expect(detail.status).toBe(404);
+  });
+
+  it('ISO-T011 the user list names each member\'s organisation role from the caller\'s tenant only', async () => {
+    const bravoRole = await owner.iamRole.create({
+      data: { name: `Bravo-only role ${a.tenantId}`, description: 'Database test role', isSystem: false },
+    });
+    const bravoMember = await addMember(owner, b, 'Signer', bravoRole.id);
+    const alphaRole = await owner.iamRole.findUniqueOrThrow({ where: { id: a.roleId } });
+
+    const { GET } = await import('@/app/api/users/route');
+    const response = await GET(requestAs(a, '/api/users'));
+    const body = await response.json() as { users: Array<{ id: string; roleName: string | null }> };
+
+    expect(response.status).toBe(200);
+    expect(body.users.find((member) => member.id === a.operationalUserId)?.roleName).toBe(alphaRole.name);
+    expect(body.users.find((member) => member.id === a.colleagueId)?.roleName).toBeNull();
+    const text = JSON.stringify(body);
+    expect(text).not.toContain(bravoRole.name);
+    expect(text).not.toContain(bravoMember.userId);
   });
 });

@@ -78,7 +78,7 @@
 
 .ledger {
   width: 100%;
-  min-width: 620px;
+  min-width: 720px;
   border-collapse: collapse;
 }
 
@@ -167,14 +167,14 @@
   outline-offset: 2px;
 }
 
-/* On a phone each member becomes a short block: name, email, sign-in, action. */
+/* On a phone each member becomes a short block: name, email, role, sign-in, action. */
 @media (max-width: 720px) {
   .ledger { min-width: 0; }
   .ledger thead { display: none; }
   .ledger tbody tr { display: block; padding: 12px 16px; border-bottom: 1px solid var(--rule); }
   .ledger tbody tr:last-child { border-bottom: 0; }
   .ledger td, .ledger tbody th { display: block; padding: 2px 0; border: 0; }
-  .ledger td:nth-child(3) { display: none; }
+  .ledger td:nth-child(4) { display: none; }
   .actions { text-align: left; white-space: normal; }
 }
 
