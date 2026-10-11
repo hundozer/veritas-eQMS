@@ -11,7 +11,8 @@ a capability updates it in the same pull request. Status words:
 - **Dormant data**: tables kept for history; no code reads or writes them.
 
 Decisions are referenced as `DEC-nnn` (`docs/recovery/decisions/DECISION-LOG.md`);
-the plan is `docs/ROADMAP.md`; review rules are `docs/REVIEW.md`; the user's
+the plan is `docs/ROADMAP.md` (Roadmap V3; direction in `docs/product/`, status
+against it in `docs/product/current-state.md`); review rules are `docs/REVIEW.md`; the user's
 view, flow by flow, is `docs/USER-MANUAL.md`.
 
 Last updated: 10 Oct 2026 (workspace overview redesign).
@@ -72,7 +73,7 @@ Last updated: 10 Oct 2026 (workspace overview redesign).
 | Failed sign-in limit: 5 failures per email or 20 per network address in 15 minutes, then `429` before the password is checked; unknown emails are limited the same way; a successful sign-in clears the email's count; every failure and success recorded in `IamAuditTrail` (`LOGIN_FAILED` with reason, `LOGIN_SUCCEEDED`) | Live | `src/lib/iam/login-throttle.ts` (DEC-079) |
 | Two-step verification for everyone: after the password, a 6-digit code from an authenticator app (RFC 6238); first sign-in sets it up (QR code, setup key, add-to-passwords link); secrets stored AES-256-GCM encrypted with `MFA_ENCRYPTION_KEY`; the password step only issues a 5-minute pending cookie for `/api/auth/mfa`; 5 wrong codes in 15 minutes stop the code step; each code accepted once; every step in `IamAuditTrail`; without the key, sign-in fails closed (`503`) | Live | `POST /api/auth/login`, `POST /api/auth/mfa`, `src/lib/iam/mfa.ts`, `src/lib/iam/totp.ts` (DEC-080) |
 | Reset a member's two-step verification (lost phone), with a reason; not one's own, not for a person in another organisation; audited in both audit trails | Live, `users.update` | `POST /api/users/[id]/mfa-reset`; "Reset two-step verification" on the People tab opens a reason form in the member's row |
-| SSO | Not built (Phase 4) | — |
+| SSO | Not built (after the MVP, `docs/product/mvp-scope.md`) | — |
 
 Persisted permissions: `users.read/create/update/deactivate`,
 `documents.read/create/update_draft/submit_review/review/approve/release/obsolete`,
@@ -161,13 +162,14 @@ transaction.
 Change control (`/api/change-requests`), deviations (`/api/deviations`) and
 CAPA (`/api/capas`) answer `503`; their client code was removed (DEC-039,
 DEC-040). `ChangeRequest` tables are tenant-scoped with row-level security,
-ready for Phase 3. Deviations and CAPA return in Phase 3 on the shared
-signature, audit and isolation services.
+ready for VER-02. Deviations and CAPA return in VER-02 on the shared
+primitives and the relationship graph (`docs/architecture/quality-workflows.md`).
 
 ## Dormant data
 
-Kept for history, no code reads or writes them, retired later by a reviewed
-migration: `Equipment`, `MaintenanceLog`, `Supplier`, `SupplierAttachment`,
+Kept for history, no code reads or writes them. Supplier, audit-plan and
+regulatory tables are reviewed when VER-06 and VER-07 start (not reused by
+default); the rest are retired later by a reviewed migration: `Equipment`, `MaintenanceLog`, `Supplier`, `SupplierAttachment`,
 `SupplierAudit`, `MaterialReceipt`, `AuditPlan`, `AuditFinding`, `Regulation`,
 `RegulationVersion`, `SourceDocument`, `Chapter`, `Section`, `Requirement`,
 `TenantRequirementAssessment`, `TenantRequirementMapping`,

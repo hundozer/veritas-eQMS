@@ -1,19 +1,145 @@
-# Veritas Roadmap
+# Veritas Roadmap (V3)
 
-Product: document and training control for small EU GMP life-sciences companies.
-Development: Claude writes and self-reviews (see `docs/REVIEW.md`), the product owner
-merges and signs each gate. Phases run in order; a phase starts only when the
-previous gate has passed.
+Product: connected quality management for small and mid-sized regulated
+life-sciences organisations. Promise: **know what changed, know what it
+affects, know what to do next** (`docs/product/vision.md`).
 
-Full audit and rationale: "Veritas eQMS — Code Audit & Roadmap" (5 Oct 2026).
+Roadmap V3 was set by the owner on 11 Oct 2026 (Product Strategy Reset,
+DEC-091). It replaces the former Phases 3 and 4; Phases 0–2 and their evidence
+are kept below as history. Status per capability: `docs/product/current-state.md`.
+Work is tracked as GitHub issues, one per phase with sub-issues for P0 work.
 
-## Current phase: 2 — Training and validation pack
+Development: Claude and Száva develop; Claude self-reviews against
+`docs/REVIEW.md`; the owner merges, releases and decides every gate.
 
-The owner started Phase 2 on 9 Oct 2026 with the Phase 1 gate not yet run in
-production (DEC-074); the gate stays open and is run when a second person is
-invited.
+## Order of work
 
-## Phase 0 — Unblock production (weeks 1–2)
+1. Close critical VER-00 gaps.
+2. Minimum viable relationship graph (contracts and versioning first).
+3. Change control. 4. Deviations and CAPA. 5. First Quality Impact Map.
+6. Evidence readiness. 7. Guided setup. 8. MVP release gate.
+9. VER-06. 10. VER-07.
+
+Phases are not built in parallel; a later phase may start once the contracts
+it depends on are merged.
+
+## VER-00 — Trust and operational foundation (P0, current)
+
+- [ ] Invitation email live: verify the sending domain in Resend, run one real
+      invitation end to end (code done, DEC-063).
+- [ ] Password recovery for active accounts.
+- [ ] Member role changes (audited, sessions re-checked).
+- [ ] Member deactivation with immediate session revocation.
+- [ ] Administrator session revocation; revocation on role change,
+      deactivation and password reset.
+- [ ] Organisation choice at sign-in for people with several memberships.
+- [x] Tenant isolation (row-level security, two-tenant suite in CI).
+- [x] Electronic-signature integrity (DEC-062, DEC-072).
+- [ ] Document and training acceptance run in production (the former Phase 1
+      gate, DEC-074).
+- [x] Audit trail integrity (append-only, DEC-057).
+- [ ] Backup and restore: documented procedure and an executed restore drill
+      into a separate environment.
+- [ ] Customer evidence export for documents and training (first slice of
+      VER-04 packages).
+- [ ] Validation-support documentation: intended use, supplier information,
+      customer validation guidance (CI pack exists, DEC-081).
+- [ ] Reconcile the August risk register against current code and deployment;
+      external penetration test (owner arranges).
+- [ ] Remove abandoned direct-upload staging objects (DEC-068).
+
+**Gate:** a customer can administer its organisation, run controlled document
+and training workflows, recover access, revoke access and retrieve
+trustworthy evidence without developer intervention. No unresolved critical
+security or data-integrity finding.
+
+## VER-01 — Quality relationship graph (P0)
+
+Typed, tenant-scoped, version-aware relationships between quality records:
+`docs/architecture/quality-relationship-graph.md` (ADR-001, DEC-086).
+
+- [ ] Node registry and link tables with taxonomy enforced in code and database.
+- [ ] System-derived adapters for existing relations (training, versions).
+- [ ] Bounded, cycle-safe, permission-aware traversal with paths.
+- [ ] Link create / confirm / retire API with audit; two-tenant tests.
+- [ ] `CONTROL` records and document → control mapping.
+
+**Gate:** for an SOP revision, Veritas returns its training requirements,
+control mappings and linked quality records, each with the reason it is
+related, within the caller's permissions.
+
+## VER-02 — Connected quality workflows (P0)
+
+Change control, deviations, CAPA on shared primitives:
+`docs/architecture/quality-workflows.md` (ADR-002, DEC-087).
+
+- [ ] Shared primitives: record numbering, tasks with due dates, signature
+      meanings per module.
+- [ ] Change control lifecycle (extends the tenant-scoped `ChangeRequest`).
+- [ ] Deviation and CAPA tables brought to tenant standard (composite keys,
+      row-level security), then their lifecycles.
+- [ ] Integrated scenario: deviation → investigation → CAPA → change control
+      → SOP revision → training → effectiveness → closure.
+
+**Gate:** the integrated scenario runs through real APIs and UI with
+permission checks, linked evidence and automated integration tests.
+
+## VER-03 — Quality Impact Map (P0, signature differentiator)
+
+`docs/features/quality-impact-map.md` (ADR-003, DEC-088).
+
+**Gate:** from an SOP revision, a QA manager runs an impact assessment,
+reviews every finding, assigns follow-up and approves it with a signature as
+retrievable evidence.
+
+## VER-04 — Continuous evidence readiness (P0)
+
+`docs/features/evidence-readiness.md` (ADR-004, DEC-089).
+
+**Gate:** a QA manager finds a specific gap, resolves it through the right
+workflow and exports a traceable evidence package.
+
+## VER-05 — Guided quality system setup (P0, adoption)
+
+`docs/features/guided-setup.md`.
+
+**Gate:** a new organisation imports a small SOP library and gets a working
+document and training environment without developer database work.
+
+## Competitive MVP release gate
+
+VER-00 to VER-05 passed, plus the conditions in `docs/product/mvp-scope.md`.
+Merged code alone never makes the MVP commercially or regulatorily ready.
+
+## VER-06 — Competitive expansion (P1)
+
+Internal audits (programme, scheduling, scope, auditors, findings, evidence,
+CAPA linkage, closure) and supplier quality (register, risk, qualification,
+approval, requalification, supplier deviations, CAPA linkage), both on the
+relationship graph and evidence readiness. Dormant tables `AuditPlan`,
+`AuditFinding` and `Supplier*` are reviewed, not reused by default.
+
+## VER-07 — Regulatory intelligence (P2)
+
+Authoritative, versioned sources; documented applicability decisions;
+human-reviewed interpretation; requirement → control and requirement → SOP
+mapping; change impact; evidence coverage; traceable provenance. No automated
+compliance determinations. Dormant `Regulation*` and `Requirement` tables are
+reviewed; `TenantRequirementMapping` is not reused (ADR-001).
+
+## Out of scope
+
+Equipment and calibration, quizzes with stored answer keys, ABAC engine,
+multi-product IAM, AI-generated findings without human review
+(`docs/architecture/human-accountability.md`).
+
+## History: Phases 0–2 (Roadmap V1/V2)
+
+Kept as the record of completed work. The Phase 1 gate and the Phase 2 items
+still open moved into VER-00. The former Phase 2 gate (pilots, independent QA
+review of the validation pack) is part of the MVP release gate.
+
+### Phase 0 — Unblock production (weeks 1–2)
 
 - [x] Obsoleting a document no longer retires the effective version while a
       revision is open.
@@ -53,7 +179,7 @@ production; its version and `DOCUMENT_CREATED` audit row hold the same SHA-256,
 and the viewer served the stored object after recomputing that hash. Audit
 protection was verified on 6 Oct 2026.
 
-## Phase 1 — Document control slice (months 1–3)
+### Phase 1 — Document control slice (months 1–3)
 
 - Split `src/app/page.tsx` into `(marketing)` and `(app)` route groups; the UI is
   gated by session permissions, never `User.role`.
@@ -126,7 +252,7 @@ protection was verified on 6 Oct 2026.
 the isolation suite passes.
 Not yet run in production; deferred by the owner (DEC-074).
 
-## Phase 2 — Training and validation pack (months 3–5)
+### Phase 2 — Training and validation pack (months 3–5)
 
 - [x] Retraining assigned when a version becomes effective; "read and understood"
   signature; training matrix.
@@ -159,33 +285,3 @@ Not yet run in production; deferred by the owner (DEC-074).
   Open: the penetration test, arranged by the owner.
 
 **Gate:** 1–3 paying pilots and an independent QA review of the validation pack.
-
-## Phase 3 — Quality events (months 6–9)
-
-- Deviation and CAPA on the shared signature, audit and isolation services.
-- Change control as part of document revision, linked to CAPA.
-
-**Gate:** pilots renew, and at least two contracts ask for quality events.
-
-## Phase 4 — Customer-driven (months 9–12)
-
-- SAML/OIDC SSO, self-service onboarding, periodic review reminders.
-- Anything else only when a signed contract asks for it.
-
-## Backlog
-
-Parked by the owner; not part of any phase gate until taken up again.
-
-- Invitation email in production (owner, 7 Oct 2026; taken up again 9 Oct 2026).
-  `EMAIL_FROM` is set in Production to `Simpleafied Veritas
-  <contact@simpleafied.app>` (9 Oct 2026); `simpleafied.app` must be verified in
-  Resend. The separate administrator account `contact@simpleafied.app`
-  (Organization Owner) was created in production on 9 Oct 2026 by
-  `prisma/maintenance/2026-10-09-administrator-account.sql` (DEC-071), with the
-  owner's approval; the owner then sets its password from a link requested at
-  `/auth/setup-password`.
-
-## Out of scope
-
-Supplier management, equipment and calibration, regulatory intelligence and AI
-mapping, quizzes with stored answer keys, ABAC engine, multi-product IAM.

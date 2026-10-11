@@ -82,6 +82,19 @@ qualified human reviewer of record.
 - [ ] Both CI jobs (`.github/workflows/ci.yml`) are green on the PR head: unit
       tests, types and lint; migration drift check and `npm run test:db`.
 
+### Product principles (`docs/product/vision.md`)
+- [ ] Anything Veritas flags or suggests shows why: the rule id and the
+      relationship path behind it. No unexplained scores.
+- [ ] Nothing automated approves, closes, signs or sets a controlled status;
+      suggestions stay suggestions until a person decides
+      (`docs/architecture/human-accountability.md`).
+- [ ] Relationships between quality records go through the relationship graph
+      and its taxonomy (ADR-001), not ad-hoc ID columns or polymorphic tables.
+- [ ] No compliance, validation or inspection-readiness claims in UI, docs or
+      copy.
+
 ### Scope
 - [ ] The PR delivers one capability from the current roadmap phase.
 - [ ] No new module, route, or UI outside the current phase.
+- [ ] `docs/product/current-state.md` is updated when a capability changes
+      status.

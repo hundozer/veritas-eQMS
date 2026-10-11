@@ -1,10 +1,13 @@
 # Veritas
 
-Document and training control for small EU GMP companies: controlled
-documents from draft through review, approval and release, "read and
-understood" training on every released version, electronic signatures, and
-an audit trail that cannot be edited. Multi-tenant; each customer is one
-organisation and sees only its own records.
+Connected quality management for small and mid-sized regulated
+life-sciences organisations. The direction: **know what changed, know what it
+affects, know what to do next** (`docs/product/vision.md`). Today Veritas
+does document and training control: controlled documents from draft through
+review, approval and release, "read and understood" training on every
+released version, electronic signatures, and an audit trail that cannot be
+edited. Multi-tenant; each customer is one organisation and sees only its own
+records.
 
 Production: Vercel, deployed from `main`. Regulated customers will rely on
 this code, so correctness beats speed.
@@ -13,11 +16,13 @@ this code, so correctness beats speed.
 
 | File | What it tells you |
 | --- | --- |
+| `docs/product/` | Vision, strategy, MVP scope, current state against the roadmap |
 | `docs/USER-MANUAL.md` | Every user flow, step by step, as a user sees it |
 | `docs/FEATURES.md` | What is built, live, disabled or dormant, and where it lives |
-| `docs/ROADMAP.md` | The current phase and its open items; work only on those |
+| `docs/ROADMAP.md` | Roadmap V3 (VER-00 … VER-07); work only on the current phase |
+| `docs/architecture/`, `docs/features/` | Relationship graph, workflows, human accountability, impact map, evidence readiness, guided setup |
 | `docs/REVIEW.md` | The checklist every pull request must pass |
-| `CLAUDE.md` | Working rules (they apply to people as much as to Claude) |
+| `AGENTS.md` | Working rules for every developer and coding agent |
 | `docs/recovery/decisions/DECISION-LOG.md` | Why things are the way they are (`DEC-nnn`) |
 
 ## How work gets done
