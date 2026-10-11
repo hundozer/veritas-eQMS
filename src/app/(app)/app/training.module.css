@@ -1,0 +1,379 @@
+/* Training tab in the paper language: the member's own "read and
+   understood" record as a sheet, then the training matrix as a ruled grid.
+   Theme variables only (light and dark); system fonts only (BUILD-T001). */
+
+.page {
+  --serif: 'Iowan Old Style', 'Charter', 'Bitstream Charter', 'Sitka Text', Cambria, Georgia, serif;
+  --ink: var(--t1);
+  --rule: var(--border);
+  max-width: 1240px;
+  display: flex;
+  flex-direction: column;
+  gap: 36px;
+  padding: 8px 0 72px;
+  color: var(--ink);
+}
+
+.mono {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.muted {
+  color: var(--t2);
+}
+
+.label {
+  display: block;
+  font-size: 12px;
+  font-variant: small-caps;
+  text-transform: lowercase;
+  letter-spacing: 0.06em;
+  color: var(--t2);
+}
+
+.intro {
+  border-bottom: 2px solid var(--ink);
+  padding-bottom: 14px;
+}
+
+.headline {
+  font-family: var(--serif);
+  font-weight: 400;
+  font-size: clamp(28px, 3.4vw, 40px);
+  line-height: 1.08;
+  letter-spacing: -0.02em;
+}
+
+.lede {
+  margin-top: 6px;
+  font-size: 15px;
+  color: var(--t2);
+}
+
+/* Own record sheet */
+
+.sheet {
+  background: var(--card-bg);
+  border: 1px solid var(--ink);
+  box-shadow: 4px 4px 0 var(--rule);
+}
+
+.sheetHead {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 6px 20px;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--ink);
+}
+
+.sheetKind {
+  font-size: 14px;
+  font-weight: 400;
+  font-variant: small-caps;
+  text-transform: lowercase;
+  letter-spacing: 0.06em;
+  color: var(--t2);
+}
+
+.sheetNote {
+  font-size: 13px;
+  color: var(--t2);
+}
+
+.rows {
+  list-style: none;
+}
+
+.row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 130px 210px;
+  grid-template-areas:
+    'doc dates state'
+    'actions actions actions';
+  align-items: baseline;
+  gap: 8px 24px;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--rule);
+}
+
+.row:last-child {
+  border-bottom: 0;
+}
+
+.rowOpen {
+  background: var(--lime3);
+}
+
+.rowDoc {
+  grid-area: doc;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.rowTitle {
+  font-family: var(--serif);
+  font-size: 19px;
+  font-weight: 400;
+  line-height: 1.25;
+}
+
+.rowDates {
+  grid-area: dates;
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.rowState {
+  grid-area: state;
+  font-size: 14px;
+}
+
+.rowActions {
+  grid-area: actions;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding-top: 4px;
+}
+
+.signed {
+  font-weight: 600;
+}
+
+.open {
+  font-weight: 600;
+}
+
+@media (max-width: 720px) {
+  .row {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      'doc doc'
+      'dates state'
+      'actions actions';
+  }
+}
+
+.primary,
+.outline {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 18px;
+  border-radius: 0;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background-color 140ms ease;
+}
+
+.primary {
+  border: 1.5px solid var(--ink);
+  background: var(--ink);
+  color: var(--card-bg);
+}
+
+.primary:hover {
+  background: var(--dark);
+  border-color: var(--dark);
+}
+
+.outline {
+  border: 1.5px solid var(--ink);
+  background: var(--card-bg);
+  color: var(--ink);
+}
+
+.outline:hover {
+  background: var(--blight);
+}
+
+.primary:active,
+.outline:active {
+  transform: translateY(1px);
+}
+
+.primary:focus-visible,
+.outline:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
+}
+
+.empty {
+  padding: 18px 16px;
+  font-size: 15px;
+  line-height: 1.55;
+  color: var(--t2);
+}
+
+/* Matrix */
+
+.matrixSection {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.matrixHead {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px 20px;
+  border-bottom: 2px solid var(--ink);
+  padding-bottom: 8px;
+}
+
+.sectionTitle {
+  font-family: var(--serif);
+  font-weight: 400;
+  font-size: 26px;
+}
+
+.counts {
+  display: flex;
+  gap: 14px;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--t2);
+}
+
+.countOpen {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.note {
+  font-size: 13px;
+  color: var(--t2);
+}
+
+.tableScroll {
+  overflow-x: auto;
+  border: 1px solid var(--ink);
+  background: var(--card-bg);
+}
+
+.matrix {
+  border-collapse: collapse;
+  min-width: 100%;
+}
+
+.matrix thead th {
+  text-align: left;
+  vertical-align: bottom;
+  font-weight: 400;
+  font-size: 12px;
+  padding: 10px 12px;
+  border-bottom: 1.5px solid var(--ink);
+  border-left: 1px solid var(--rule);
+  min-width: 130px;
+}
+
+.colTitle {
+  display: block;
+  margin-top: 3px;
+  font-family: var(--serif);
+  font-size: 13px;
+  color: var(--t2);
+  max-width: 160px;
+}
+
+.matrix td {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--rule);
+  border-left: 1px solid var(--rule);
+  font-size: 12px;
+  white-space: nowrap;
+  vertical-align: middle;
+}
+
+.matrix tbody tr:last-child td,
+.matrix tbody tr:last-child th {
+  border-bottom: 0;
+}
+
+.personCol {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  background: var(--card-bg);
+  text-align: left;
+  min-width: 180px;
+  border-right: 1px solid var(--ink);
+}
+
+.matrix thead .personCol {
+  border-left: 0;
+}
+
+.matrix tbody th {
+  display: table-cell;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--rule);
+  font-weight: 400;
+  font-size: 12px;
+}
+
+.personName {
+  display: block;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.cellOpen {
+  background: var(--lime3);
+  font-weight: 600;
+}
+
+.none {
+  color: var(--t3);
+}
+
+.tick {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  margin-right: 6px;
+  background: var(--ink);
+  color: var(--card-bg);
+  font-size: 11px;
+  vertical-align: -3px;
+}
+
+.ring {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  margin-right: 6px;
+  border: 2px solid var(--ink);
+  border-radius: 50%;
+  vertical-align: -2px;
+}
+
+.cellText {
+  font-family: var(--font-mono);
+}
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 22px;
+  font-size: 13px;
+  color: var(--t2);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .primary, .outline { transition: none; }
+}
