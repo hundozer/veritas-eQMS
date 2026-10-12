@@ -138,8 +138,6 @@ export function RoleForm({ roles, currentRoleName, subject, onSubmit, onCancel }
   const [reason, setReason] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const roleFieldId = useId();
-  const reasonId = useId();
   const roleRef = useRef<HTMLSelectElement>(null);
   useEffect(() => roleRef.current?.focus(), []);
 
@@ -166,15 +164,13 @@ export function RoleForm({ roles, currentRoleName, subject, onSubmit, onCancel }
       onCancel={onCancel}
       onSubmit={handleSubmit}
     >
-      <label htmlFor={roleFieldId} className={styles.label}>New role</label>
-      <select id={roleFieldId} ref={roleRef} className={styles.field} value={roleId} required onChange={(event) => setRoleId(event.target.value)}>
+      <SelectField label="New role" selectRef={roleRef} value={roleId} required onChange={(event) => setRoleId(event.target.value)}>
         <option value="">Choose a role</option>
         {roles.map((role) => (
           <option key={role.id} value={role.id} disabled={role.name === currentRoleName}>{role.name}</option>
         ))}
-      </select>
-      <label htmlFor={reasonId} className={styles.label}>Reason for the change</label>
-      <textarea id={reasonId} className={styles.field} rows={3} value={reason} required onChange={(event) => setReason(event.target.value)} />
+      </SelectField>
+      <TextAreaField label="Reason for the change" value={reason} required onChange={(event) => setReason(event.target.value)} />
     </FormSheet>
   );
 }
