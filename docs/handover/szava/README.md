@@ -1,5 +1,17 @@
 # Handover package for Száva
 
+> **Platform change (DEC-092, 12 Oct 2026).** The Veritas MVP is now built on the Simpleafied
+> platform in the `simpleafied` GitHub organisation (Kotlin services, Keycloak identity), with the
+> work split by layer: Claude's team builds UI, flows and the paper design system; Száva's team
+> builds architecture and backend. Process and architecture decisions live in `simpleafied/architecture`.
+> This repository keeps running production unchanged until a planned switch; no new backend
+> capability is built here. Product direction, Roadmap V3, the design system and ADR-001/002/005
+> remain the product contracts.
+>
+> The handover's **division of work** (Claude owns foundations, Száva owns modules) is superseded.
+> Its product, design-system and UX chapters remain valid and are the UI team's reference.
+
+
 Start here: **[VERITAS_DEVELOPMENT_HANDOVER.md](VERITAS_DEVELOPMENT_HANDOVER.md)**
 (the entry point, with the starter prompt for your AI at the end).
 
