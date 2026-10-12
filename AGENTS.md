@@ -14,6 +14,14 @@ Shared instructions for every coding agent (Claude, Codex, Száva's agent)
 and for human developers. Agent-specific notes live in `CLAUDE.md`; how the
 two development teams work in parallel is in `CONTRIBUTING.md`.
 
+> **Platform change (DEC-092, 12 Oct 2026).** The Veritas MVP is now built on the Simpleafied
+> platform in the `simpleafied` GitHub organisation (Kotlin services, Keycloak identity), with the
+> work split by layer: Claude's team builds UI, flows and the paper design system; Száva's team
+> builds architecture and backend. Process and architecture decisions live in `simpleafied/architecture`.
+> This repository keeps running production unchanged until a planned switch; no new backend
+> capability is built here. Product direction, Roadmap V3, the design system and ADR-001/002/005
+> remain the product contracts.
+
 ## What Veritas is becoming
 
 A connected quality management platform for 10–100-person European biotech,

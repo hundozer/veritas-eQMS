@@ -1,5 +1,18 @@
 # Veritas development handover
 
+> **Platform change (DEC-092, 12 Oct 2026).** The Veritas MVP is now built on the Simpleafied
+> platform in the `simpleafied` GitHub organisation (Kotlin services, Keycloak identity), with the
+> work split by layer: Claude's team builds UI, flows and the paper design system; Száva's team
+> builds architecture and backend. Process and architecture decisions live in `simpleafied/architecture`.
+> This repository keeps running production unchanged until a planned switch; no new backend
+> capability is built here. Product direction, Roadmap V3, the design system and ADR-001/002/005
+> remain the product contracts.
+>
+> Chapters 1, 2, 4–8 and 12 (product, roadmap, design, UX, definition of done) remain valid.
+> Chapters 3, 9–11 describe this repository's architecture and the former division of work; for
+> new work the Simpleafied ADRs and proposals take precedence.
+
+
 **For:** Száva (`maczikasz`) and his AI development agent
 **From:** Claude (core architecture and shared foundations), for the product owner
 **Version:** 1.0, 11 Oct 2026
